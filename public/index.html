@@ -293,6 +293,53 @@ header {
 #headerSpin { display: none; color: var(--accent); }
 #headerSpin.on { display: inline-flex; }
 
+/* ── Sidebar live system-info block (temps + fans) ── */
+.side-sys {
+  margin: 14px 4px 0; padding: 10px 11px; border-radius: 11px;
+  border: 1px solid var(--hairline); background: var(--surface-1);
+  cursor: pointer; text-align: left; width: calc(100% - 8px); font: inherit;
+  display: none; flex-direction: column; gap: 8px;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.side-sys.on { display: flex; }
+.side-sys:hover { background: var(--surface-3); border-color: var(--hairline-2); }
+.side-sys .ss-row { display: flex; align-items: center; gap: 8px; }
+.side-sys .ss-ico { display: inline-flex; color: var(--text-3); flex: none; }
+.side-sys .ss-lab { font-size: 11px; color: var(--text-3); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-sys .ss-val { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.side-sys .ss-val.warm { color: var(--warn); }
+.side-sys .ss-val.hot { color: #ff6b61; }
+:root[data-theme="light"] .side-sys .ss-val.warm { color: #b8860b; }
+:root[data-theme="light"] .side-sys .ss-val.hot { color: #d63a30; }
+.side-sys .ss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; }
+.side-sys .ss-dot.warm { background: var(--warn); }
+.side-sys .ss-dot.hot { background: var(--danger); }
+
+/* ── Disk chip + popover (moved off the rail) ── */
+.disk-chip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  border-radius: 9px; border: 1px solid var(--hairline); background: var(--surface-1); color: var(--text-2);
+  font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
+.disk-chip:hover { background: var(--surface-2); border-color: var(--hairline-2); color: var(--text-1); }
+.disk-chip .ic { color: var(--text-3); }
+.disk-chip .dbar { width: 46px; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; flex: none; }
+.disk-chip .dbar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.disk-chip .dpct { font-variant-numeric: tabular-nums; }
+#diskPop { position: fixed; z-index: 210; width: 280px; padding: 16px; display: none;
+  background: var(--glass-strong); border: 1px solid var(--hairline-2); border-radius: var(--r-md);
+  box-shadow: var(--shadow-3); animation: fadeIn var(--dur-1) var(--ease); }
+#diskPop.open { display: block; }
+#diskPop .dp-ring { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+#diskPop .dp-num { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+#diskPop .dp-num span { font-size: 12px; font-weight: 500; color: var(--text-3); margin-left: 4px; }
+#diskPop .dp-fact { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; padding: 4px 0; }
+#diskPop .dp-fact span { color: var(--text-2); }
+#diskPop .dp-fact b { font-weight: 600; font-variant-numeric: tabular-nums; }
+#diskPop .dp-track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 2px 0 12px; }
+#diskPop .dp-track > i { display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), #5e9dff); }
+
 /* ════════════════════════════ Layout ════════════════════════════ */
 main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position: relative; }
 .view { display: none; animation: viewIn var(--dur-3) var(--ease); }
@@ -714,6 +761,139 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .upd-head .ic { color: var(--text-3); }
 .upd-link { text-decoration: none; }
 @media (max-width: 900px) { .apps-wrap { grid-template-columns: 1fr; } .apps-list-card, .apps-detail-card { min-height: 0; } }
+
+/* ════════════════════════════ Fans view (TG Pro-style) ════════════════════════════ */
+.fans-wrap { max-width: 1180px; }
+.fans-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.fans-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 11px; }
+.fans-head h1 .ic { color: var(--accent); }
+.status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 99px;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--hairline);
+  background: var(--surface-1); color: var(--text-2); }
+.status-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+.status-pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.status-pill.ok .dot { background: var(--ok); }
+.status-pill.boost { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-soft); }
+.status-pill.boost .dot { background: var(--accent); animation: pulse 1.6s var(--ease) infinite; }
+.status-pill.macos { color: var(--text-2); }
+.status-pill.macos .dot { background: #5E5CE6; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.fans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.fans-col { display: flex; flex-direction: column; gap: 18px; }
+@media (max-width: 1120px) { .fans-grid { grid-template-columns: 1fr; } }
+
+/* Sensors panel */
+.sensor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.sensor { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--hairline); box-shadow: inset 0 1px 0 var(--shine);
+  transition: border-color var(--dur-2) var(--ease); }
+.sensor.hottest { border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: inset 0 1px 0 var(--shine), 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent); }
+.sensor .s-gauge { position: relative; width: 40px; height: 40px; flex: none; }
+.sensor .s-gauge svg { transform: rotate(-90deg); display: block; }
+.sensor .s-meta { min-width: 0; flex: 1; }
+.sensor .s-name { font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sensor .s-badge { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 5px; padding: 0 4px; margin-left: 6px; }
+.sensor .s-val { font-size: 19px; font-weight: 700; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; }
+.sensor .s-val .u { font-size: 11px; font-weight: 500; color: var(--text-3); margin-left: 1px; }
+.sensor.normal .s-val { color: var(--text-1); }
+.sensor.warm .s-val { color: var(--warn); }
+.sensor.hot .s-val { color: #ff6b61; }
+:root[data-theme="light"] .sensor.warm .s-val { color: #b8860b; }
+:root[data-theme="light"] .sensor.hot .s-val { color: #d63a30; }
+.sensor .ring-t-bg { fill: none; stroke: var(--surface-3); stroke-width: 4; }
+.sensor .ring-t-fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset var(--dur-3) var(--ease); }
+
+/* Fan cards */
+.fan-card { padding: 16px 18px; }
+.fan-card + .fan-card { margin-top: 12px; }
+.fan-card .fc-top { display: flex; align-items: baseline; gap: 10px; }
+.fan-card .fc-name { font-size: 13px; font-weight: 600; color: var(--text-2); flex: 1; }
+.mode-chip { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 6px; border: 1px solid var(--hairline); color: var(--text-3); background: var(--surface-1); }
+.mode-chip.auto { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.mode-chip.manual { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.mode-chip.macos { color: #8f8dff; border-color: rgba(94,92,230,0.4); }
+.fan-card .fc-rpm { display: flex; align-items: baseline; gap: 6px; margin: 6px 0 2px; }
+.fan-card .fc-rpm b { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
+.fan-card .fc-rpm .u { font-size: 12px; color: var(--text-3); font-weight: 500; }
+.fan-card .fc-note { font-size: 11.5px; color: var(--text-3); min-height: 15px; }
+.fan-range { position: relative; height: 6px; border-radius: 3px; background: var(--surface-2); margin: 10px 0 6px; overflow: visible; }
+.fan-range > .fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--ok), var(--accent)); transition: width var(--dur-3) var(--ease); }
+.fan-range > .cur { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  border: 2px solid var(--accent); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  transition: left var(--dur-3) var(--ease); }
+.fan-range > .tgt { position: absolute; top: -3px; width: 2px; height: 12px; border-radius: 1px; background: var(--warn);
+  transform: translateX(-50%); transition: left var(--dur-3) var(--ease); }
+.fan-range-labels { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-3);
+  font-variant-numeric: tabular-nums; }
+
+/* Control panel */
+.ctrl-seg { width: 100%; display: flex; margin: 2px 0 16px; }
+.ctrl-seg button { flex: 1; }
+.slider-block { margin-top: 4px; }
+.slider-row { display: flex; align-items: center; gap: 14px; }
+.slider-row input[type="range"] { flex: 1; }
+.slider-val { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; letter-spacing: -0.4px; }
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px;
+  background: var(--surface-3); cursor: pointer; outline: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px;
+  border-radius: 50%; background: #fff; border: 2px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3); transition: transform var(--dur-1) var(--ease); }
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+input[type="range"]:disabled { opacity: 0.5; cursor: default; }
+input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3); }
+.mapped-list { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.mapped-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--text-2); }
+.mapped-row .mr-name { flex: 1; }
+.mapped-row .mr-rpm { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.custom-fan { margin-top: 14px; }
+.custom-fan + .custom-fan { border-top: 1px solid var(--hairline); padding-top: 14px; }
+.custom-fan .cf-head { display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 8px; }
+.custom-fan .cf-head b { font-weight: 600; }
+.custom-fan .cf-head .cf-rpm { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* Active-boost banner */
+.boost-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r-md);
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent); margin-bottom: 16px; }
+.boost-banner .ic { color: var(--accent); flex: none; }
+.boost-banner .bb-text { flex: 1; font-size: 13px; }
+.boost-banner .bb-text b { font-weight: 600; }
+.boost-banner .bb-text span { display: block; font-size: 11.5px; color: var(--text-2); margin-top: 1px; }
+
+/* Auto-rules */
+.rules-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.rules-head .rh-title { flex: 1; font-size: 13px; font-weight: 600; }
+.arule { display: grid; grid-template-columns: 1fr 92px 1fr 30px; gap: 10px; align-items: center; padding: 9px 0;
+  border-top: 1px solid var(--hairline); }
+.arule:first-of-type { border-top: none; }
+.arule .ar-slider { display: flex; align-items: center; gap: 8px; }
+.arule .ar-slider input[type="range"] { flex: 1; }
+.arule .ar-pct { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.arule input[type="number"] { width: 100%; }
+.rules-caption { font-size: 11.5px; color: var(--text-3); margin-top: 10px; line-height: 1.5; }
+.rules-disabled { opacity: 0.5; pointer-events: none; }
+
+/* Onboarding card */
+.onboard { text-align: center; padding: 26px 22px; }
+.onboard .ob-mark { width: 60px; height: 60px; border-radius: 16px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center; color: var(--accent);
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.onboard .ob-mark .ic { width: 30px; height: 30px; }
+.onboard h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 8px; }
+.onboard p { font-size: 13px; color: var(--text-2); line-height: 1.6; max-width: 420px; margin: 0 auto 18px; }
+.safety-line { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: var(--text-3);
+  line-height: 1.5; margin-top: 14px; }
+.safety-line .ic { color: var(--text-3); flex: none; margin-top: 1px; }
+.fans-foot { margin-top: 18px; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); }
+.fans-foot .link-btn { border: none; background: none; color: var(--text-3); font: inherit; font-size: 11.5px;
+  text-decoration: underline; cursor: pointer; padding: 0; }
+.fans-foot .link-btn:hover { color: var(--text-2); }
 </style>
 </head>
 <body>
@@ -722,9 +902,25 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 <header>
   <div class="header-right">
     <span id="headerSpin" aria-hidden="true"></span>
+    <button class="disk-chip" id="diskChip" aria-label="Disk usage" title="Disk usage" aria-haspopup="true" aria-expanded="false" hidden>
+      <span data-icon="hardDrive" data-size="15"></span>
+      <span class="dbar"><i id="diskChipBar" style="width:0%"></i></span>
+      <span class="dpct num" id="diskChipPct">—</span>
+    </button>
     <button class="icon-btn" id="themeToggle" aria-label="Toggle light or dark theme" title="Toggle theme"><span data-icon="moon"></span></button>
   </div>
 </header>
+
+<!-- ═══════════ Disk usage popover ═══════════ -->
+<div id="diskPop" role="dialog" aria-label="Disk usage">
+  <div class="dp-ring">
+    <span class="dp-num"><span class="num" id="dpPct">—</span><span data-i18n="used">used</span></span>
+  </div>
+  <div class="dp-track"><i id="dpBar" style="width:0%"></i></div>
+  <div class="dp-fact"><span data-i18n="totalDisk">Total disk</span><b class="num" id="dpTotal">—</b></div>
+  <div class="dp-fact"><span data-i18n="freeSpace">Free</span><b class="num" id="dpFree">—</b></div>
+  <div class="dp-fact"><span data-i18n="usedSpace">Used</span><b class="num" id="dpUsed">—</b></div>
+</div>
 
 <aside class="sidebar" role="navigation" aria-label="Sections">
   <div class="logo side-logo">
@@ -756,6 +952,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   <div class="side-group">
     <div class="side-head">Speed</div>
     <button class="side-item" data-view="maintenance"><span data-icon="settings"></span>Performance</button>
+    <button class="side-item" data-view="fans"><span data-icon="fan"></span>Fans</button>
   </div>
 
   <div class="side-group">
@@ -774,7 +971,20 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
     <button class="side-item" data-view="trends"><span data-icon="trendUp"></span>Trends</button>
   </div>
 
-  <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
+  <button class="side-sys side-settings" id="sideSys" aria-label="System temperature and fans — open Fans view" title="Open Fans">
+    <div class="ss-row">
+      <span class="ss-ico" data-icon="thermometer" data-size="14"></span>
+      <span class="ss-lab" id="ssTempLab">CPU</span>
+      <span class="ss-dot" id="ssDot"></span>
+      <span class="ss-val" id="ssTempVal">—</span>
+    </div>
+    <div class="ss-row">
+      <span class="ss-ico" data-icon="fan" data-size="14"></span>
+      <span class="ss-lab" id="ssFanLab" data-i18n="fans">Fans</span>
+      <span class="ss-val" id="ssFanVal">—</span>
+    </div>
+  </button>
+  <button class="side-item" id="settingsBtn" aria-label="Preferences" style="margin-top:6px;"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
 </aside>
 
 <main>
@@ -1069,6 +1279,55 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
       </div>
     </div>
   </section>
+
+  <!-- ═══════════ Fans ═══════════ -->
+  <section class="view" id="view-fans" role="tabpanel" aria-label="Fans" hidden>
+    <div class="fans-wrap">
+      <div class="fans-head">
+        <h1><span data-icon="fan"></span><span data-i18n="fansTitle">Fan Control</span></h1>
+        <span class="status-pill" id="fansPill" hidden><span class="dot"></span><span id="fansPillText"></span></span>
+      </div>
+
+      <div class="fans-grid">
+        <!-- Left column: sensors + fans -->
+        <div class="fans-col">
+          <div class="card glass">
+            <h2><span data-icon="thermometer"></span><span data-i18n="sensors">Sensors</span></h2>
+            <div class="sensor-grid" id="sensorGrid"></div>
+          </div>
+          <div class="card glass">
+            <h2><span data-icon="fan"></span><span data-i18n="fansHardware">Fans</span></h2>
+            <div id="fanCards"></div>
+          </div>
+        </div>
+
+        <!-- Right column: control + auto-rules -->
+        <div class="fans-col">
+          <div class="card glass" id="controlCard">
+            <h2><span data-icon="gauge"></span><span data-i18n="control">Control</span></h2>
+            <div id="controlBody"></div>
+          </div>
+
+          <div class="card glass" id="rulesCard">
+            <div class="rules-head">
+              <span class="rh-title" data-i18n="autoRules">Auto rules</span>
+              <label class="switch"><input type="checkbox" id="rulesMaster"><span class="track"></span></label>
+            </div>
+            <div class="muted" style="margin:-2px 0 8px;" data-i18n="autoRulesDesc">Raise fan speed automatically when a sensor crosses a threshold.</div>
+            <div id="rulesList" class="rules-disabled"></div>
+            <button class="btn" id="rulesAddBtn" style="margin-top:10px;"><span data-icon="plus"></span><span data-i18n="addRule">Add rule</span></button>
+            <div class="rules-caption" data-i18n="rulesHysteresis">Each rule releases 5&nbsp;°C below its trigger, so fans don't oscillate. The highest matching rule wins.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="safety-line">
+        <span data-icon="shield" data-size="14"></span>
+        <span data-i18n="fansSafety">MacCleaner can only raise fan speed above the system minimum — never below. Automatic control is restored the moment you quit or if the app closes unexpectedly.</span>
+      </div>
+      <div class="fans-foot" id="fansFoot"></div>
+    </div>
+  </section>
 </main>
 
 <!-- ═══════════ Selection toolbar ═══════════ -->
@@ -1347,6 +1606,11 @@ const PATHS = {
   ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  // Fan — hub with four curved blades (monochrome, matches Lucide stroke set).
+  fan: '<path d="M12 12c0-3 .5-5.5 3-6.5S20 6 20 8.5c0 2-1.5 3.5-3.5 3.5"/><path d="M12 12c3 0 5.5.5 6.5 3S18 20 15.5 20c-2 0-3.5-1.5-3.5-3.5"/><path d="M12 12c0 3-.5 5.5-3 6.5S4 18 4 15.5C4 13.5 5.5 12 7.5 12"/><path d="M12 12c-3 0-5.5-.5-6.5-3S6 4 8.5 4c2 0 3.5 1.5 3.5 3.5"/><circle cx="12" cy="12" r="1.4"/>',
+  thermometer: '<path d="M14 14.76V4.5a2.5 2.5 0 0 0-5 0v10.26a4.5 4.5 0 1 0 5 0z"/>',
+  wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
 };
 function icon(name, size = 16, cls = '') {
   return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name] || PATHS.file}</svg>`;
@@ -1419,26 +1683,75 @@ if (sysDark && sysDark.addEventListener) sysDark.addEventListener('change', () =
 
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
-  en: { clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.' },
+  en: { clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
+    fans:'Fans',
+    sCpuPerf:'CPU Performance', sCpuEff:'CPU Efficiency', sGpu:'GPU', sSsd:'SSD', sBattery:'Battery', sAmbient:'Ambient', hottest:'Hottest',
+    pillNotInstalled:'Sensors only', pillInstalled:'Control available', pillActiveBoost:'Boost active', pillMacos:'Controlled by macOS',
+    modeAuto:'Auto', modeManual:'Manual', modeMacos:'macOS',
+    ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Custom',
+    autoDesc:'The system manages the fans by temperature. No boost applied.', boostActive:'Boost active', boostActiveDesc:'Fans are held above the system minimum.', backToAuto:'Back to Auto',
+    onboardTitle:'Fan control needs a one-time authorization', onboardBody:'Fan control needs a one-time system authorization (your password, once). Sensors work without it.', installHelper:'Install fan control', sensorsNoHelper:'Temperature and RPM readings already work.',
+    allFans:'All fans', target:'Target', threshold:'Threshold', mappedRpm:'Mapped RPM', controlledByMacos:'controlled by macOS',
+    uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.' },
   es: { dashboard:'Panel', smartScan:'Escaneo inteligente', cleanup:'Limpieza', systemJunk:'Basura del sistema', trash:'Papelera', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', grid:'Cuadrícula', largeOld:'Grandes y antiguos', duplicates:'Duplicados', compare:'Comparar', trends:'Tendencias', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
-    ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar' },
+    ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
+    fans:'Ventiladores', used:'usado', totalDisk:'Disco total', freeSpace:'Libre', usedSpace:'Usado',
+    fansTitle:'Control de ventiladores', sensors:'Sensores', fansHardware:'Ventiladores', control:'Control', autoRules:'Reglas automáticas', autoRulesDesc:'Sube la velocidad automáticamente cuando un sensor supera un umbral.', addRule:'Añadir regla', rulesHysteresis:'Cada regla se libera 5 °C por debajo de su disparador, para que no oscilen. Gana la regla activa más alta.', fansSafety:'MacCleaner solo puede subir la velocidad por encima del mínimo del sistema — nunca por debajo. El control automático se restaura al salir o si la app se cierra de forma inesperada.',
+    sCpuPerf:'CPU rendimiento', sCpuEff:'CPU eficiencia', sGpu:'GPU', sSsd:'SSD', sBattery:'Batería', sAmbient:'Ambiente', hottest:'Más caliente',
+    pillNotInstalled:'Solo sensores', pillInstalled:'Control disponible', pillActiveBoost:'Refuerzo activo', pillMacos:'Gestionado por macOS',
+    modeAuto:'Auto', modeManual:'Manual', modeMacos:'macOS',
+    ctrlAuto:'Auto', ctrlBoost:'Refuerzo', ctrlCustom:'Personalizado',
+    autoDesc:'El sistema gestiona los ventiladores según la temperatura. Sin refuerzo.', boostActive:'Refuerzo activo', boostActiveDesc:'Los ventiladores están por encima del mínimo del sistema.', backToAuto:'Volver a Auto',
+    onboardTitle:'El control de ventiladores necesita una autorización', onboardBody:'El control de ventiladores requiere una autorización única del sistema (tu contraseña, una sola vez). Los sensores funcionan sin ella.', installHelper:'Instalar control', sensorsNoHelper:'Las lecturas de temperatura y RPM ya funcionan.',
+    allFans:'Todos los ventiladores', target:'Objetivo', threshold:'Umbral', mappedRpm:'RPM previstas', controlledByMacos:'controlado por macOS',
+    uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.' },
   ru: { dashboard:'Панель', smartScan:'Умное сканирование', cleanup:'Очистка', systemJunk:'Системный мусор', trash:'Корзина', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', grid:'Сетка', largeOld:'Большие и старые', duplicates:'Дубликаты', compare:'Сравнить', trends:'Тренды', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
-    ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить' },
+    ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
+    fans:'Кулеры', used:'занято', totalDisk:'Всего на диске', freeSpace:'Свободно', usedSpace:'Занято',
+    fansTitle:'Управление кулерами', sensors:'Датчики', fansHardware:'Кулеры', control:'Управление', autoRules:'Автоправила', autoRulesDesc:'Автоматически повышать обороты, когда датчик превышает порог.', addRule:'Добавить правило', rulesHysteresis:'Каждое правило отключается на 5 °C ниже порога, чтобы обороты не скакали. Побеждает самое высокое сработавшее правило.', fansSafety:'MacCleaner может только повышать обороты выше системного минимума — но не понижать. Автоматическое управление восстанавливается при выходе или при неожиданном закрытии приложения.',
+    sCpuPerf:'CPU производит.', sCpuEff:'CPU эконом.', sGpu:'GPU', sSsd:'SSD', sBattery:'Батарея', sAmbient:'Окружение', hottest:'Самый горячий',
+    pillNotInstalled:'Только датчики', pillInstalled:'Управление доступно', pillActiveBoost:'Разгон активен', pillMacos:'Управляется macOS',
+    modeAuto:'Авто', modeManual:'Ручной', modeMacos:'macOS',
+    ctrlAuto:'Авто', ctrlBoost:'Разгон', ctrlCustom:'Вручную',
+    autoDesc:'Система управляет кулерами по температуре. Без разгона.', boostActive:'Разгон активен', boostActiveDesc:'Обороты выше системного минимума.', backToAuto:'Вернуть Авто',
+    onboardTitle:'Для управления нужна авторизация', onboardBody:'Управлению кулерами нужна однократная авторизация системы (ваш пароль, один раз). Датчики работают и без неё.', installHelper:'Установить управление', sensorsNoHelper:'Показания температуры и оборотов уже работают.',
+    allFans:'Все кулеры', target:'Цель', threshold:'Порог', mappedRpm:'Ожидаемые об/мин', controlledByMacos:'управляется macOS',
+    uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.' },
   de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', cleanup:'Bereinigung', systemJunk:'Systemmüll', trash:'Papierkorb', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', grid:'Raster', largeOld:'Groß & alt', duplicates:'Duplikate', compare:'Vergleichen', trends:'Trends', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
-    ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen' },
+    ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
+    fans:'Lüfter', used:'belegt', totalDisk:'Gesamt', freeSpace:'Frei', usedSpace:'Belegt',
+    fansTitle:'Lüftersteuerung', sensors:'Sensoren', fansHardware:'Lüfter', control:'Steuerung', autoRules:'Auto-Regeln', autoRulesDesc:'Lüfter automatisch hochdrehen, wenn ein Sensor eine Schwelle überschreitet.', addRule:'Regel hinzufügen', rulesHysteresis:'Jede Regel löst 5 °C unter ihrem Auslöser wieder aus, damit die Lüfter nicht pendeln. Die höchste zutreffende Regel gewinnt.', fansSafety:'MacCleaner kann die Lüfter nur über das Systemminimum anheben — niemals darunter. Die automatische Steuerung wird beim Beenden oder bei unerwartetem Schließen sofort wiederhergestellt.',
+    sCpuPerf:'CPU Leistung', sCpuEff:'CPU Effizienz', sGpu:'GPU', sSsd:'SSD', sBattery:'Akku', sAmbient:'Umgebung', hottest:'Wärmster',
+    pillNotInstalled:'Nur Sensoren', pillInstalled:'Steuerung verfügbar', pillActiveBoost:'Boost aktiv', pillMacos:'Von macOS geregelt',
+    modeAuto:'Auto', modeManual:'Manuell', modeMacos:'macOS',
+    ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Individuell',
+    autoDesc:'Das System regelt die Lüfter nach Temperatur. Kein Boost.', boostActive:'Boost aktiv', boostActiveDesc:'Die Lüfter laufen über dem Systemminimum.', backToAuto:'Zurück zu Auto',
+    onboardTitle:'Lüftersteuerung braucht eine Freigabe', onboardBody:'Die Lüftersteuerung braucht eine einmalige Systemfreigabe (dein Passwort, einmal). Sensoren funktionieren auch ohne.', installHelper:'Steuerung installieren', sensorsNoHelper:'Temperatur- und Drehzahlwerte funktionieren bereits.',
+    allFans:'Alle Lüfter', target:'Ziel', threshold:'Schwelle', mappedRpm:'Erwartete U/min', controlledByMacos:'von macOS geregelt',
+    uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.' },
   fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', cleanup:'Nettoyage', systemJunk:'Fichiers inutiles', trash:'Corbeille', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', grid:'Grille', largeOld:'Volumineux & anciens', duplicates:'Doublons', compare:'Comparer', trends:'Tendances', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
-    ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter' },
+    ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
+    fans:'Ventilateurs', used:'utilisé', totalDisk:'Disque total', freeSpace:'Libre', usedSpace:'Utilisé',
+    fansTitle:'Contrôle des ventilateurs', sensors:'Capteurs', fansHardware:'Ventilateurs', control:'Contrôle', autoRules:'Règles auto', autoRulesDesc:'Augmenter la vitesse automatiquement quand un capteur dépasse un seuil.', addRule:'Ajouter une règle', rulesHysteresis:"Chaque règle se relâche 5 °C sous son seuil, pour éviter les oscillations. La règle active la plus haute l'emporte.", fansSafety:"MacCleaner ne peut qu'augmenter la vitesse au-dessus du minimum du système — jamais en dessous. Le contrôle automatique est rétabli dès que vous quittez l'app ou si elle se ferme de façon inattendue.",
+    sCpuPerf:'CPU performance', sCpuEff:'CPU efficacité', sGpu:'GPU', sSsd:'SSD', sBattery:'Batterie', sAmbient:'Ambiant', hottest:'Le plus chaud',
+    pillNotInstalled:'Capteurs seuls', pillInstalled:'Contrôle disponible', pillActiveBoost:'Boost actif', pillMacos:'Géré par macOS',
+    modeAuto:'Auto', modeManual:'Manuel', modeMacos:'macOS',
+    ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Personnalisé',
+    autoDesc:'Le système gère les ventilateurs selon la température. Aucun boost.', boostActive:'Boost actif', boostActiveDesc:'Les ventilateurs tournent au-dessus du minimum système.', backToAuto:"Revenir à Auto",
+    onboardTitle:'Le contrôle nécessite une autorisation', onboardBody:"Le contrôle des ventilateurs nécessite une autorisation système unique (votre mot de passe, une fois). Les capteurs fonctionnent sans.", installHelper:'Installer le contrôle', sensorsNoHelper:'Les relevés de température et de vitesse fonctionnent déjà.',
+    allFans:'Tous les ventilateurs', target:'Cible', threshold:'Seuil', mappedRpm:'Tr/min prévus', controlledByMacos:'géré par macOS',
+    uninstallHelper:'Désinstaller le contrôle des ventilateurs', helperInstalled:'Contrôle des ventilateurs installé.', boostApplied:'Boost appliqué', autoRestored:'Contrôle automatique rétabli', rulesSaved:'Règles enregistrées', installed:'Contrôle des ventilateurs installé', installCancelled:'Installation annulée — vous pourrez le faire plus tard.', installFailed:"Impossible d'installer le contrôle", domain:'Capteur', noRules:'Aucune règle — ajoutez-en une pour accélérer en cas de chaleur.' },
 };
 function t(key) {
   const lang = state.lang || 'en';
   return (STRINGS[lang] && STRINGS[lang][key]) || key;
 }
 // Sidebar/header labels are translated from JS maps (no markup changes needed).
-const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', apps:'uninstaller', updater:'updater', grid:'grid', duplicates:'duplicates', compare:'compare', trends:'trends' };
+const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', grid:'grid', duplicates:'duplicates', compare:'compare', trends:'trends' };
 const SIDE_TEXT_KEYS = { 'System Junk':'systemJunk', 'Trash':'trash', 'Large & Old':'largeOld' };
 const HEAD_KEYS = { 'Cleanup':'cleanup', 'Speed':'speed', 'Applications':'applications', 'Files':'files' };
 function firstTextNode(el) { for (const n of el.childNodes) { if (n.nodeType === 3 && n.textContent.trim()) return n; } return null; }
@@ -1476,6 +1789,9 @@ function applyLang(lang, announce) {
   if (state.view === 'fastclean' && typeof resetFc === 'function' && !state.fastclean.cleaning) {
     $('fcSub').textContent = STRINGS[state.lang] && STRINGS[state.lang].ssSub ? STRINGS[state.lang].ssSub : ($('fcSub').dataset.en || $('fcSub').textContent);
   }
+  // Sidebar live block + Fans view carry dynamically-rendered strings.
+  if (typeof updateSideSys === 'function' && state.fans && state.fans.status) updateSideSys(state.fans.status);
+  if (state.view === 'fans' && state.fans && state.fans.status) { renderFansLive(state.fans.status); renderRules(); }
 }
 document.querySelectorAll('.lang-opt').forEach(o => o.addEventListener('click', () => applyLang(o.dataset.lang, true)));
 // applyLang() is called after `state` is defined.
@@ -1531,6 +1847,8 @@ const state = {
   fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false },
   apps: { loaded: false, items: [], selected: null, leftovers: null, sel: new Set() },
   updater: {},
+  fans: { status: null, helperState: null, poll: 0, pollMs: 0, mode: 'auto', boostPct: 0,
+          customPct: {}, rules: null, ok: true, boostTimer: 0, customTimer: 0, rendered: false, viewMode: null },
   lang: 'en',
 };
 
@@ -1556,7 +1874,7 @@ function switchView(name) {
   // Trends + Compare read persisted history; Fast Clean is system-wide — all
   // work without a folder scan.
   const standalone = name === 'trends' || name === 'compare' || name === 'fastclean'
-    || name === 'apps' || name === 'updater' || name === 'maintenance';
+    || name === 'apps' || name === 'updater' || name === 'maintenance' || name === 'fans';
   const empty = !state.root && !state.scanning && !standalone;
   tabs.forEach(b => b.setAttribute('aria-current', String(b.dataset.view === name)));
   document.querySelectorAll('.view').forEach(v => {
@@ -1581,7 +1899,9 @@ function switchView(name) {
   if (name === 'apps') loadApps();
   if (name === 'updater') loadUpdater();
   if (name === 'maintenance') loadMaintenance();
+  if (name === 'fans') enterFansView();
   if (name === 'dashboard') loadActivity();
+  fanPollAdjust();
 }
 
 /* ───────────────────────────── System info ───────────────────────────── */
@@ -1600,6 +1920,7 @@ async function loadSystem() {
     const C = 2 * Math.PI * 55;
     requestAnimationFrame(() => { $('ringFg').style.strokeDashoffset = String(C * (1 - pct)); });
     if (!$('pathInput').value) $('pathInput').value = sys.homeDir;
+    updateDiskChip();
   } catch (e) {
     toast('Could not load system info: ' + e.message, 'error');
   }
@@ -3957,6 +4278,474 @@ document.querySelectorAll('[data-close]').forEach(b =>
 document.querySelectorAll('.modal-backdrop').forEach(bd =>
   bd.addEventListener('mousedown', (e) => { if (e.target === bd) bd.classList.remove('open'); }));
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Fan control + live system-info block. One shared poller drives both the
+   sidebar block and the Fans view: 3s while the Fans view is open, 5s
+   otherwise, paused entirely while the window is hidden. Sensors and RPM
+   read fine with no helper installed; boost/custom need the helper (409).
+   ═══════════════════════════════════════════════════════════════════════ */
+const SENSOR_ORDER = ['cpuPerf','cpuEff','gpu','ssd','battery','ambient'];
+const SENSOR_KEY = { cpuPerf:'sCpuPerf', cpuEff:'sCpuEff', gpu:'sGpu', ssd:'sSsd', battery:'sBattery', ambient:'sAmbient' };
+const RULE_DOMAINS = ['hottest','cpuPerf','cpuEff','gpu','ssd','battery'];
+
+/** Temperature → tier class. ≤60 normal, 60–80 warm, >80 hot. */
+function tempTier(c) { return c > 80 ? 'hot' : c >= 60 ? 'warm' : 'normal'; }
+function fmtTemp(c) { return (Math.round(c * 10) / 10).toFixed(1); }
+
+/* ── Shared status fetch ── */
+let fanFetching = false;
+async function fetchFanStatus() {
+  if (fanFetching) return;
+  fanFetching = true;
+  try {
+    const s = await api('/api/fans/status');
+    state.fans.status = s;
+    state.fans.helperState = s.helperState;
+    state.fans.ok = true;
+    if (!state.fans.rules && s.rulesConfig) state.fans.rules = s.rulesConfig;
+    updateSideSys(s);
+    if (state.view === 'fans') renderFansLive(s);
+  } catch (e) {
+    // Degrade gracefully: hide the sidebar block, no console spam.
+    state.fans.ok = false;
+    $('sideSys').classList.remove('on');
+    $('diskChip')?.setAttribute('hidden', '');
+  } finally {
+    fanFetching = false;
+  }
+}
+
+/* ── Single poller with adaptive interval, paused when hidden ── */
+function fanPollAdjust() {
+  const wantMs = document.hidden ? 0 : (state.view === 'fans' ? 3000 : 5000);
+  if (wantMs === state.fans.pollMs) return;
+  state.fans.pollMs = wantMs;
+  if (state.fans.poll) { clearInterval(state.fans.poll); state.fans.poll = 0; }
+  if (wantMs > 0) {
+    fetchFanStatus();
+    state.fans.poll = setInterval(fetchFanStatus, wantMs);
+  }
+}
+document.addEventListener('visibilitychange', fanPollAdjust);
+
+/* ── Sidebar live block: hottest sensor + fan RPM summary + CPU temp ── */
+function updateSideSys(s) {
+  const block = $('sideSys');
+  if (!s || !s.temps) { block.classList.remove('on'); return; }
+  block.classList.add('on');
+  // Hottest tile drives the top row (temp + color dot). Use the labelled CPU
+  // perf value if hottest has no friendly domain.
+  const hottestC = s.temps.hottest ? s.temps.hottest.value : s.temps.cpuPerf;
+  const cpuC = s.temps.cpuPerf;
+  const tier = tempTier(hottestC);
+  $('ssTempLab').textContent = t('hottest');
+  const tv = $('ssTempVal'); tv.textContent = fmtTemp(hottestC) + '°C';
+  tv.className = 'ss-val ' + (tier === 'normal' ? '' : tier);
+  const dot = $('ssDot'); dot.className = 'ss-dot ' + (tier === 'normal' ? '' : tier);
+  // Fan summary: RPM average, or "macOS" when thermal-managed / stopped.
+  const fans = s.fans || [];
+  const anyThermal = fans.some(f => f.mode === 'thermal');
+  const avg = fans.length ? Math.round(fans.reduce((a, f) => a + (f.actualRpm || 0), 0) / fans.length) : 0;
+  $('ssFanLab').textContent = t('fans');
+  $('ssFanVal').textContent = (anyThermal && avg === 0) ? t('modeMacos')
+    : (avg > 0 ? formatCount(avg) + ' RPM' : t('modeMacos'));
+}
+$('sideSys').addEventListener('click', () => switchView('fans'));
+
+/* ───────────────────────────── Disk chip + popover ───────────────────────────── */
+function updateDiskChip() {
+  const sys = state.system;
+  const chip = $('diskChip');
+  if (!sys || !sys.totalDisk) { chip.setAttribute('hidden', ''); return; }
+  const used = sys.totalDisk - sys.freeDisk;
+  const pct = Math.round((used / sys.totalDisk) * 100);
+  chip.removeAttribute('hidden');
+  $('diskChipBar').style.width = pct + '%';
+  $('diskChipPct').textContent = pct + '%';
+  $('dpPct').textContent = pct + '% ';
+  $('dpBar').style.width = pct + '%';
+  $('dpTotal').textContent = formatBytes(sys.totalDisk);
+  $('dpFree').textContent = formatBytes(sys.freeDisk);
+  $('dpUsed').textContent = formatBytes(used);
+}
+function openDiskPop() {
+  updateDiskChip();
+  const pop = $('diskPop'), chip = $('diskChip');
+  const r = chip.getBoundingClientRect();
+  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
+  pop.style.left = 'auto';
+  pop.classList.add('open');
+  chip.setAttribute('aria-expanded', 'true');
+}
+function closeDiskPop() { $('diskPop').classList.remove('open'); $('diskChip').setAttribute('aria-expanded', 'false'); }
+$('diskChip').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('diskPop').classList.contains('open') ? closeDiskPop() : openDiskPop();
+});
+document.addEventListener('mousedown', (e) => {
+  if ($('diskPop').classList.contains('open') && !$('diskPop').contains(e.target) && e.target.closest('#diskChip') == null)
+    closeDiskPop();
+});
+
+/* ───────────────────────────── Fans view ───────────────────────────── */
+function enterFansView() {
+  // Reset the view-mode segmented state from the live helper/boost state.
+  const hs = state.fans.helperState;
+  if (hs === 'active-boost') state.fans.viewMode = state.fans.viewMode || 'boost';
+  else if (state.fans.viewMode == null) state.fans.viewMode = 'auto';
+  // Kick an immediate fetch; renderFansLive() paints the rest.
+  if (state.fans.status) renderFansLive(state.fans.status);
+  else { $('sensorGrid').innerHTML = skeletonRows(6, 60); }
+  fetchFanStatus();
+  loadFanRules();
+}
+
+async function loadFanRules() {
+  try {
+    const cfg = await api('/api/fans/rules');
+    state.fans.rules = cfg;
+    renderRules();
+  } catch (e) { /* keep whatever we have */ }
+}
+
+/* ── Live paint: pill + sensors + fan cards + control (mode-aware) ── */
+function renderFansLive(s) {
+  if (state.view !== 'fans') return;
+  renderStatusPill(s.helperState, s.fans);
+  renderSensors(s.temps);
+  renderFanCards(s.fans, s.temps);
+  renderControl(s);
+  renderFansFoot(s.helperState);
+}
+
+function renderStatusPill(helperState, fans) {
+  const pill = $('fansPill'), txt = $('fansPillText');
+  pill.hidden = false;
+  const anyThermal = (fans || []).some(f => f.mode === 'thermal');
+  let cls = 'status-pill', key;
+  if (helperState === 'active-boost') { cls += ' boost'; key = 'pillActiveBoost'; }
+  else if (anyThermal) { cls += ' macos'; key = 'pillMacos'; }
+  else if (helperState === 'installed') { cls += ' ok'; key = 'pillInstalled'; }
+  else { key = 'pillNotInstalled'; }
+  pill.className = cls;
+  txt.textContent = t(key);
+}
+
+function renderSensors(temps) {
+  if (!temps) return;
+  const hottestKey = temps.hottest ? temps.hottest.key : null;
+  // Determine which domain is the hottest by value to highlight it.
+  let hotDomain = null, hotVal = -Infinity;
+  for (const d of SENSOR_ORDER) {
+    if (typeof temps[d] === 'number' && temps[d] > hotVal) { hotVal = temps[d]; hotDomain = d; }
+  }
+  const C = 2 * Math.PI * 16;
+  $('sensorGrid').innerHTML = SENSOR_ORDER.map(d => {
+    const v = temps[d];
+    if (typeof v !== 'number') return '';
+    const tier = tempTier(v);
+    const stroke = tier === 'hot' ? 'var(--danger)' : tier === 'warm' ? 'var(--warn)' : 'var(--ok)';
+    const frac = Math.max(0, Math.min(1, v / 100));
+    const off = C * (1 - frac);
+    const isHot = d === hotDomain;
+    return `<div class="sensor ${tier}${isHot ? ' hottest' : ''}">
+      <div class="s-gauge"><svg width="40" height="40" viewBox="0 0 40 40">
+        <circle class="ring-t-bg" cx="20" cy="20" r="16"/>
+        <circle class="ring-t-fg" cx="20" cy="20" r="16" stroke="${stroke}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>
+      </svg></div>
+      <div class="s-meta">
+        <div class="s-name">${escapeHtml(t(SENSOR_KEY[d]))}${isHot ? `<span class="s-badge">${escapeHtml(t('hottest'))}</span>` : ''}</div>
+        <div class="s-val">${fmtTemp(v)}<span class="u">°C</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderFanCards(fans, temps) {
+  const host = $('fanCards');
+  if (!fans || !fans.length) { host.innerHTML = '<div class="muted">No fans reported.</div>'; return; }
+  host.innerHTML = fans.map(f => {
+    const isThermal = f.mode === 'thermal';
+    const rpm = f.actualRpm || 0;
+    const range = Math.max(1, f.maxRpm - f.minRpm);
+    const curFrac = Math.max(0, Math.min(1, (rpm - f.minRpm) / range));
+    const tgtFrac = Math.max(0, Math.min(1, (f.targetRpm - f.minRpm) / range));
+    const modeCls = f.mode === 'auto' ? 'auto' : f.mode === 'manual' ? 'manual' : 'macos';
+    const modeKey = f.mode === 'auto' ? 'modeAuto' : f.mode === 'manual' ? 'modeManual' : 'modeMacos';
+    const showTgt = f.mode === 'manual' && Math.abs(f.targetRpm - rpm) > 30;
+    const note = (isThermal && rpm === 0)
+      ? '0 RPM · ' + t('controlledByMacos')
+      : (isThermal ? t('controlledByMacos') : '');
+    return `<div class="fan-card tile">
+      <div class="fc-top">
+        <span class="fc-name">${escapeHtml(f.label)}</span>
+        <span class="mode-chip ${modeCls}">${escapeHtml(t(modeKey))}</span>
+      </div>
+      <div class="fc-rpm"><b class="num">${formatCount(rpm)}</b><span class="u">RPM</span></div>
+      <div class="fc-note">${escapeHtml(note)}</div>
+      <div class="fan-range">
+        <div class="fill" style="width:${(curFrac * 100).toFixed(1)}%"></div>
+        <div class="cur" style="left:${(curFrac * 100).toFixed(1)}%"></div>
+        ${showTgt ? `<div class="tgt" style="left:${(tgtFrac * 100).toFixed(1)}%"></div>` : ''}
+      </div>
+      <div class="fan-range-labels"><span>${formatCount(f.minRpm)}</span><span>${formatCount(f.maxRpm)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Control panel: onboarding (no helper) OR segmented Auto/Boost/Custom ── */
+function renderControl(s) {
+  const body = $('controlBody');
+  if (s.helperState === 'not-installed') {
+    body.innerHTML = `<div class="onboard">
+      <div class="ob-mark">${icon('fan', 30)}</div>
+      <h3>${escapeHtml(t('onboardTitle'))}</h3>
+      <p>${escapeHtml(t('onboardBody'))}</p>
+      <button class="btn btn-primary" id="installHelperBtn">${icon('shield', 15)}${escapeHtml(t('installHelper'))}</button>
+      <div class="muted" style="margin-top:12px;font-size:11.5px;">${escapeHtml(t('sensorsNoHelper'))}</div>
+    </div>`;
+    $('installHelperBtn').addEventListener('click', installHelper);
+    return;
+  }
+  // Helper present. Sync viewMode with live boost state.
+  if (s.helperState === 'active-boost' && state.fans.viewMode === 'auto') state.fans.viewMode = 'boost';
+  const mode = state.fans.viewMode || 'auto';
+  const banner = s.helperState === 'active-boost' ? `
+    <div class="boost-banner">
+      ${icon('zap', 18)}
+      <div class="bb-text"><b>${escapeHtml(t('boostActive'))}</b><span>${escapeHtml(t('boostActiveDesc'))}</span></div>
+      <button class="btn" id="bannerAutoBtn">${escapeHtml(t('backToAuto'))}</button>
+    </div>` : '';
+  body.innerHTML = banner + `
+    <div class="seg ctrl-seg" role="tablist">
+      <button role="tab" data-fmode="auto" aria-selected="${mode === 'auto'}">${escapeHtml(t('ctrlAuto'))}</button>
+      <button role="tab" data-fmode="boost" aria-selected="${mode === 'boost'}">${escapeHtml(t('ctrlBoost'))}</button>
+      <button role="tab" data-fmode="custom" aria-selected="${mode === 'custom'}">${escapeHtml(t('ctrlCustom'))}</button>
+    </div>
+    <div id="ctrlPane"></div>`;
+  body.querySelectorAll('[data-fmode]').forEach(b => b.addEventListener('click', () => {
+    state.fans.viewMode = b.dataset.fmode;
+    if (b.dataset.fmode === 'auto') setFansAuto();
+    else renderControl(state.fans.status);
+  }));
+  $('bannerAutoBtn')?.addEventListener('click', setFansAuto);
+  renderCtrlPane(s, mode);
+}
+
+function renderCtrlPane(s, mode) {
+  const pane = $('ctrlPane');
+  if (!pane) return;
+  const fans = s.fans || [];
+  if (mode === 'auto') {
+    pane.innerHTML = `<div class="muted">${escapeHtml(t('autoDesc'))}</div>`;
+    return;
+  }
+  if (mode === 'boost') {
+    const pct = state.fans.boostPct;
+    pane.innerHTML = `
+      <div class="slider-block">
+        <div class="slider-row">
+          <input type="range" min="0" max="100" step="1" value="${pct}" id="boostSlider" aria-label="${escapeHtml(t('allFans'))}">
+          <span class="slider-val num" id="boostVal">${pct}%</span>
+        </div>
+        <div class="mapped-list" id="boostMapped">${boostMappedHtml(fans, pct)}</div>
+      </div>`;
+    const sl = $('boostSlider');
+    sl.addEventListener('input', () => {
+      const p = +sl.value;
+      state.fans.boostPct = p;
+      $('boostVal').textContent = p + '%';
+      $('boostMapped').innerHTML = boostMappedHtml(fans, p);
+      // Debounce the actual commit ~400ms.
+      clearTimeout(state.fans.boostTimer);
+      state.fans.boostTimer = setTimeout(() => commitBoost('all', p), 400);
+    });
+    return;
+  }
+  // Custom: per-fan sliders.
+  pane.innerHTML = fans.map(f => {
+    const pct = state.fans.customPct[f.id] ?? 0;
+    const rpm = f.minRpm + Math.round((f.maxRpm - f.minRpm) * pct / 100);
+    return `<div class="custom-fan" data-fan="${f.id}">
+      <div class="cf-head"><b>${escapeHtml(f.label)}</b><span class="cf-rpm num">${pct}% · <span class="cf-rpmv">${formatCount(rpm)}</span> RPM</span></div>
+      <div class="slider-row">
+        <input type="range" min="0" max="100" step="1" value="${pct}" class="custom-slider" data-fan="${f.id}" aria-label="${escapeHtml(f.label)}">
+      </div>
+    </div>`;
+  }).join('');
+  pane.querySelectorAll('.custom-slider').forEach(sl => {
+    sl.addEventListener('input', () => {
+      const id = +sl.dataset.fan, p = +sl.value;
+      state.fans.customPct[id] = p;
+      const f = fans.find(x => x.id === id);
+      const rpm = f.minRpm + Math.round((f.maxRpm - f.minRpm) * p / 100);
+      const wrap = sl.closest('.custom-fan');
+      wrap.querySelector('.cf-rpm').innerHTML = `${p}% · <span class="cf-rpmv">${formatCount(rpm)}</span> RPM`;
+      clearTimeout(state.fans.customTimer);
+      state.fans.customTimer = setTimeout(() => commitBoost(id, p), 400);
+    });
+  });
+}
+
+function boostMappedHtml(fans, pct) {
+  return fans.map(f => {
+    const rpm = f.minRpm + Math.round((f.maxRpm - f.minRpm) * pct / 100);
+    return `<div class="mapped-row"><span class="mr-name">${escapeHtml(f.label)}</span><span class="mr-rpm num">${formatCount(rpm)} RPM</span></div>`;
+  }).join('');
+}
+
+async function commitBoost(fan, percent) {
+  try {
+    const res = await api('/api/fans/boost', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fan, percent }),
+    });
+    state.fans.helperState = res.helperState || state.fans.helperState;
+    // Reflect mapped RPM from the response where available.
+    if (res.applied && $('boostMapped') && fan === 'all') {
+      $('boostMapped').innerHTML = res.applied.map(a => {
+        const f = (state.fans.status.fans || []).find(x => x.id === a.fan);
+        return `<div class="mapped-row"><span class="mr-name">${escapeHtml(f ? f.label : 'Fan ' + a.fan)}</span><span class="mr-rpm num">${formatCount(a.rpm)} RPM</span></div>`;
+      }).join('');
+    }
+    fetchFanStatus();
+  } catch (e) {
+    if (e.code === 'HELPER_NOT_INSTALLED') {
+      // Helper vanished — fall back to onboarding.
+      state.fans.helperState = 'not-installed';
+      renderControl(state.fans.status);
+      toast(t('onboardTitle'), 'error');
+    } else {
+      toast(e.message, 'error');
+    }
+  }
+}
+
+async function setFansAuto() {
+  try {
+    const res = await api('/api/fans/auto', { method: 'POST' });
+    state.fans.helperState = res.helperState || 'installed';
+    state.fans.viewMode = 'auto';
+    state.fans.boostPct = 0;
+    state.fans.customPct = {};
+    toast(t('autoRestored'));
+    fetchFanStatus();
+    renderControl(state.fans.status);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ── Onboarding: install / uninstall helper ── */
+async function installHelper() {
+  const btn = $('installHelperBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = icon('loader', 15, 'spin') + t('installHelper'); }
+  try {
+    const res = await api('/api/fans/install-helper', { method: 'POST' });
+    if (res.status === 'installed') {
+      state.fans.helperState = 'installed';
+      toast(t('installed'));
+      fetchFanStatus();
+    } else if (res.status === 'user-cancelled') {
+      toast(t('installCancelled'), 'success');
+      if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
+    } else {
+      toast(t('installFailed') + (res.detail ? ': ' + res.detail : ''), 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
+    }
+  } catch (e) {
+    toast(t('installFailed') + ': ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
+  }
+}
+async function uninstallHelper() {
+  try {
+    const res = await api('/api/fans/uninstall-helper', { method: 'POST' });
+    if (res.status === 'uninstalled') {
+      state.fans.helperState = 'not-installed';
+      state.fans.viewMode = 'auto';
+      toast(t('autoRestored'));
+      fetchFanStatus();
+    } else if (res.status === 'user-cancelled') {
+      /* stay put */
+    } else {
+      toast(t('installFailed') + (res.detail ? ': ' + res.detail : ''), 'error');
+    }
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderFansFoot(helperState) {
+  const foot = $('fansFoot');
+  if (helperState === 'installed' || helperState === 'active-boost') {
+    foot.innerHTML = `<span>${escapeHtml(t('helperInstalled'))}</span> · <button class="link-btn" id="uninstallHelperBtn">${escapeHtml(t('uninstallHelper'))}</button>`;
+    $('uninstallHelperBtn').addEventListener('click', uninstallHelper);
+  } else {
+    foot.innerHTML = '';
+  }
+}
+
+/* ── Auto-rules card ── */
+$('rulesMaster').addEventListener('change', () => {
+  if (!state.fans.rules) state.fans.rules = { enabled: false, rules: [], pollSeconds: 15 };
+  state.fans.rules.enabled = $('rulesMaster').checked;
+  $('rulesList').classList.toggle('rules-disabled', !state.fans.rules.enabled);
+  saveRules();
+});
+$('rulesAddBtn').addEventListener('click', () => {
+  if (!state.fans.rules) state.fans.rules = { enabled: false, rules: [], pollSeconds: 15 };
+  state.fans.rules.rules.push({ domain: 'hottest', threshold: 80, targetPercent: 60 });
+  if (!state.fans.rules.enabled) { state.fans.rules.enabled = true; $('rulesMaster').checked = true; }
+  renderRules();
+  saveRules();
+});
+function renderRules() {
+  const cfg = state.fans.rules || { enabled: false, rules: [], pollSeconds: 15 };
+  $('rulesMaster').checked = !!cfg.enabled;
+  const list = $('rulesList');
+  list.classList.toggle('rules-disabled', !cfg.enabled);
+  if (!cfg.rules.length) {
+    list.innerHTML = '<div class="muted" style="padding:6px 0;">' + escapeHtml(t('noRules')) + '</div>';
+    return;
+  }
+  list.innerHTML = cfg.rules.map((r, i) => `
+    <div class="arule" data-i="${i}">
+      <select class="ar-domain" aria-label="${escapeHtml(t('domain'))}">
+        ${RULE_DOMAINS.map(d => `<option value="${d}" ${r.domain === d ? 'selected' : ''}>${escapeHtml(d === 'hottest' ? t('hottest') : t(SENSOR_KEY[d]))}</option>`).join('')}
+      </select>
+      <input type="number" class="ar-thresh num" min="30" max="110" value="${r.threshold}" aria-label="${escapeHtml(t('threshold'))} °C">
+      <div class="ar-slider">
+        <input type="range" min="0" max="100" step="5" value="${r.targetPercent}" class="ar-pct-in" aria-label="${escapeHtml(t('target'))}">
+        <span class="ar-pct num">${r.targetPercent}%</span>
+      </div>
+      <button class="icon-btn danger ar-del" aria-label="Remove rule">${icon('x', 15)}</button>
+    </div>`).join('');
+  list.querySelectorAll('.arule').forEach(row => {
+    const i = +row.dataset.i;
+    row.querySelector('.ar-domain').addEventListener('change', e => { state.fans.rules.rules[i].domain = e.target.value; saveRules(); });
+    row.querySelector('.ar-thresh').addEventListener('change', e => {
+      let v = Math.max(30, Math.min(110, +e.target.value || 80));
+      e.target.value = v; state.fans.rules.rules[i].threshold = v; saveRules();
+    });
+    const pin = row.querySelector('.ar-pct-in'), plab = row.querySelector('.ar-pct');
+    pin.addEventListener('input', () => { plab.textContent = pin.value + '%'; state.fans.rules.rules[i].targetPercent = +pin.value; });
+    pin.addEventListener('change', saveRules);
+    row.querySelector('.ar-del').addEventListener('click', () => { state.fans.rules.rules.splice(i, 1); renderRules(); saveRules(); });
+  });
+}
+let rulesSaveTimer = 0;
+function saveRules() {
+  clearTimeout(rulesSaveTimer);
+  rulesSaveTimer = setTimeout(async () => {
+    try {
+      const cfg = await api('/api/fans/rules', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state.fans.rules),
+      });
+      state.fans.rules = cfg; // render the sanitized config back
+      renderRules();
+    } catch (e) { toast(e.message, 'error'); }
+  }, 350);
+}
+
 /* ───────────────────────────── Keyboard shortcuts ───────────────────────────── */
 document.addEventListener('keydown', (e) => {
   const mod = e.metaKey || e.ctrlKey;
@@ -4026,6 +4815,7 @@ window.addEventListener('drop', async (e) => {
 /* ───────────────────────────── Boot ───────────────────────────── */
 switchView('dashboard');
 loadSystem();
+fanPollAdjust(); // start the live temp/fan poller (sidebar block)
 </script>
 </body>
 </html>

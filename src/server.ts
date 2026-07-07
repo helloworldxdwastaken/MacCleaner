@@ -10,6 +10,7 @@ import { cleanerRouter } from './api/cleanerRoutes';
 import { appRouter } from './api/appRoutes';
 import { maintenanceRouter } from './api/maintenanceRoutes';
 import { activityRouter } from './api/activityRoutes';
+import { fanRouter } from './api/fanRoutes';
 import { rateLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { cancelAllScans } from './services/diskScanner';
@@ -44,6 +45,7 @@ export function createApp(publicDir: string): express.Express {
   app.use('/api', appRouter);
   app.use('/api', maintenanceRouter);
   app.use('/api', activityRouter);
+  app.use('/api', fanRouter);
 
   // Frontend: the single-file UI.
   app.use(express.static(publicDir, { index: 'index.html' }));

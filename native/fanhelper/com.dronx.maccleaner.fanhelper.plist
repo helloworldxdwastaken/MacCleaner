@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dronx.maccleaner.fanhelper</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/PrivilegedHelperTools/com.dronx.maccleaner.fanhelper</string>
+        <string>daemon</string>
+    </array>
+
+    <!-- Start immediately at load and keep the daemon alive so the failsafe
+         watchdog is always running whenever a boost could be active. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Run as root: SMC writes are gated by firmware to uid 0. -->
+    <key>UserName</key>
+    <string>root</string>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>StandardOutPath</key>
+    <string>/var/log/com.dronx.maccleaner.fanhelper.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/com.dronx.maccleaner.fanhelper.log</string>
+</dict>
+</plist>

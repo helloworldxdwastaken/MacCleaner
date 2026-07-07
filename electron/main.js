@@ -303,6 +303,16 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('before-quit', () => {
     if (trayTimer) clearInterval(trayTimer);
+    // Best-effort: drop any active fan boost so it never outlives the app.
+    // shutdownFans() fires an `auto` at the root daemon without awaiting
+    // (before-quit doesn't wait for async work); the daemon's own 10-second
+    // heartbeat watchdog is the guaranteed backstop if this write is cut off.
+    try {
+      const { shutdownFans } = require(path.join(__dirname, '..', 'dist', 'services', 'fans.js'));
+      shutdownFans();
+    } catch (err) {
+      console.error('[treemap] fan shutdown skipped:', err?.message || err);
+    }
     if (running) running.shutdown();
   });
 }

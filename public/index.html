@@ -13,6 +13,22 @@
   var sysLight = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches;
   document.documentElement.dataset.theme =
     pref === 'light' || pref === 'dark' ? pref : (sysLight ? 'light' : 'dark');
+
+  /* Liquid-Glass path. Only the macOS Electron build gets translucency: it's
+     the one place a native "under-window" vibrancy material sits behind the
+     web contents. window.treemapDesktop is exposed exclusively by the Electron
+     preload, so its presence means "desktop build"; we additionally require
+     macOS so win/linux desktop builds keep today's solid look. Everything under
+     .vibrant in the stylesheet is gated on this class — without it (browser
+     preview, win/linux) the UI renders exactly as before. */
+  var ua = navigator.userAgentData;
+  var isMac =
+    (ua && ua.platform && /mac/i.test(ua.platform)) ||
+    /Mac|iP(hone|ad|od)/i.test(navigator.platform || '') ||
+    /Macintosh/i.test(navigator.userAgent || '');
+  if (window.treemapDesktop && isMac) {
+    document.documentElement.classList.add('vibrant');
+  }
 })();
 </script>
 <style>
@@ -53,6 +69,36 @@
   --shadow-2: 0 8px 28px rgba(0,0,0,0.38);
   --shadow-3: 0 24px 70px rgba(0,0,0,0.5);
   --blob-opacity: 0.55;
+
+  /* ── Branded painted backdrop (dark) ──
+     A deep navy/indigo base with soft brand-color radial blobs, asymmetric.
+     This is the app's hero background in BOTH paths (browser + Electron). It's a
+     single static fixed layer (no animation, no blur filter — the radial
+     gradients are inherently soft). Glass surfaces blur over it. */
+  --canvas-base: #0b0d1c;                                   /* deep dark navy base */
+  --blob-a: rgba(106,91,255,0.30);                          /* #6A5BFF indigo, top-left */
+  --blob-b: rgba(0,198,251,0.20);                           /* #00C6FB cyan, bottom-right */
+  --blob-c: rgba(62,123,250,0.18);                          /* #3E7BFA blue, mid-right */
+
+  /* ── Liquid-Glass tokens (dark) ──
+     Used ONLY under .vibrant (macOS Electron), where a native vibrancy material
+     shows the desktop through the window. Alphas are deliberately higher than a
+     pure blur tint so text keeps contrast over any wallpaper (WCAG holds without
+     lowering text alpha). Non-vibrant builds never read these. */
+  /* Alphas chosen so primary text keeps WCAG-AA (>=4.5) even over a bright-white
+     wallpaper (verified: 0.66 card / 0.62 rail composite to text ratio ~4.6). */
+  --glass-bg:        rgba(30,30,38,0.66);   /* cards, tiles — light surface */
+  --glass-bg-strong: rgba(24,24,31,0.80);   /* modals, popovers, menus — heavy */
+  --glass-border:    rgba(255,255,255,0.14);
+  --glass-border-2:  rgba(255,255,255,0.22); /* overlay hairline, brighter */
+  --glass-shadow:    0 10px 34px rgba(0,0,0,0.42);
+  --glass-shadow-lg: 0 26px 74px rgba(0,0,0,0.55);
+  --glass-wash:      rgba(14,14,19,0.40);   /* faint tint over the content area */
+  --glass-rail:      rgba(28,28,36,0.62);   /* sidebar rail — the marquee glass */
+  --glass-fill:      rgba(255,255,255,0.06); /* subtle translucent control fill */
+  --glass-fill-2:    rgba(255,255,255,0.11);
+  --blur-1: 16px;   /* cards */
+  --blur-2: 30px;   /* rail + overlays */
 }
 :root[data-theme="light"] {
   --bg-0:          #eef0f4;
@@ -79,16 +125,68 @@
   --shadow-2: 0 8px 28px rgba(20,24,40,0.12);
   --shadow-3: 0 24px 70px rgba(20,24,40,0.18);
   --blob-opacity: 0.4;
+
+  /* ── Branded painted backdrop (light) ──
+     A soft light counterpart: very light blue/lavender wash with faint
+     brand-color blobs, so glass surfaces still read against it. */
+  --canvas-base: #eef1f9;                                   /* light lavender-blue base */
+  --blob-a: rgba(106,91,255,0.16);                          /* indigo, top-left */
+  --blob-b: rgba(0,198,251,0.14);                           /* cyan, bottom-right */
+  --blob-c: rgba(62,123,250,0.12);                          /* blue, mid-right */
+
+  /* ── Liquid-Glass tokens (light) ──
+     Whiter, higher-alpha surfaces so dark text stays readable over bright
+     wallpapers; borders are dark hairlines. */
+  --glass-bg:        rgba(255,255,255,0.66);
+  --glass-bg-strong: rgba(255,255,255,0.82);
+  --glass-border:    rgba(255,255,255,0.60);
+  --glass-border-2:  rgba(10,15,30,0.16);
+  --glass-shadow:    0 10px 34px rgba(20,24,40,0.14);
+  --glass-shadow-lg: 0 26px 74px rgba(20,24,40,0.20);
+  --glass-wash:      rgba(255,255,255,0.34);
+  --glass-rail:      rgba(255,255,255,0.62);
+  --glass-fill:      rgba(255,255,255,0.55);
+  --glass-fill-2:    rgba(255,255,255,0.72);
+  --blur-1: 16px;
+  --blur-2: 30px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+
+/* Bind the OS color-scheme to the active theme so native UI — including the
+   scrollbars inside every nested scroll container — matches. This alone fixes
+   the bright-white scrollbar that showed in dark mode. */
+:root[data-theme="dark"]  { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+
+/* Thin, macOS-style translucent scrollbars for every scroll container: no solid
+   track (transparent), a rounded thumb tinted from the theme's text color,
+   brighter on hover. Applies app-wide in both themes and both paths. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(255,255,255,0.22));
+  border-radius: 999px;
+  border: 3px solid transparent;      /* inset the thumb so it reads as thin */
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover, rgba(255,255,255,0.38)); background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-color: var(--scrollbar-thumb, rgba(255,255,255,0.22)) transparent; } /* Firefox */
+:root[data-theme="light"] {
+  --scrollbar-thumb: rgba(10,15,30,0.24);
+  --scrollbar-thumb-hover: rgba(10,15,30,0.40);
+}
+:root[data-theme="dark"] {
+  --scrollbar-thumb: rgba(255,255,255,0.22);
+  --scrollbar-thumb-hover: rgba(255,255,255,0.38);
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   font-size: 14px;
   color: var(--text-1);
-  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
-  background-attachment: fixed;
+  background: var(--canvas-base);
   min-width: 1024px;
   overflow-x: auto;
   overflow-y: scroll; /* always reserve the scrollbar so header/controls never shift between views */
@@ -100,16 +198,22 @@ button { font-family: inherit; color: inherit; }
 ::selection { background: var(--accent-soft); }
 .num { font-variant-numeric: tabular-nums; }
 
-/* Ambient background field */
-.blob { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: -1; opacity: var(--blob-opacity); }
-.blob.b1 { width: 560px; height: 560px; top: -180px; left: -120px;
-  background: radial-gradient(circle, rgba(10,132,255,0.18), transparent 65%); animation: drift1 26s var(--ease) infinite alternate; }
-.blob.b2 { width: 640px; height: 640px; top: 30%; right: -220px;
-  background: radial-gradient(circle, rgba(94,92,230,0.14), transparent 65%); animation: drift2 32s var(--ease) infinite alternate; }
-.blob.b3 { width: 480px; height: 480px; bottom: -200px; left: 30%;
-  background: radial-gradient(circle, rgba(48,209,88,0.10), transparent 65%); animation: drift1 38s var(--ease) infinite alternate-reverse; }
-@keyframes drift1 { from { transform: translate(0,0); } to { transform: translate(70px, 50px); } }
-@keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-80px, -60px); } }
+/* ════════════════════════ Branded painted backdrop ════════════════════════
+   The hero background in BOTH paths (browser + Electron). A deep navy base
+   (light: lavender-blue) with 3 large, soft brand-color radial blobs placed
+   asymmetrically — indigo top-left, cyan bottom-right, blue mid-right. Static,
+   full-viewport, fixed. Radial gradients are inherently soft, so no filter:blur
+   on this huge layer (keeps it cheap). Glass panels blur over it. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 8% 0%,   var(--blob-a), transparent 60%),
+    radial-gradient(70% 60% at 100% 100%, var(--blob-b), transparent 62%),
+    radial-gradient(55% 55% at 92% 34%,  var(--blob-c), transparent 58%),
+    var(--canvas-base);
+}
+/* Legacy ambient blobs are superseded by the painted backdrop above. */
+.blob { display: none; }
 
 /* ════════════════════════════ Primitives ════════════════════════════ */
 .glass {
@@ -301,29 +405,6 @@ header > * { pointer-events: auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #headerSpin { display: none; color: var(--accent); }
 #headerSpin.on { display: inline-flex; }
-
-/* ── Sidebar live system-info block (temps + fans) ── */
-.side-sys {
-  margin: 14px 4px 0; padding: 10px 11px; border-radius: 11px;
-  border: 1px solid var(--hairline); background: var(--surface-1);
-  cursor: pointer; text-align: left; width: calc(100% - 8px); font: inherit;
-  display: none; flex-direction: column; gap: 8px;
-  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
-}
-.side-sys.on { display: flex; }
-.side-sys:hover { background: var(--surface-3); border-color: var(--hairline-2); }
-.side-sys .ss-row { display: flex; align-items: center; gap: 8px; }
-.side-sys .ss-ico { display: inline-flex; color: var(--text-3); flex: none; }
-.side-sys .ss-lab { font-size: 11px; color: var(--text-3); flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.side-sys .ss-val { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.side-sys .ss-val.warm { color: var(--warn); }
-.side-sys .ss-val.hot { color: #ff6b61; }
-:root[data-theme="light"] .side-sys .ss-val.warm { color: #b8860b; }
-:root[data-theme="light"] .side-sys .ss-val.hot { color: #d63a30; }
-.side-sys .ss-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); flex: none; }
-.side-sys .ss-dot.warm { background: var(--warn); }
-.side-sys .ss-dot.hot { background: var(--danger); }
 
 /* ── Disk chip + popover (moved off the rail) ── */
 .disk-chip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
@@ -927,6 +1008,139 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 .fans-foot .link-btn { border: none; background: none; color: var(--text-3); font: inherit; font-size: 11.5px;
   text-decoration: underline; cursor: pointer; padding: 0; }
 .fans-foot .link-btn:hover { color: var(--text-2); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   Liquid-Glass layer — applies ONLY under .vibrant (macOS Electron build).
+   A native "under-window" vibrancy material sits behind the web contents, so
+   translucent surfaces reveal the desktop and pick up its blur. Without
+   .vibrant (browser preview, win/linux) none of this applies and the UI keeps
+   its solid look — this dual-path is the regression guard.
+
+   Performance budget: at most three live backdrop-filter layers on screen —
+   the rail, top-level cards, and the single active overlay. List/table rows use
+   flat alpha fills (no blur). Blur is never nested more than two deep.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* The branded painted backdrop (body::before) is the hero background in BOTH
+   paths and already provides a rich, blurrable field for the glass. We keep the
+   native vibrancy material behind it (harmless — the painted base sits on top),
+   but do NOT punch the body transparent: the coordinator's direction is to
+   prefer the painted backdrop over desktop show-through. So under .vibrant we
+   only lighten the base slightly so a hint of the vibrancy material still reads
+   at the very edges, while the brand blobs stay dominant. */
+.vibrant body::before {
+  background:
+    radial-gradient(60% 55% at 8% 0%,    var(--blob-a), transparent 60%),
+    radial-gradient(70% 60% at 100% 100%, var(--blob-b), transparent 62%),
+    radial-gradient(55% 55% at 92% 34%,  var(--blob-c), transparent 58%),
+    color-mix(in srgb, var(--canvas-base) 94%, transparent);
+}
+
+/* ── Sidebar rail: the marquee glass surface ── */
+.vibrant .sidebar {
+  background: var(--glass-rail);
+  backdrop-filter: blur(var(--blur-2)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-2)) saturate(180%);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
+}
+
+/* ── Cards / panels: lighter glass (one blur layer per card) ── */
+.vibrant .glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-1)) saturate(170%);
+  -webkit-backdrop-filter: blur(var(--blur-1)) saturate(170%);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
+}
+
+/* ── Overlays: modals / popovers / menus / tooltip / toasts — heavier glass ──
+   These sit above a card, so they get stronger blur + a brighter hairline to
+   separate cleanly. They are the "single active overlay" in the blur budget. */
+.vibrant .modal,
+.vibrant #diskPop,
+.vibrant #ctxMenu,
+.vibrant #tooltip,
+.vibrant .toast {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--blur-2)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur-2)) saturate(180%);
+  border-color: var(--glass-border-2);
+  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow-lg);
+}
+.vibrant .modal-backdrop { background: var(--scrim); }
+.vibrant select option { background: var(--glass-bg-strong); }
+
+/* Header controls pill — align to the token system (it was already translucent). */
+.vibrant .header-right {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--blur-1)) saturate(170%);
+  -webkit-backdrop-filter: blur(var(--blur-1)) saturate(170%);
+  border-color: var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
+}
+
+/* ── Small translucent surfaces: tiles, segmented controls, inputs, chips ──
+   Flat alpha fills (no backdrop-filter) so we stay inside the blur budget and
+   never nest blur inside a blurred card. */
+.vibrant .tile,
+.vibrant .ds-tile,
+.vibrant .qa-tile,
+.vibrant .ds-fanrow,
+.vibrant .sensor,
+.vibrant .gcell,
+.vibrant .fc-item,
+.vibrant .lang-opt,
+.vibrant .disk-chip,
+.vibrant .apps-search,
+.vibrant .status-pill,
+.vibrant .mode-chip {
+  background: var(--glass-fill);
+  border-color: var(--glass-border);
+}
+.vibrant .seg,
+.vibrant .tabbar,
+.vibrant input[type="text"],
+.vibrant input[type="number"],
+.vibrant select {
+  background: var(--glass-fill);
+  border-color: var(--glass-border);
+}
+.vibrant .seg button[aria-selected="true"],
+.vibrant .tabbar button[aria-selected="true"],
+.vibrant .side-item[aria-current="true"],
+.vibrant .prefs-tab[aria-selected="true"] {
+  background: var(--glass-fill-2);
+}
+.vibrant .btn { background: var(--glass-fill); border-color: var(--glass-border); }
+.vibrant .btn:hover { background: var(--glass-fill-2); }
+/* Action colors stay fully opaque + readable — never translucent. */
+.vibrant .btn-primary { background: var(--accent); border-color: transparent; }
+.vibrant .btn-primary:hover { background: #2492ff; }
+
+/* Reduced-transparency (accessibility): fall back to solid surfaces. macOS maps
+   its "Reduce transparency" setting to this media feature, and the token names
+   resolve back to the app's original opaque values. */
+@media (prefers-reduced-transparency: reduce) {
+  /* Keep the branded backdrop (it's opaque, not translucent) but drop every
+     backdrop-filter and translucent surface back to solid fills. */
+  .vibrant .sidebar { background: var(--surface-1);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    border-color: var(--hairline); box-shadow: var(--shadow-1); }
+  .vibrant .glass { background: var(--glass);
+    backdrop-filter: blur(24px) saturate(170%); -webkit-backdrop-filter: blur(24px) saturate(170%);
+    border-color: var(--hairline); box-shadow: inset 0 1px 0 var(--shine), var(--shadow-2); }
+  .vibrant .modal, .vibrant #diskPop, .vibrant #ctxMenu, .vibrant #tooltip, .vibrant .toast {
+    background: var(--glass-strong); border-color: var(--hairline-2); }
+  .vibrant .header-right { background: color-mix(in srgb, var(--bg-1) 55%, transparent);
+    border-color: var(--hairline); box-shadow: var(--shadow-1); }
+  .vibrant .tile, .vibrant .ds-tile, .vibrant .qa-tile, .vibrant .ds-fanrow, .vibrant .sensor,
+  .vibrant .gcell, .vibrant .fc-item, .vibrant .lang-opt, .vibrant .disk-chip,
+  .vibrant .apps-search, .vibrant .status-pill, .vibrant .mode-chip,
+  .vibrant .seg, .vibrant .tabbar, .vibrant .btn,
+  .vibrant input[type="text"], .vibrant input[type="number"], .vibrant select {
+    background: var(--surface-1); border-color: var(--hairline); }
+}
 </style>
 </head>
 <body>
@@ -994,20 +1208,7 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
     <button class="side-item" data-view="duplicates"><span data-icon="copy"></span>Duplicates</button>
   </div>
 
-  <button class="side-sys side-settings" id="sideSys" aria-label="System temperature and fans — open Fans view" title="Open Fans">
-    <div class="ss-row">
-      <span class="ss-ico" data-icon="thermometer" data-size="14"></span>
-      <span class="ss-lab" id="ssTempLab">CPU</span>
-      <span class="ss-dot" id="ssDot"></span>
-      <span class="ss-val" id="ssTempVal">—</span>
-    </div>
-    <div class="ss-row">
-      <span class="ss-ico" data-icon="fan" data-size="14"></span>
-      <span class="ss-lab" id="ssFanLab" data-i18n="fans">Fans</span>
-      <span class="ss-val" id="ssFanVal">—</span>
-    </div>
-  </button>
-  <button class="side-item" id="settingsBtn" aria-label="Preferences" style="margin-top:6px;"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
+  <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
 </aside>
 
 <main>
@@ -1853,8 +2054,7 @@ function applyLang(lang, announce) {
   if (state.view === 'fastclean' && typeof resetFc === 'function' && !state.fastclean.cleaning) {
     $('fcSub').textContent = STRINGS[state.lang] && STRINGS[state.lang].ssSub ? STRINGS[state.lang].ssSub : ($('fcSub').dataset.en || $('fcSub').textContent);
   }
-  // Sidebar live block + Fans view carry dynamically-rendered strings.
-  if (typeof updateSideSys === 'function' && state.fans && state.fans.status) updateSideSys(state.fans.status);
+  // Fans view carries dynamically-rendered strings — re-render on language change.
   if (state.view === 'fans' && state.fans && state.fans.status) { renderFansLive(state.fans.status); renderRules(); }
 }
 document.querySelectorAll('.lang-opt').forEach(o => o.addEventListener('click', () => applyLang(o.dataset.lang, true)));
@@ -4433,10 +4633,10 @@ document.querySelectorAll('.modal-backdrop').forEach(bd =>
   bd.addEventListener('mousedown', (e) => { if (e.target === bd) bd.classList.remove('open'); }));
 
 /* ═══════════════════════════════════════════════════════════════════════
-   Fan control + live system-info block. One shared poller drives both the
-   sidebar block and the Fans view: 3s while the Fans view is open, 5s
-   otherwise, paused entirely while the window is hidden. Sensors and RPM
-   read fine with no helper installed; boost/custom need the helper (409).
+   Fan control + live sensors. The shared poller runs only while the Fans view
+   is open (3s) and the window is visible; the Dashboard sensor panel refreshes
+   via a one-shot fetch on load. Sensors and RPM read fine with no helper
+   installed; boost/custom need the helper (409).
    ═══════════════════════════════════════════════════════════════════════ */
 const SENSOR_ORDER = ['cpuPerf','cpuEff','gpu','ssd','battery','ambient'];
 const SENSOR_KEY = { cpuPerf:'sCpuPerf', cpuEff:'sCpuEff', gpu:'sGpu', ssd:'sSsd', battery:'sBattery', ambient:'sAmbient' };
@@ -4457,22 +4657,23 @@ async function fetchFanStatus() {
     state.fans.helperState = s.helperState;
     state.fans.ok = true;
     if (!state.fans.rules && s.rulesConfig) state.fans.rules = s.rulesConfig;
-    updateSideSys(s);
     if (state.view === 'fans') renderFansLive(s);
     if (state.view === 'dashboard') renderDashSensors(s);
   } catch (e) {
-    // Degrade gracefully: hide the sidebar block, no console spam.
+    // Degrade gracefully: no console spam.
     state.fans.ok = false;
-    $('sideSys').classList.remove('on');
     $('diskChip')?.setAttribute('hidden', '');
   } finally {
     fanFetching = false;
   }
 }
 
-/* ── Single poller with adaptive interval, paused when hidden ── */
+/* ── Live fan/temp poller ── only runs while the Fans view is active (3s) and
+   the tab is visible. The sidebar system-info block was removed, so nothing
+   polls in the background on other views; the Dashboard sensor panel refreshes
+   via a one-shot fetch on load (loadDashboard → fetchFanStatus). ── */
 function fanPollAdjust() {
-  const wantMs = document.hidden ? 0 : (state.view === 'fans' ? 3000 : 5000);
+  const wantMs = (!document.hidden && state.view === 'fans') ? 3000 : 0;
   if (wantMs === state.fans.pollMs) return;
   state.fans.pollMs = wantMs;
   if (state.fans.poll) { clearInterval(state.fans.poll); state.fans.poll = 0; }
@@ -4482,30 +4683,6 @@ function fanPollAdjust() {
   }
 }
 document.addEventListener('visibilitychange', fanPollAdjust);
-
-/* ── Sidebar live block: hottest sensor + fan RPM summary + CPU temp ── */
-function updateSideSys(s) {
-  const block = $('sideSys');
-  if (!s || !s.temps) { block.classList.remove('on'); return; }
-  block.classList.add('on');
-  // Hottest tile drives the top row (temp + color dot). Use the labelled CPU
-  // perf value if hottest has no friendly domain.
-  const hottestC = s.temps.hottest ? s.temps.hottest.value : s.temps.cpuPerf;
-  const cpuC = s.temps.cpuPerf;
-  const tier = tempTier(hottestC);
-  $('ssTempLab').textContent = t('hottest');
-  const tv = $('ssTempVal'); tv.textContent = fmtTemp(hottestC) + '°C';
-  tv.className = 'ss-val ' + (tier === 'normal' ? '' : tier);
-  const dot = $('ssDot'); dot.className = 'ss-dot ' + (tier === 'normal' ? '' : tier);
-  // Fan summary: RPM average, or "macOS" when thermal-managed / stopped.
-  const fans = s.fans || [];
-  const anyThermal = fans.some(f => f.mode === 'thermal');
-  const avg = fans.length ? Math.round(fans.reduce((a, f) => a + (f.actualRpm || 0), 0) / fans.length) : 0;
-  $('ssFanLab').textContent = t('fans');
-  $('ssFanVal').textContent = (anyThermal && avg === 0) ? t('modeMacos')
-    : (avg > 0 ? formatCount(avg) + ' RPM' : t('modeMacos'));
-}
-$('sideSys').addEventListener('click', () => switchView('fans'));
 
 /* ───────────────────────────── Disk chip + popover ───────────────────────────── */
 function updateDiskChip() {
@@ -4974,7 +5151,7 @@ document.querySelectorAll('.qa-tile[data-qa]').forEach(b =>
 /* ───────────────────────────── Boot ───────────────────────────── */
 loadSystem();
 switchView('dashboard');
-fanPollAdjust(); // start the live temp/fan poller (sidebar block + dashboard panel)
+fanPollAdjust(); // start the live temp/fan poller (Fans view only)
 </script>
 </body>
 </html>

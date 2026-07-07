@@ -91,12 +91,22 @@ async function boot() {
 }
 
 function createWindow(port) {
+  const isMac = process.platform === 'darwin';
   mainWindow = new BrowserWindow({
     width: 1320,
     height: 880,
     minWidth: 1024,
     minHeight: 700,
-    backgroundColor: '#0a0a0d',
+    // macOS: a transparent backdrop lets the "under-window" vibrancy material
+    // (the Liquid-Glass look) show the desktop/wallpaper through the app. On
+    // win/linux we keep the opaque solid background so nothing changes there.
+    backgroundColor: isMac ? '#00000000' : '#0a0a0d',
+    ...(isMac
+      ? {
+          vibrancy: 'under-window',
+          visualEffectState: 'active', // keep the material lively even when unfocused
+        }
+      : {}),
     show: false,
     title: 'MacCleaner',
     webPreferences: {

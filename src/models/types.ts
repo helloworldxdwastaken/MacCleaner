@@ -76,6 +76,15 @@ export interface CleanJob {
 export interface CleanResult {
   deleted: string[];
   failed: { path: string; reason: string }[];
+  /**
+   * Authoritative bytes freed, keyed by the paths in `deleted`. Each value is
+   * the size measured (recursively for dirs) by stat-ing the path BEFORE it was
+   * trashed. Only successfully-trashed paths appear here. The frontend must
+   * credit these numbers — never pre-scan estimates.
+   */
+  freedBytes: Record<string, number>;
+  /** Sum of `freedBytes` over all successfully-trashed paths. */
+  totalFreedBytes: number;
 }
 
 export interface SystemInfo {
@@ -296,6 +305,30 @@ export interface MacCleanCategoryResult {
 
 /* ---------- Applications: Uninstaller + Updater ---------- */
 
+/**
+ * One user LaunchAgent (~/Library/LaunchAgents/*.plist). These are the modern
+ * per-user background items (the surface macOS 13+ "Login Items & Extensions"
+ * and CleanMyMac show) that the legacy System Events login-items list misses.
+ */
+export interface LaunchAgent {
+  /** The plist's Label (or the filename stem if it has none). */
+  label: string;
+  /** Absolute path to the .plist. */
+  path: string;
+  /** First entry of ProgramArguments, or the Program key — what it launches. */
+  program: string | null;
+  /** RunAtLoad key (launches at login). */
+  runAtLoad: boolean;
+  /** KeepAlive key (relaunched if it exits). */
+  keepAlive: boolean;
+  /**
+   * Whether the agent is currently loaded/enabled for the user session, from
+   * `launchctl print gui/<uid>/<label>` (falls back to the plist's Disabled key
+   * when launchctl can't be queried). null = couldn't determine.
+   */
+  enabled: boolean | null;
+}
+
 /** One installed macOS application (top-level *.app in /Applications or ~/Applications). */
 export interface AppSummary {
   /** Display name (the .app filename without the extension). */
@@ -352,6 +385,13 @@ export interface AppLeftoversResult {
   leftovers: AppLeftover[];
   /** App bundle + every leftover, bytes. */
   totalSize: number;
+  /**
+   * Present when the app is currently RUNNING. The UI should require the user to
+   * quit the app before uninstalling — trashing a live app's bundle/containers
+   * can corrupt open state or leave the process orphaned. A gentle block/flag,
+   * not a hard server refusal (delete still routes through Trash).
+   */
+  warning?: string;
 }
 
 /** One Homebrew cask with an available update. */
@@ -374,6 +414,15 @@ export interface AppUpdateInfo {
   /** App Store id (kind 'mas'). */
   id?: string;
   latestVersion: string;
+  /**
+   * kind 'cask' only. true = the installed app was matched to this cask by name
+   * ALONE, without a bundle-id confirmation, so `brew install --cask --force`
+   * could overwrite the app with a different vendor's binary. The UI must NOT
+   * one-click these — require explicit user confirmation first.
+   */
+  uncertain?: boolean;
+  /** Human reason a cask match is uncertain (shown on the confirm prompt). */
+  uncertainReason?: string;
 }
 
 /** One installed app in the Updater, with an update if one is available. */

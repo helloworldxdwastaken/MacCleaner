@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import { startScan } from '../services/diskScanner';
 import { emptyTrash, canAccessTrash, openFullDiskAccessSettings } from '../services/cleaner';
-import { CACHE_EXCLUDE } from '../services/macClean';
+import { CACHE_EXCLUDE, buildCachePlan } from '../services/macClean';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -51,6 +51,33 @@ cleanerRouter.get('/cleaner/fast-clean', async (_req: Request, res: Response) =>
     // Access, so its size reads as 0 and emptying will fail until granted.
     trash: { path: trashPath, scanId: trashScan.scanId, accessible: trashAccessible },
     exclude: [...CACHE_EXCLUDE],
+  });
+});
+
+/**
+ * GET /api/cleaner/cache-plan
+ * The SAFE fast-clean plan for ~/Library/Caches: contents-only clearing that
+ * (a) skips the safelist, (b) skips caches of currently-running apps, and
+ * (c) targets each cache dir's CONTENTS (never the cache root dir itself).
+ *
+ * We `startScan()` the Caches root first so every returned content path is
+ * authorized by the existing DELETE /api/files (requireInsideScanRoot) with no
+ * change to the safety model. The frontend trashes `flatPaths` via that endpoint
+ * and credits the server's authoritative freedBytes (see DELETE response).
+ */
+cleanerRouter.get('/cleaner/cache-plan', async (_req: Request, res: Response) => {
+  requireMac();
+  const plan = await buildCachePlan();
+  // Register the Caches root as a scan root so the child content paths validate.
+  const scan = await startScan(plan.root);
+  const flatPaths = plan.entries.flatMap((e) => e.contents);
+  res.json({
+    root: plan.root,
+    scanId: scan.scanId,
+    entries: plan.entries,
+    flatPaths,
+    excluded: plan.excluded,
+    skippedRunning: plan.skippedRunning,
   });
 });
 

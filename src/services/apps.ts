@@ -232,8 +232,26 @@ async function collectLeftovers(
     await pushIfExists(L('Cookies', `${bundleId}.binarycookies`), 'Cookies');
   }
 
-  // Prefix / substring matches that need a directory listing.
+  // Prefix + boundary matches that need a directory listing. Boundary matching
+  // means "com.foo.bar" matches "com.foo.bar" and "com.foo.bar.*", but NEVER
+  // "com.foo.barbaz" — a plain substring/includes test would over-match and
+  // could sweep a sibling app's data (the audit's #6 concern).
   const lowerId = bundleId ? bundleId.toLowerCase() : null;
+  // True when `name` equals the id or is the id followed by a separator we treat
+  // as a boundary (dot for reverse-DNS, or the group-container "group." style).
+  const idBoundaryMatch = (name: string): boolean => {
+    if (lowerId === null) return false;
+    const n = name.toLowerCase();
+    if (n === lowerId) return true;
+    // Next char after the id must be a boundary, not a continuation of a token.
+    if (n.startsWith(lowerId)) {
+      const next = n.charAt(lowerId.length);
+      return next === '.' || next === '-' || next === '_';
+    }
+    // Group Containers are often "<teamid>.com.foo.bar" — allow the id as a
+    // dot-bounded suffix too (…".com.foo.bar" or a trailing ".com.foo.bar.*").
+    return n.endsWith('.' + lowerId) || n.includes('.' + lowerId + '.');
+  };
   await matchInDir(L('Preferences'), 'Preferences', (n) => {
     const l = n.toLowerCase();
     return lowerId !== null && l.startsWith(lowerId + '.') && l.endsWith('.plist');
@@ -241,12 +259,11 @@ async function collectLeftovers(
   await matchInDir(L('Preferences', 'ByHost'), 'Preferences', (n) =>
     lowerId !== null ? n.toLowerCase().startsWith(lowerId + '.') : false
   );
-  await matchInDir(L('LaunchAgents'), 'LaunchAgents', (n) =>
-    lowerId !== null ? n.toLowerCase().includes(lowerId) && n.toLowerCase().endsWith('.plist') : false
-  );
-  await matchInDir(L('Group Containers'), 'Group Containers', (n) =>
-    lowerId !== null ? n.toLowerCase().includes(lowerId) : false
-  );
+  await matchInDir(L('LaunchAgents'), 'LaunchAgents', (n) => {
+    const l = n.toLowerCase();
+    return l.endsWith('.plist') && idBoundaryMatch(l.replace(/\.plist$/, ''));
+  });
+  await matchInDir(L('Group Containers'), 'Group Containers', (n) => idBoundaryMatch(n));
 
   // Name-matched folders (some apps name support dirs by their human name).
   for (const dir of ['Application Support', 'Caches', 'Logs']) {
@@ -311,5 +328,8 @@ export async function findLeftovers(appPath: string): Promise<AppLeftoversResult
     },
     leftovers,
     totalSize,
+    warning: running
+      ? `${meta.name} is running. Quit it before uninstalling — trashing a live app's files can corrupt its state.`
+      : undefined,
   };
 }

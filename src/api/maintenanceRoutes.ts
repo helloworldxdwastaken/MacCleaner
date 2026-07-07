@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { runMaintenance, listLoginItems, setLoginItemEnabled, getAppIconPng } from '../services/maintenance';
-import { guardQueryPath } from '../middleware/pathGuard';
+import {
+  runMaintenance, runMaintenanceInTerminal, listLoginItems, setLoginItemEnabled, getAppIconPng,
+  listLaunchAgents, setLaunchAgentEnabled,
+} from '../services/maintenance';
+import { guardQueryPath, guardBodyPath } from '../middleware/pathGuard';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -12,6 +15,8 @@ import { AppError } from '../middleware/errorHandler';
 export const maintenanceRouter = Router();
 
 const RUN_ACTIONS = new Set(['flush-dns', 'rebuild-launchservices']);
+/** Maintenance actions that can be finished with interactive sudo in Terminal. */
+const ELEVATE_ACTIONS = new Set(['flush-dns']);
 
 function requireMac(): void {
   if (process.platform !== 'darwin') {
@@ -31,6 +36,22 @@ maintenanceRouter.post('/maintenance/run', async (req: Request, res: Response) =
     throw new AppError(400, 'UNKNOWN_ACTION', `Unknown maintenance action "${action}"`);
   }
   res.json(await runMaintenance(action));
+});
+
+/**
+ * POST /api/maintenance/elevate { action } → { opened: true }
+ * Finish a maintenance action that needs root by opening Terminal and running
+ * the (fixed, allowlisted) sudo command there, so the user can type their admin
+ * password. Same interactive-elevation pattern as the cask updater.
+ */
+maintenanceRouter.post('/maintenance/elevate', async (req: Request, res: Response) => {
+  requireMac();
+  const action = String((req.body as { action?: unknown })?.action ?? '');
+  if (!ELEVATE_ACTIONS.has(action)) {
+    throw new AppError(400, 'UNKNOWN_ACTION', `No Terminal action for "${action}"`);
+  }
+  await runMaintenanceInTerminal(action);
+  res.json({ opened: true });
 });
 
 /** GET /api/maintenance/app-icon?path=<app.app> → image/png (404 if none). */
@@ -83,5 +104,30 @@ maintenanceRouter.post('/maintenance/login-items', async (req: Request, res: Res
       );
     }
     throw new AppError(500, 'LOGIN_ITEM_FAILED', msg);
+  }
+});
+
+/** GET /api/maintenance/launch-agents → { agents } (user ~/Library/LaunchAgents). */
+maintenanceRouter.get('/maintenance/launch-agents', async (_req: Request, res: Response) => {
+  requireMac();
+  try {
+    res.json({ agents: await listLaunchAgents() });
+  } catch (err) {
+    throw new AppError(500, 'LAUNCH_AGENTS_FAILED', err instanceof Error ? err.message : String(err));
+  }
+});
+
+/** POST /api/maintenance/launch-agents { path, enabled } → { ok } */
+maintenanceRouter.post('/maintenance/launch-agents', guardBodyPath, async (req: Request, res: Response) => {
+  requireMac();
+  const { path: agentPath, enabled } = (req.body ?? {}) as { path?: string; enabled?: boolean };
+  if (!agentPath) {
+    throw new AppError(400, 'LAUNCH_AGENT_INVALID', 'path is required');
+  }
+  try {
+    await setLaunchAgentEnabled(agentPath, enabled !== false);
+    res.json({ ok: true });
+  } catch (err) {
+    throw new AppError(500, 'LAUNCH_AGENT_FAILED', err instanceof Error ? err.message : String(err));
   }
 });

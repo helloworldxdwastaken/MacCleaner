@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MacCleaner — macOS Cleaner Suite</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236A5BFF'/%3E%3Cstop offset='.55' stop-color='%233E7BFA'/%3E%3Cstop offset='1' stop-color='%2300C6FB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='url(%23f)'/%3E%3Cpath d='M22 68 A28 28 0 1 1 72 64' fill='none' stroke='%23fff' stroke-width='5.4' stroke-linecap='round'/%3E%3Ccircle cx='72' cy='64' r='4.4' fill='%23fff'/%3E%3Cpath d='M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z' fill='%23fff'/%3E%3C/svg%3E">
 <script>
 /* Apply saved theme before first paint to avoid a flash. 'system' (or unset)
    follows the OS; 'light'/'dark' are explicit. */
@@ -727,10 +728,19 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 
 <aside class="sidebar" role="navigation" aria-label="Sections">
   <div class="logo side-logo">
-    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-      <rect x="1" y="1" width="14" height="24" rx="4" fill="#30D158"/>
-      <rect x="17" y="1" width="8" height="14" rx="3.5" fill="#FFD60A"/>
-      <rect x="17" y="17" width="8" height="8" rx="3.5" fill="#FF453A"/>
+    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+      <defs>
+        <linearGradient id="sideMark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#6A5BFF"/>
+          <stop offset="0.55" stop-color="#3E7BFA"/>
+          <stop offset="1" stop-color="#00C6FB"/>
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="url(#sideMark)">
+        <path d="M6 22.5 A11 11 0 1 1 25.6 21" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="25.6" cy="21" r="2.2" fill="url(#sideMark)" stroke="none"/>
+      </g>
+      <path d="M16 8.4 Q16.75 14.5 18.4 15.25 Q23.4 16 18.4 16.75 Q16.75 17.5 16 23.6 Q15.25 17.5 13.6 16.75 Q8.6 16 13.6 15.25 Q15.25 14.5 16 8.4 Z" fill="url(#sideMark)"/>
     </svg>
     <span>MacCleaner</span>
   </div>
@@ -770,10 +780,20 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 <main>
   <!-- ═══════════ Empty state ═══════════ -->
   <section id="emptyState">
-    <svg class="mark" width="92" height="92" viewBox="0 0 26 26" aria-hidden="true">
-      <rect x="1" y="1" width="14" height="24" rx="4" fill="#30D158"/>
-      <rect x="17" y="1" width="8" height="14" rx="3.5" fill="#FFD60A"/>
-      <rect x="17" y="17" width="8" height="8" rx="3.5" fill="#FF453A"/>
+    <svg class="mark" width="92" height="92" viewBox="0 0 96 96" aria-hidden="true">
+      <defs>
+        <linearGradient id="emptyMark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#6A5BFF"/>
+          <stop offset="0.55" stop-color="#3E7BFA"/>
+          <stop offset="1" stop-color="#00C6FB"/>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#emptyMark)"/>
+      <g fill="none" stroke="#fff">
+        <path d="M22 68 A28 28 0 1 1 72 64" stroke-width="5.4" stroke-linecap="round"/>
+        <circle cx="72" cy="64" r="4.4" fill="#fff" stroke="none"/>
+      </g>
+      <path d="M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z" fill="#fff"/>
     </svg>
     <h1>See what's eating your disk</h1>
     <p>Scan any folder for a GrandPerspective-style treemap, a size-proportional grid, and safe one-click clean-up. Files go to the Trash — never deleted outright.</p>

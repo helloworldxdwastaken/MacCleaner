@@ -21,6 +21,9 @@ rounded-square; "Treemap" survives ONLY as the disk-visualizer feature/view name
 4. **UI polish all views** + reminder.txt items: Updater (no container chrome, "Apps" not "Other apps",
    Homebrew section last & hidden when empty), Performance disabled-login-items re-enable toggle,
    settings moved to sidebar bottom-left, language selector with rounded flag icons.
+   **Sidebar spec (user, 2026-07-07):** top = new logo ONLY (same mark as app icon); live info block
+   with temperature + relevant stats (fan RPM/CPU) via unprivileged sensor reads; NO disk indicator
+   on the rail — disk selector/usage lives in a dropdown instead.
 5. **Methods audit** — verify every cleaning method is best-practice; apply fixes.
 6. **Final audit + release** — multi-agent review, `npm run dist:mac`, publish to new repo.
 

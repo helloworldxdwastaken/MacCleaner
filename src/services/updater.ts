@@ -12,8 +12,11 @@ import {
  * network catalogs). If `brew` isn't installed the whole feature reports
  * unavailable; we never fabricate update data.
  *
- * Read path:  `brew outdated --cask --greedy --json=v2`  (includes auto-updating
- *             casks so the list matches what the user sees in Homebrew).
+ * Read path:  `brew outdated --cask --json=v2`  (NOT `--greedy`: greedy also
+ *             lists casks marked `auto_updates`/`version :latest`, which the app
+ *             can't meaningfully action — the vendor updates them itself — so
+ *             offering them is noise/false "updates". We only surface casks
+ *             Homebrew itself considers outdated).
  * Write path: `brew upgrade --cask <token>` per app, explicitly user-triggered.
  *
  * No new dependency: `brew` is the user's own tool, invoked via execFile (argv
@@ -120,9 +123,12 @@ export async function outdatedCasks(): Promise<OutdatedCask[]> {
   const brew = await brewPath();
   if (!brew) return [];
   try {
+    // No `--greedy`: it lists auto-updating casks (auto_updates / :latest) that
+    // this app can't meaningfully update — the vendor's own updater handles them.
+    // Offering those would be false/actionless "updates" (audit #7).
     const { stdout } = await execFileP(
       brew,
-      ['outdated', '--cask', '--greedy', '--json=v2'],
+      ['outdated', '--cask', '--json=v2'],
       90000
     );
     const data = JSON.parse(stdout) as {
@@ -298,20 +304,73 @@ async function readPlistInfo(appPath: string): Promise<PlistInfo> {
   }
 }
 
-/** Compare dotted/numeric version strings (Sparkle-style, numeric segments). */
+/**
+ * Compare dotted version strings. Numeric segments compare numerically; when the
+ * numeric parts tie, a version carrying a pre-release/channel suffix
+ * (e.g. "-beta", "rc", "alpha", " (build 5)") sorts BELOW the same version with
+ * none — standard semver precedence. This stops a beta appcast whose newest item
+ * is "2.0.0-beta" from being advertised as an update over an installed "2.0.0",
+ * and prevents same-version items from ever counting as an update.
+ */
 function cmpVersion(a: string, b: string): number {
-  const pa = String(a).split(/[^0-9]+/).filter(Boolean).map(Number);
-  const pb = String(b).split(/[^0-9]+/).filter(Boolean).map(Number);
+  const PRERELEASE = /(alpha|beta|rc|dev|pre|nightly|canary|eap|snapshot|preview)/i;
+  // Detect a pre-release BEFORE stripping numbers — matches "-beta", "beta1",
+  // "rc2", " (beta)", etc. A bare "b<n>"/"a<n>" only counts as pre-release when
+  // it directly abuts the version core (e.g. "2.0.0b1"), never a standalone word.
+  const hasPrerelease = (s: string): boolean =>
+    PRERELEASE.test(s) || /\d[ab]\d/i.test(s);
+  // Take only the numeric CORE — everything up to the first pre-release marker —
+  // so "2.0.0-beta1" and "2.0.0b1" both reduce to [2,0,0], not [2,0,0,1].
+  const core = (s: string): string => {
+    const str = String(s);
+    const m = str.match(PRERELEASE);
+    let cut = m && m.index !== undefined ? m.index : str.length;
+    const ab = str.match(/\d([ab])\d/i);
+    if (ab && ab.index !== undefined) cut = Math.min(cut, ab.index + 1);
+    return str.slice(0, cut);
+  };
+  const nums = (s: string): number[] => core(s).split(/[^0-9]+/).filter(Boolean).map(Number);
+  const pa = nums(a);
+  const pb = nums(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const x = pa[i] || 0;
     const y = pb[i] || 0;
     if (x !== y) return x - y;
   }
+  // Numeric cores equal → the one with a pre-release suffix is the lower one.
+  const preA = hasPrerelease(a);
+  const preB = hasPrerelease(b);
+  if (preA && !preB) return -1;
+  if (!preA && preB) return 1;
   return 0;
 }
 
-/** Newest item in a Sparkle appcast (by sparkle:version, attr or element). */
-function parseAppcastLatest(xml: string): { build: string; short: string | null } | null {
+// Current macOS product version (e.g. "26.3"), resolved once per process. Used
+// to drop appcast items whose sparkle:minimumSystemVersion the OS can't satisfy.
+let cachedOsVersion: string | null | undefined;
+async function currentOsVersion(): Promise<string | null> {
+  if (cachedOsVersion !== undefined) return cachedOsVersion;
+  if (process.platform !== 'darwin') {
+    cachedOsVersion = null;
+    return null;
+  }
+  try {
+    const { stdout } = await execFileP('/usr/bin/sw_vers', ['-productVersion'], 4000);
+    cachedOsVersion = stdout.trim() || null;
+  } catch {
+    cachedOsVersion = null;
+  }
+  return cachedOsVersion;
+}
+
+/**
+ * Newest RUNNABLE item in a Sparkle appcast (by sparkle:version). Items whose
+ * `sparkle:minimumSystemVersion` exceeds the current macOS are skipped, so we
+ * never advertise an update the OS can't install. When `osVersion` is null
+ * (couldn't determine) the filter is a no-op — we don't hide real updates on a
+ * best-effort miss.
+ */
+function parseAppcastLatest(xml: string, osVersion: string | null): { build: string; short: string | null } | null {
   const grab = (s: string, attr: RegExp, el: RegExp): string | null => {
     const m = s.match(attr) || s.match(el);
     return m ? m[1].trim() : null;
@@ -321,6 +380,13 @@ function parseAppcastLatest(xml: string): { build: string; short: string | null 
   for (const it of items) {
     const build = grab(it, /sparkle:version="([^"]+)"/i, /<sparkle:version>([^<]+)<\/sparkle:version>/i);
     if (!build) continue;
+    // Respect minimumSystemVersion — skip items this Mac's OS is too old to run.
+    const minOs = grab(
+      it,
+      /sparkle:minimumSystemVersion="([^"]+)"/i,
+      /<sparkle:minimumSystemVersion>([^<]+)<\/sparkle:minimumSystemVersion>/i
+    );
+    if (osVersion && minOs && cmpVersion(minOs, osVersion) > 0) continue; // OS too old
     const short = grab(
       it,
       /sparkle:shortVersionString="([^"]+)"/i,
@@ -353,6 +419,7 @@ export async function sparkleUpdates(): Promise<SparkleUpdate[]> {
   if (sparkleCache && Date.now() - sparkleCache.at < SPARKLE_TTL) return sparkleCache.data;
 
   const apps = (await otherApps([])).filter((a) => a.source === 'self');
+  const osVersion = await currentOsVersion();
   const out: SparkleUpdate[] = [];
   const CONCURRENCY = 8;
   for (let i = 0; i < apps.length; i += CONCURRENCY) {
@@ -363,7 +430,7 @@ export async function sparkleUpdates(): Promise<SparkleUpdate[]> {
         if (!info.feedURL || !info.build) return null;
         const xml = await fetchAppcast(info.feedURL);
         if (!xml) return null;
-        const latest = parseAppcastLatest(xml);
+        const latest = parseAppcastLatest(xml, osVersion);
         if (!latest || cmpVersion(latest.build, info.build) <= 0) return null; // up to date
         return {
           name: a.name,
@@ -388,9 +455,55 @@ export async function sparkleUpdates(): Promise<SparkleUpdate[]> {
  * installed app into Homebrew and installs the latest build. Real one-click
  * updates for most mainstream apps, no per-vendor logic.                       */
 
-interface CaskInfo { token: string; version: string; }
+interface CaskInfo {
+  token: string;
+  version: string;
+  /**
+   * Bundle ids the cask declares (from `uninstall`/`zap` quit/launchctl/pkgutil
+   * keys and Preferences/Caches paths). Used to CONFIRM a name-based match maps
+   * to the same vendor before we ever offer to overwrite the user's app.
+   */
+  bundleIds: string[];
+}
 let caskCatalogCache: { at: number; map: Map<string, CaskInfo> } | null = null;
 const CASK_CATALOG_TTL = 24 * 60 * 60 * 1000;
+
+/** A plausible reverse-DNS bundle id (com.vendor.App, at least 3 segments). */
+function looksLikeBundleId(s: string): boolean {
+  return /^[A-Za-z0-9]+(\.[A-Za-z0-9-]+){2,}$/.test(s);
+}
+
+/** Pull candidate bundle ids out of a cask's artifacts (uninstall/zap blocks). */
+function bundleIdsFromArtifacts(artifacts: Array<Record<string, unknown>>): string[] {
+  const ids = new Set<string>();
+  const addId = (v: unknown): void => {
+    if (typeof v === 'string' && looksLikeBundleId(v)) ids.add(v.toLowerCase());
+  };
+  const addFrom = (block: unknown): void => {
+    if (!block || typeof block !== 'object') return;
+    const b = block as Record<string, unknown>;
+    // Direct id-bearing keys.
+    for (const key of ['quit', 'launchctl', 'signal']) addId(b[key]);
+    const pk = b.pkgutil;
+    if (Array.isArray(pk)) pk.forEach(addId);
+    else addId(pk);
+    // trash paths like ~/Library/Preferences/com.vendor.App.plist reveal the id.
+    const trash = b.trash;
+    const paths = Array.isArray(trash) ? trash : typeof trash === 'string' ? [trash] : [];
+    for (const p of paths) {
+      if (typeof p !== 'string') continue;
+      const m = p.match(/\/(?:Preferences|Caches|HTTPStorages|WebKit|Containers)\/([A-Za-z0-9][A-Za-z0-9.\-]+?)(?:\.plist|\.binarycookies|\/|$)/);
+      if (m && looksLikeBundleId(m[1])) ids.add(m[1].toLowerCase());
+    }
+  };
+  for (const art of artifacts) {
+    for (const key of ['uninstall', 'zap']) {
+      const list = (art as Record<string, unknown>)[key];
+      if (Array.isArray(list)) list.forEach(addFrom);
+    }
+  }
+  return [...ids];
+}
 
 async function caskCatalog(): Promise<Map<string, CaskInfo>> {
   if (caskCatalogCache && Date.now() - caskCatalogCache.at < CASK_CATALOG_TTL) return caskCatalogCache.map;
@@ -409,7 +522,11 @@ async function caskCatalog(): Promise<Map<string, CaskInfo>> {
       }>;
       for (const c of casks) {
         if (!c.token || !c.version || c.version === 'latest') continue;
-        const info: CaskInfo = { token: c.token, version: String(c.version).split(',')[0].trim() };
+        const info: CaskInfo = {
+          token: c.token,
+          version: String(c.version).split(',')[0].trim(),
+          bundleIds: bundleIdsFromArtifacts(c.artifacts || []),
+        };
         for (const art of c.artifacts || []) {
           const appList = (art as { app?: unknown }).app;
           if (!Array.isArray(appList)) continue;
@@ -469,10 +586,56 @@ export async function upgradeCaskInTerminal(token: string): Promise<void> {
   ], 10000);
 }
 
+/**
+ * Decide whether a name-matched cask is safe to offer for a one-click update,
+ * and with what confidence. Name-only fuzzy matching can map an installed app
+ * to the WRONG cask, and `brew install --cask --force` would then overwrite it
+ * with a different vendor's binary — so we gate:
+ *
+ *  1. If the cask declares bundle ids and the installed app has a bundle id, we
+ *     CONFIRM they agree (exact, or the app id is under the cask id's vendor
+ *     prefix). Match → confident. Disagree → reject the match entirely (this is
+ *     the dangerous mis-map case; do not offer it at all).
+ *  2. If the cask declares NO bundle ids (or the app has none), we can't confirm
+ *     the vendor — offer it but mark `uncertain` so the UI requires explicit
+ *     confirmation instead of one-click, and only when the version string is
+ *     plausibly newer (already checked by the caller via cmpVersion).
+ */
+function gateCaskMatch(
+  cask: CaskInfo,
+  appBundleId: string | null,
+  appVersion: string
+): AppUpdateInfo | null {
+  const base = { kind: 'cask' as const, token: cask.token, latestVersion: cask.version };
+  const appId = appBundleId ? appBundleId.toLowerCase() : null;
+
+  if (cask.bundleIds.length > 0 && appId) {
+    const idMatch = cask.bundleIds.some(
+      (cid) => appId === cid || appId.startsWith(cid + '.') || cid.startsWith(appId + '.')
+    );
+    if (idMatch) return base; // bundle-id confirmed → confident one-click
+    // The cask names a different vendor than the installed app → this is a
+    // mis-map. Refuse it outright rather than offer to overwrite the app.
+    return null;
+  }
+
+  // No bundle-id confirmation available. Version already known newer by the
+  // caller; still, name-only is not enough to auto-apply — flag as uncertain.
+  return {
+    ...base,
+    uncertain: true,
+    uncertainReason: appId
+      ? "Matched by app name only — this cask doesn't publish a bundle id to confirm it's the same app."
+      : "Matched by app name only — the installed app has no bundle id to confirm against.",
+  };
+}
+
 /** Every installed app, each tagged with an update if one is detectable. */
 export async function appUpdates(): Promise<AppUpdate[]> {
   if (process.platform !== 'darwin') return [];
-  const [apps, catalog, hasMas] = await Promise.all([listInstalledApps(), caskCatalog(), masAvailable()]);
+  const [apps, catalog, hasMas, osVersion] = await Promise.all([
+    listInstalledApps(), caskCatalog(), masAvailable(), currentOsVersion(),
+  ]);
   const masMap = new Map<string, MasUpdate>();
   if (hasMas) for (const m of await outdatedMasApps()) masMap.set(normalizeToken(m.name), m);
 
@@ -486,7 +649,7 @@ export async function appUpdates(): Promise<AppUpdate[]> {
 
         const cask = catalog.get(normalizeToken(a.name));
         if (cask && a.version && cmpVersion(cask.version, a.version) > 0) {
-          update = { kind: 'cask', token: cask.token, latestVersion: cask.version };
+          update = gateCaskMatch(cask, a.bundleId, a.version);
         }
         if (!update && hasMas) {
           const m = masMap.get(normalizeToken(a.name));
@@ -496,7 +659,7 @@ export async function appUpdates(): Promise<AppUpdate[]> {
           const info = await readPlistInfo(a.path);
           if (info.feedURL && info.build) {
             const xml = await fetchAppcast(info.feedURL);
-            const latest = xml ? parseAppcastLatest(xml) : null;
+            const latest = xml ? parseAppcastLatest(xml, osVersion) : null;
             if (latest && cmpVersion(latest.build, info.build) > 0) {
               update = { kind: 'sparkle', latestVersion: latest.short || latest.build };
             }

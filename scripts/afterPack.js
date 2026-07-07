@@ -3,11 +3,11 @@
  * electron-builder afterPack hook — give the macOS app a VALID ad-hoc
  * signature.
  *
- * Why this exists: TreeMap ships without a paid Apple Developer ID, so the
+ * Why this exists: MacCleaner ships without a paid Apple Developer ID, so the
  * build runs with CSC_IDENTITY_AUTO_DISCOVERY=false. In that mode
  * electron-builder skips signing entirely, which leaves the .app bundle
  * with no _CodeSignature/CodeResources. macOS then treats the download as
- * "damaged" ("TreeMap is damaged and can't be opened") and refuses to launch
+ * "damaged" ("MacCleaner is damaged and can't be opened") and refuses to launch
  * it — a dead end for non-technical users, because that error has no
  * right-click-to-open escape hatch.
  *
@@ -25,7 +25,7 @@ const fs = require('fs');
 const path = require('path');
 
 function sign(target) {
-  // Plain ad-hoc, no hardened runtime: TreeMap is not notarized, and the
+  // Plain ad-hoc, no hardened runtime: MacCleaner is not notarized, and the
   // hardened runtime would block V8's JIT without extra entitlements.
   execFileSync('codesign', ['--force', '--sign', '-', '--timestamp=none', target], {
     stdio: 'inherit',
@@ -54,7 +54,7 @@ exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
   // electron-builder still ad-hoc signs when a real identity is configured;
   // only step in when signing was skipped (no _CodeSignature was written).
-  const appName = context.packager.appInfo.productFilename; // "TreeMap"
+  const appName = context.packager.appInfo.productFilename; // "MacCleaner"
   const appPath = path.join(context.appOutDir, `${appName}.app`);
   console.log(`[afterPack] ad-hoc signing ${appPath}`);
   try {

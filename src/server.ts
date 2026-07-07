@@ -15,6 +15,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { cancelAllScans } from './services/diskScanner';
 import { cancelAllDuplicateJobs } from './services/duplicateFinder';
 import { startScheduler, stopScheduler } from './services/scheduler';
+import { migrateLegacyDataDir } from './services/storage';
 
 /**
  * Builds the Express app. Kept separate from the listen() call so the same
@@ -85,16 +86,21 @@ export function startServer(opts: StartOptions): Promise<RunningServer> {
     // Don't process.exit here — the caller (CLI or Electron) decides that.
   };
 
-  // Recurring scans (and their growth alerts) live for the server's lifetime.
-  startScheduler();
-
   return new Promise<RunningServer>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(opts.port ?? 0, host, () => {
-      server.removeListener('error', reject);
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : (opts.port ?? 0);
-      resolve({ server, port, shutdown });
+    // Migrate any pre-rebrand TreeMap app data before anything reads it, then
+    // start the scheduler and bind the socket. A migration failure is logged
+    // (inside migrateLegacyDataDir) and non-fatal — the app still starts fresh.
+    migrateLegacyDataDir().finally(() => {
+      // Recurring scans (and their growth alerts) live for the server's lifetime.
+      startScheduler();
+
+      server.once('error', reject);
+      server.listen(opts.port ?? 0, host, () => {
+        server.removeListener('error', reject);
+        const addr = server.address();
+        const port = typeof addr === 'object' && addr ? addr.port : (opts.port ?? 0);
+        resolve({ server, port, shutdown });
+      });
     });
   });
 }

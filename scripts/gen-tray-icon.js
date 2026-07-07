@@ -3,7 +3,7 @@
  * One-time generator for the menu-bar/tray icons (electron/assets/
  * trayTemplate.png and @2x — inside electron/ so they ship in the asar).
  * Hand-encodes the PNG with zlib so the repo needs no image tooling.
- * The glyph is the TreeMap mark — one tall block and two stacked blocks —
+ * The glyph is the MacCleaner mark — one tall block and two stacked blocks —
  * in pure black + alpha, which macOS expects for "template" images (it
  * recolors them to match the menu bar). Run: node scripts/gen-tray-icon.js
  */
@@ -55,7 +55,7 @@ function encodePng(size, pixels /* Uint8Array RGBA */) {
   ]);
 }
 
-/** Draw the treemap glyph at scale (1 → 16px, 2 → 32px). */
+/** Draw the MacCleaner glyph at scale (1 → 16px, 2 → 32px). */
 function drawGlyph(scale) {
   const size = 16 * scale;
   const px = Buffer.alloc(size * size * 4);

@@ -16,7 +16,7 @@ let running: RunningServer | null = null;
 startServer({ port: PORT, host: HOST, publicDir: PUBLIC_DIR })
   .then((r) => {
     running = r;
-    console.log(`TreeMap running → http://${HOST}:${r.port}`);
+    console.log(`MacCleaner running → http://${HOST}:${r.port}`);
   })
   .catch((err: unknown) => {
     console.error('[treemap] failed to start:', err);

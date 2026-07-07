@@ -1,6 +1,6 @@
 'use strict';
 /*
- * TreeMap — Electron main process.
+ * MacCleaner — Electron main process.
  *
  * Turns the Express web app into a native desktop window. The full backend
  * (scanner, trash, scheduler, system info) runs in-process exactly as it
@@ -98,7 +98,7 @@ function createWindow(port) {
     minHeight: 700,
     backgroundColor: '#0a0a0d',
     show: false,
-    title: 'TreeMap',
+    title: 'MacCleaner',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -138,7 +138,7 @@ function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'trayTemplate.png'));
   icon.setTemplateImage(true); // macOS recolors it for light/dark menu bars
   tray = new Tray(icon);
-  tray.setToolTip('TreeMap — Disk Space Visualizer');
+  tray.setToolTip('MacCleaner — macOS Cleaner Suite');
   tray.on('click', () => {
     // Windows/Linux convention: left-click opens the app.
     if (process.platform !== 'darwin') showMainWindow();
@@ -164,7 +164,7 @@ async function refreshTray() {
   const menu = Menu.buildFromTemplate([
     { label: statsLabel, enabled: false },
     { type: 'separator' },
-    { label: 'Open TreeMap', click: showMainWindow },
+    { label: 'Open MacCleaner', click: showMainWindow },
     {
       label: 'Scan Home Folder',
       click: () => {
@@ -173,7 +173,7 @@ async function refreshTray() {
       },
     },
     { type: 'separator' },
-    { label: 'Quit TreeMap', click: () => app.quit() },
+    { label: 'Quit MacCleaner', click: () => app.quit() },
   ]);
   tray.setContextMenu(menu);
 }
@@ -184,7 +184,7 @@ function wireGrowthNotifications() {
   onGrowthAlert((alert) => {
     if (!Notification.isSupported()) return;
     const n = new Notification({
-      title: 'TreeMap — folder growing fast',
+      title: 'MacCleaner — folder growing fast',
       body: alert.message,
     });
     n.on('click', showMainWindow);
@@ -208,7 +208,7 @@ function setupAutoUpdates() {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-downloaded', (info) => {
-    const message = `TreeMap ${info.version} has been downloaded.`;
+    const message = `MacCleaner ${info.version} has been downloaded.`;
     dialog
       .showMessageBox({
         type: 'info',
@@ -295,7 +295,7 @@ if (!app.requestSingleInstanceLock()) {
     });
   });
 
-  // The tray keeps TreeMap alive when the window closes (scheduled scans keep
+  // The tray keeps MacCleaner alive when the window closes (scheduled scans keep
   // running); quit explicitly from the tray or app menu.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin' && !tray) app.quit();

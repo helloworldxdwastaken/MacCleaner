@@ -335,7 +335,7 @@ async function fetchAppcast(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'TreeMap-Updater', Accept: 'application/rss+xml, application/xml, text/xml' },
+      headers: { 'User-Agent': 'MacCleaner-Updater', Accept: 'application/rss+xml, application/xml, text/xml' },
     });
     if (!res.ok) return null;
     return await res.text();
@@ -398,7 +398,7 @@ async function caskCatalog(): Promise<Map<string, CaskInfo>> {
   try {
     const res = await fetch('https://formulae.brew.sh/api/cask.json', {
       signal: AbortSignal.timeout(20000),
-      headers: { 'User-Agent': 'TreeMap-Updater' },
+      headers: { 'User-Agent': 'MacCleaner-Updater' },
     });
     if (res.ok) {
       const casks = (await res.json()) as Array<{

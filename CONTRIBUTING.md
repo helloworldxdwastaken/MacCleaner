@@ -1,7 +1,7 @@
 Contributing · MD
-# Contributing to TreeMap
- 
-Thanks for taking the time to contribute! TreeMap is a solo-built, open source project and every bug report, fix, and feature idea makes it better.
+# Contributing to MacCleaner
+
+Thanks for taking the time to contribute! MacCleaner is an open source macOS cleaner suite and every bug report, fix, and feature idea makes it better. It builds on the disk-space treemap visualizer from [TreeMap](https://github.com/Prithvi-Web/Treemap) by [@Prithvi-Web](https://github.com/Prithvi-Web) (used with permission — thank you!).
  
 ---
  
@@ -27,8 +27,8 @@ Thanks for taking the time to contribute! TreeMap is a solo-built, open source p
 **Clone and run locally:**
  
 ```bash
-git clone https://github.com/Prithvi-Web/Treemap.git
-cd Treemap
+git clone https://github.com/helloworldxdwastaken/MacCleaner.git
+cd MacCleaner
 npm install
 npm run dev       # starts the server with auto-reload
 ```
@@ -87,7 +87,7 @@ scripts/
  
 ### 1. Pick something to work on
  
-- Check the [Issues](https://github.com/Prithvi-Web/Treemap/issues) tab for open bugs and feature requests
+- Check the [Issues](https://github.com/helloworldxdwastaken/MacCleaner/issues) tab for open bugs and feature requests
 - Look for issues tagged `good first issue` if you're new
 - If you want to work on something not listed, open an issue first so we can discuss it before you invest time
 ### 2. Create a branch
@@ -108,7 +108,7 @@ Use a short, descriptive name prefixed with `fix/`, `feature/`, or `docs/`.
 - Add comments to non-obvious logic, especially in `services/` and `utils/`
 ### 4. Test manually
  
-TreeMap has no automated test suite yet (contributions welcome!). Before submitting:
+MacCleaner has no automated test suite yet (contributions welcome!). Before submitting:
  
 - [ ] Run `npm run build` with no TypeScript errors
 - [ ] Test your specific change end-to-end in the browser (`npm run dev`)
@@ -125,16 +125,16 @@ TreeMap has no automated test suite yet (contributions welcome!). Before submitt
    - **How to test** it manually
 3. Screenshots or a short video are very welcome for UI changes
 4. Keep PRs small — a 200-line change gets reviewed faster than a 2,000-line one
-PRs are reviewed by the maintainer (@Prithvi-Web). Response time is typically within a few days.
+PRs are reviewed by the maintainer (@helloworldxdwastaken). Response time is typically within a few days. (The disk treemap engine comes from [@Prithvi-Web](https://github.com/Prithvi-Web) — see the credit above.)
  
 ---
  
 ## Reporting Bugs
  
-Open an [Issue](https://github.com/Prithvi-Web/Treemap/issues/new) and include:
+Open an [Issue](https://github.com/helloworldxdwastaken/MacCleaner/issues/new) and include:
  
 - **OS and version** (e.g. macOS 14.5, Windows 11)
-- **TreeMap version** (from the app or the Releases page)
+- **MacCleaner version** (from the app or the Releases page)
 - **What you did** — steps to reproduce
 - **What you expected** vs **what actually happened**
 - **Any error messages** from the console (open DevTools with `Cmd+Option+I` / `F12`)
@@ -144,7 +144,7 @@ Open an [Issue](https://github.com/Prithvi-Web/Treemap/issues/new) and include:
  
 ## Requesting Features
  
-Open an [Issue](https://github.com/Prithvi-Web/Treemap/issues/new) with:
+Open an [Issue](https://github.com/helloworldxdwastaken/MacCleaner/issues/new) with:
  
 - The problem you're trying to solve (not just the solution you have in mind)
 - How you'd expect it to work

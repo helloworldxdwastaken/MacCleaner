@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "treemap",
+      "name": "maccleaner",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["start"],
       "port": 4280

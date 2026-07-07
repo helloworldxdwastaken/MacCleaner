@@ -1,6 +1,6 @@
 name: Build & Release
 
-# Builds TreeMap installers for macOS and Windows, then attaches them to a
+# Builds MacCleaner installers for macOS and Windows, then attaches them to a
 # GitHub Release. Triggers when you push a version tag (e.g. v1.0.0) or when
 # you click "Run workflow" in the Actions tab.
 on:
@@ -62,7 +62,7 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: TreeMap-${{ matrix.os }}
+          name: MacCleaner-${{ matrix.os }}
           path: |
             release/*.dmg
             release/*.exe

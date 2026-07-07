@@ -56,7 +56,7 @@ maintenanceRouter.get('/maintenance/login-items', async (_req: Request, res: Res
       throw new AppError(
         403,
         'AUTOMATION_DENIED',
-        'TreeMap needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
+        'MacCleaner needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
       );
     }
     throw new AppError(500, 'LOGIN_ITEMS_FAILED', msg);
@@ -79,7 +79,7 @@ maintenanceRouter.post('/maintenance/login-items', async (req: Request, res: Res
       throw new AppError(
         403,
         'AUTOMATION_DENIED',
-        'TreeMap needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
+        'MacCleaner needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
       );
     }
     throw new AppError(500, 'LOGIN_ITEM_FAILED', msg);

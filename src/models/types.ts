@@ -1,5 +1,5 @@
 /**
- * TreeMap — shared TypeScript interfaces.
+ * MacCleaner — shared TypeScript interfaces.
  * Every shape that crosses a service or API boundary lives here.
  */
 

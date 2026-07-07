@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TreeMap — Disk Space Visualizer</title>
+<title>MacCleaner — macOS Cleaner Suite</title>
 <script>
 /* Apply saved theme before first paint to avoid a flash. 'system' (or unset)
    follows the OS; 'light'/'dark' are explicit. */
@@ -732,7 +732,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
       <rect x="17" y="1" width="8" height="14" rx="3.5" fill="#FFD60A"/>
       <rect x="17" y="17" width="8" height="8" rx="3.5" fill="#FF453A"/>
     </svg>
-    <span>TreeMap</span>
+    <span>MacCleaner</span>
   </div>
   <button class="side-item" data-view="dashboard"><span data-icon="dashboard"></span>Dashboard</button>
   <button class="side-item" data-view="fastclean"><span data-icon="sparkles"></span>Smart Scan</button>
@@ -785,6 +785,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
     <button class="btn btn-primary" id="emptyBrowseBtn" style="font-size:14px;min-height:44px;padding:0 26px;">
       <span data-icon="folder"></span>Choose a folder to get started
     </button>
+    <p class="muted" style="margin-top:18px;font-size:12px;">The disk-space treemap visualizer originates from <a href="https://github.com/Prithvi-Web/Treemap" target="_blank" rel="noopener">TreeMap</a> by Prithvi Vinay (@Prithvi-Web), used with permission — thank you!</p>
   </section>
 
   <!-- ═══════════ Dashboard ═══════════ -->
@@ -1197,7 +1198,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
         </div>
         <div class="prefs-pane" data-pane="scheduler" hidden>
           <div class="set-h"><span data-icon="calendar"></span><span data-i18n="scheduledScans">Scheduled scans</span></div>
-          <div class="muted" style="margin-bottom:10px;">TreeMap re-scans these folders on a schedule while the app is running, and alerts you when a folder grows past your threshold since the previous scan. Every run is also saved to Trends.</div>
+          <div class="muted" style="margin-bottom:10px;">MacCleaner re-scans these folders on a schedule while the app is running, and alerts you when a folder grows past your threshold since the previous scan. Every run is also saved to Trends.</div>
           <div id="schedList"></div>
           <button class="btn" id="schedAddBtn"><span data-icon="plus"></span><span data-i18n="addSchedule">Add scheduled scan</span></button>
         </div>
@@ -1225,7 +1226,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 <script>
 'use strict';
 /* ═══════════════════════════════════════════════════════════════════════
-   TreeMap frontend 2.0 — zero dependencies. Hand-rolled SVG icon system,
+   MacCleaner frontend 2.0 — zero dependencies. Hand-rolled SVG icon system,
    buffered cushion-treemap canvas, virtual grid, paired light/dark themes.
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -2800,7 +2801,7 @@ async function loadFastClean() {
       $('fcSub').innerHTML = 'Clears application caches. <a href="#" id="fcGrant" style="color:var(--accent);text-decoration:none;">Grant Full Disk Access</a> to also empty the Bin.';
       $('fcGrant').addEventListener('click', (e) => {
         e.preventDefault(); openFdaSettings();
-        toast('Add TreeMap (or your terminal) under Full Disk Access, then reopen Smart Scan.');
+        toast('Add MacCleaner (or your terminal) under Full Disk Access, then reopen Smart Scan.');
       });
     } else {
       pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; refreshFcButton(); });

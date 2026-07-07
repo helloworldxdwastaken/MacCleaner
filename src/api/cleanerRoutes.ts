@@ -77,7 +77,7 @@ cleanerRouter.post('/cleaner/empty-trash', async (_req: Request, res: Response) 
       throw new AppError(
         403,
         'FULL_DISK_ACCESS_REQUIRED',
-        'TreeMap needs Full Disk Access to empty the Bin. Grant it in System Settings → Privacy & Security → Full Disk Access.'
+        'MacCleaner needs Full Disk Access to empty the Bin. Grant it in System Settings → Privacy & Security → Full Disk Access.'
       );
     }
     throw new AppError(500, 'EMPTY_TRASH_FAILED', msg);

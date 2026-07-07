@@ -1,17 +1,17 @@
-<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░  TREEMAP  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
+<!-- ░░░░░░░░░░░░░░░░░░░░░░░░░░░  MACCLEANER  ░░░░░░░░░░░░░░░░░░░░░░░░░░░ -->
 
 <div align="center">
 
-<a href="https://github.com/Prithvi-Web/Treemap/releases">
-  <img src="treemap-hero.svg" alt="TreeMap — a disk-space visualizer that shows exactly what's eating your disk" width="100%">
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/releases">
+  <img src="maccleaner-hero.svg" alt="MacCleaner — a macOS cleaner suite with a GrandPerspective-style disk treemap" width="100%">
 </a>
 
 <br><br>
 
 <!-- primary CTAs -->
-<a href="https://github.com/Prithvi-Web/Treemap/releases"><img src="https://img.shields.io/badge/⬇_Download-Latest_Release-2dd4bf?style=for-the-badge&labelColor=0b1220" alt="Download"></a>&nbsp;
-<a href="https://github.com/Prithvi-Web/Treemap/stargazers"><img src="https://img.shields.io/github/stars/Prithvi-Web/Treemap?style=for-the-badge&label=Star&labelColor=0b1220&color=fbbf24" alt="Stars"></a>&nbsp;
-<a href="https://github.com/Prithvi-Web/Treemap/fork"><img src="https://img.shields.io/github/forks/Prithvi-Web/Treemap?style=for-the-badge&label=Fork&labelColor=0b1220&color=f43f5e" alt="Forks"></a>
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/releases"><img src="https://img.shields.io/badge/⬇_Download-Latest_Release-2dd4bf?style=for-the-badge&labelColor=0b1220" alt="Download"></a>&nbsp;
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/stargazers"><img src="https://img.shields.io/github/stars/helloworldxdwastaken/MacCleaner?style=for-the-badge&label=Star&labelColor=0b1220&color=fbbf24" alt="Stars"></a>&nbsp;
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/fork"><img src="https://img.shields.io/github/forks/helloworldxdwastaken/MacCleaner?style=for-the-badge&label=Fork&labelColor=0b1220&color=f43f5e" alt="Forks"></a>
 
 <br><br>
 
@@ -27,10 +27,11 @@
 <br><br>
 
 <kbd><a href="#-download-the-app-for-users">⬇ Download</a></kbd> &nbsp;
-<kbd><a href="#-the-eight-views">✨ Features</a></kbd> &nbsp;
+<kbd><a href="#-the-suite">✨ Features</a></kbd> &nbsp;
 <kbd><a href="#-run-from-source--web-mode-3-commands">🚀 Run it</a></kbd> &nbsp;
 <kbd><a href="#-api-overview">🔌 API</a></kbd> &nbsp;
-<kbd><a href="#-safety">🛡️ Safety</a></kbd>
+<kbd><a href="#-safety">🛡️ Safety</a></kbd> &nbsp;
+<kbd><a href="#-credits">🙏 Credits</a></kbd>
 
 </div>
 
@@ -41,26 +42,27 @@
 <div align="center">
 <table>
 <tr>
-<td align="center" width="33%">🟩&nbsp;&nbsp;<b>Find it</b><br><sub>Squarified treemap of every byte</sub></td>
-<td align="center" width="33%">🟨&nbsp;&nbsp;<b>Understand it</b><br><sub>Trends, diffs & duplicate hunting</sub></td>
+<td align="center" width="33%">🟩&nbsp;&nbsp;<b>Find it</b><br><sub>Smart Scan + a squarified disk treemap</sub></td>
+<td align="center" width="33%">🟨&nbsp;&nbsp;<b>Tune it</b><br><sub>Performance, Maintenance & Fan Control</sub></td>
 <td align="center" width="33%">🟥&nbsp;&nbsp;<b>Reclaim it</b><br><sub>One-click cleanup → system Trash</sub></td>
 </tr>
 </table>
 </div>
 
 > [!TIP]
-> **No Node. No setup. No telemetry.** The desktop app is fully self-contained and scans the disk
-> of the machine it runs on. Deletes always go to your **system Trash** — nothing is ever
-> hard-deleted, so every action is recoverable.
+> **No setup. No telemetry.** The desktop app is fully self-contained and works on the machine it
+> runs on. Deletes always go to your **system Trash** — nothing is ever hard-deleted, so every
+> action is recoverable.
 
 <br>
 
-## ✨ The eight views
+## ✨ The suite
 
-TreeMap isn't just a treemap — it's a full disk-hygiene workbench. Eight views, one zero-dependency frontend.
+MacCleaner is a full macOS hygiene workbench — cleanup, performance, maintenance, app management, and a
+GrandPerspective-style disk treemap — all in one **zero-dependency** frontend.
 
 <div align="center">
-  <img src="views.svg" width="100%" alt="The eight views: Dashboard, Treemap, Grid, Duplicates, Trends, Compare, Clean Up, Scheduled + Ignore">
+  <img src="views.svg" width="100%" alt="The MacCleaner views: Dashboard, Smart Scan, Performance, Maintenance, Uninstaller, Updater, Treemap, Grid, Duplicates, Compare, Trends">
 </div>
 
 <br>
@@ -70,55 +72,69 @@ TreeMap isn't just a treemap — it's a full disk-hygiene workbench. Eight views
 <td width="50%" valign="top">
 
 ### 📊 Dashboard
-Disk-usage ring, live scan progress, file-type donut chart, and the **top-10 largest files _and folders_**. Click a folder to leap straight into the treemap.
+Disk-usage ring, live system stats, file-type breakdown, and the **top-10 largest files _and folders_**. Click a folder to leap straight into the treemap.
 
 </td>
 <td width="50%" valign="top">
 
-### 🗺️ Treemap
-A squarified treemap of every file, sized by bytes and colored **teal → amber → red**. Drill into folders, climb back with breadcrumbs + zoom-out, search with highlights (`report`, `*.zip`), and **export PNG / SVG** in one click.
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 🔲 Grid
-A size-proportional icon grid with multi-select, sorting, and virtual scrolling — buttery even on huge folders.
-
-</td>
-<td width="50%" valign="top">
-
-### 🧬 Duplicates
-Finds **true** duplicates (size + streamed SHA-256), grouped with reclaimable space per group. Auto-select keeps the newest copy of each.
+### ✨ Smart Scan
+One pass over caches, logs, and junk with **Smart Suggestions** (`node_modules`, build output, caches, old Downloads, OS junk). Review, then send everything to the Trash in one click.
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 📈 Trends
-Every scan saves a lightweight snapshot, charted over time per folder — with a clear **"what grew / what shrank since last scan"** breakdown.
+### ⚡ Performance
+Surface memory pressure and heavy processes, manage **login items**, and free up resources so the machine feels quick again.
 
 </td>
 <td width="50%" valign="top">
 
-### 🔀 Compare
-Pick any two scans of the same folder for a file-level diff: **added, removed, grew, shrank.** Subtrees collapse to one row instead of thousands.
+### 🧰 Maintenance
+Run common macOS upkeep tasks — flush caches, empty the Bin, and other routine housekeeping — from one place.
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 🧹 Clean Up
-Three modes — **custom rules** (old / huge / by extension / duplicated), **Smart Suggestions** (`node_modules`, build output, caches, old Downloads, OS junk, OS-aware paths), and **Empty Folders**. Everything → Trash.
+### 🗑️ Uninstaller
+Remove an app **and its leftovers** — caches, preferences, and support files that a drag-to-Trash uninstall leaves behind.
 
 </td>
 <td width="50%" valign="top">
 
-### ⏰ Scheduled scans + 🚫 Ignore list
-Re-scan folders on a schedule with **growth-threshold alerts** (native desktop notifications). Tell it what to skip with paths, names, or globs like `*.iso` and `~/projects/**/dist`.
+### 🔄 Updater
+One-click updates for your installed apps via the **Homebrew cask** catalog, **Sparkle** feeds, and the Mac App Store — no hunting for download pages.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🌀 Fan Control *(new)*
+Read live fan speeds and temperatures and take manual control of cooling when you want it — new in MacCleaner.
+
+</td>
+<td width="50%" valign="top">
+
+### 🗺️ Disk Treemap
+A squarified treemap of every file, sized by bytes and colored **teal → amber → red**. Drill into folders, climb back with breadcrumbs + zoom-out, search with highlights (`report`, `*.zip`), and **export PNG / SVG** in one click. *(Originates from [TreeMap](https://github.com/Prithvi-Web/Treemap) — see [Credits](#-credits).)*
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🔲 Grid · 🧬 Duplicates
+A size-proportional icon grid with multi-select and virtual scrolling, plus **true** duplicate detection (size + streamed SHA-256) with reclaimable space per group.
+
+</td>
+<td width="50%" valign="top">
+
+### 📈 Trends · 🔀 Compare
+Every scan saves a lightweight snapshot charted over time, and any two scans of the same folder can be diffed file-by-file: **added, removed, grew, shrank.**
 
 </td>
 </tr>
@@ -130,18 +146,18 @@ Re-scan folders on a schedule with **growth-threshold alerts** (native desktop n
 
 ## ⬇️ Download the app (for users)
 
-Grab the latest installer from the [**Releases page**](https://github.com/Prithvi-Web/Treemap/releases):
+Grab the latest installer from the [**Releases page**](https://github.com/helloworldxdwastaken/MacCleaner/releases):
 
 <table>
 <tr><th>Platform</th><th>File</th><th>How</th></tr>
 <tr>
 <td>🍎 <b>macOS</b></td>
-<td><code>TreeMap-x.y.z-arm64.dmg</code></td>
-<td>Open it, drag TreeMap to Applications, launch.</td>
+<td><code>MacCleaner-x.y.z-arm64.dmg</code></td>
+<td>Open it, drag MacCleaner to Applications, launch.</td>
 </tr>
 <tr>
 <td>🪟 <b>Windows</b></td>
-<td><code>TreeMap Setup x.y.z.exe</code></td>
+<td><code>MacCleaner Setup x.y.z.exe</code></td>
 <td>Run it and follow the installer.</td>
 </tr>
 </table>
@@ -155,23 +171,23 @@ Grab the latest installer from the [**Releases page**](https://github.com/Prithv
 > After the first launch it opens normally.
 
 <details>
-<summary><b>🛠️ macOS says "TreeMap is damaged and can't be opened"?</b></summary>
+<summary><b>🛠️ macOS says "MacCleaner is damaged and can't be opened"?</b></summary>
 
 <br>
 
 That happens when the download's quarantine flag is still set. Clear it once, then launch normally — open **Terminal** and paste:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/TreeMap.app
+xattr -dr com.apple.quarantine /Applications/MacCleaner.app
 ```
 
 </details>
 
-> No Node.js or setup required — the desktop app is self-contained and scans the disk of the computer it runs on.
+> No Node.js or setup required — the desktop app is self-contained and works on the computer it runs on.
 
 ### 🖥️ Desktop extras
 
-- 📌 **Menu bar / tray icon** with live free-disk stats and quick actions (open app, scan home folder, quit). Close the window and TreeMap stays in the tray so scheduled scans keep running — quit from the tray menu.
+- 📌 **Menu bar / tray icon** with live free-disk stats and quick actions (open app, scan home folder, quit). Close the window and MacCleaner stays in the tray so scheduled scans keep running — quit from the tray menu.
 - 🖱️ **Drag & drop** a folder onto the window or dock icon to scan it instantly.
 - 🔄 **Auto-updates** from GitHub Releases (Windows; asks before restarting). On macOS, auto-update needs a code-signed build, so unsigned builds skip it — grab new versions from Releases.
 - 🔔 **Growth alerts** from scheduled scans arrive as native notifications.
@@ -260,14 +276,20 @@ You can also trigger a test build anytime from **Actions → Build & Release →
 
 ## 🛡️ Safety
 
-Disk tools should never lose your data. TreeMap is built defensively:
+Cleaner tools should never lose your data. MacCleaner is built defensively:
 
 - 🔒 Paths are sanitized and traversal-proofed; system dirs (`/proc`, `/sys`, `/dev`, `/run`, `C:\Windows\System32`, …) are blocked outright.
 - 🎯 Trash/open endpoints only accept paths **inside a folder you scanned**.
 - ♻️ Deletes always go through the OS Trash — undo from Finder/Explorer any time.
 - 🧬 The Duplicates view refuses to trash *every* copy in a group — at least one always stays.
 - 🚦 Token-bucket rate limiting (10 req/s per IP), plus graceful SIGTERM shutdown that drains live SSE streams and stops background hashing & scheduled scans.
-- ⏳ Scan results live in memory only and auto-expire after 30 minutes; history snapshots and settings are small JSON files in the platform app-data folder (`~/Library/Application Support/TreeMap`, `%APPDATA%\TreeMap`, or `~/.config/treemap`).
+- 🌐 Mostly local: the only outbound requests are the **Updater** fetching the Homebrew cask catalog and app **Sparkle** update feeds to check for new versions — no analytics, no tracking.
+- ⏳ Scan results live in memory only and auto-expire after 30 minutes; history snapshots and settings are small JSON files in the platform app-data folder (`~/Library/Application Support/MacCleaner`, `%APPDATA%\MacCleaner`, or `~/.config/maccleaner`).
+
+> **Upgrading from TreeMap?** On first launch MacCleaner moves your existing data from the old
+> `TreeMap` app-data folder to the new `MacCleaner` one automatically, so your history and settings
+> carry over. Set `MACCLEANER_DATA_DIR` to override the location (the legacy `TREEMAP_DATA_DIR` is
+> still honored as a fallback).
 
 <img src="divider.svg" width="100%" alt="">
 
@@ -275,10 +297,12 @@ Disk tools should never lose your data. TreeMap is built defensively:
 
 ```text
 src/
-  api/          Express routes (scan, files, system, insights, settings)
+  api/          Express routes (scan, files, system, insights, settings,
+                cleaner, apps, maintenance, activity)
   services/     DiskScanner (8-way concurrent walker), Cleaner (trash/open),
                 DuplicateFinder (staged hashing), Snapshots (Trends history),
                 CleanupRules (smart suggestions), Scheduler (recurring scans),
+                Apps (uninstall/update), Updater (Homebrew/Sparkle/MAS),
                 Settings, Storage (app-data JSON), DiskUsage
   models/       Shared TypeScript interfaces
   utils/        formatBytes, squarified treemap, path sanitizer, glob matcher
@@ -300,6 +324,14 @@ scripts/
 - **Duplicate detection is staged** (size → first 64 KB hash → full SHA-256) so scans with hundreds of thousands of files finish hashing in seconds, and only true content matches are reported.
 - **Compare collapses subtrees** — a deleted or added folder shows as one row, not thousands of file rows.
 
+<img src="divider.svg" width="100%" alt="">
+
+## 🙏 Credits
+
+The disk-space treemap visualizer originates from [**TreeMap**](https://github.com/Prithvi-Web/Treemap) by
+Prithvi Vinay ([@Prithvi-Web](https://github.com/Prithvi-Web)), used with permission — thank you! MacCleaner
+builds a broader macOS cleaner suite around that engine.
+
 <br>
 
 <img src="divider.svg" width="100%" alt="">
@@ -308,14 +340,14 @@ scripts/
 
 ### Found this useful?
 
-<a href="https://github.com/Prithvi-Web/Treemap/stargazers"><img src="https://img.shields.io/badge/⭐_Star_the_repo-fbbf24?style=for-the-badge&labelColor=0b1220" alt="Star"></a>&nbsp;
-<a href="https://github.com/Prithvi-Web/Treemap/fork"><img src="https://img.shields.io/badge/🍴_Fork_it-f43f5e?style=for-the-badge&labelColor=0b1220" alt="Fork"></a>&nbsp;
-<a href="https://github.com/Prithvi-Web/Treemap/issues"><img src="https://img.shields.io/badge/🐛_Open_an_issue-2dd4bf?style=for-the-badge&labelColor=0b1220" alt="Issues"></a>
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/stargazers"><img src="https://img.shields.io/badge/⭐_Star_the_repo-fbbf24?style=for-the-badge&labelColor=0b1220" alt="Star"></a>&nbsp;
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/fork"><img src="https://img.shields.io/badge/🍴_Fork_it-f43f5e?style=for-the-badge&labelColor=0b1220" alt="Fork"></a>&nbsp;
+<a href="https://github.com/helloworldxdwastaken/MacCleaner/issues"><img src="https://img.shields.io/badge/🐛_Open_an_issue-2dd4bf?style=for-the-badge&labelColor=0b1220" alt="Issues"></a>
 
 <br><br>
 
-**TreeMap** &nbsp;·&nbsp; built with 🟩🟨🟥 by [**Prithvi-Web**](https://github.com/Prithvi-Web)
+**MacCleaner** &nbsp;·&nbsp; built with 🟩🟨🟥 by [**dronx**](https://github.com/helloworldxdwastaken)
 
-<sub>If TreeMap freed up a few gigs for you, a ⭐ goes a long way.</sub>
+<sub>If MacCleaner freed up a few gigs for you, a ⭐ goes a long way.</sub>
 
 </div>

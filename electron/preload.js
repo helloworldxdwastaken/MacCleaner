@@ -1,6 +1,6 @@
 'use strict';
 /*
- * TreeMap — preload bridge. The only desktop superpowers the page gets:
+ * MacCleaner — preload bridge. The only desktop superpowers the page gets:
  *  - turning a dropped File into an absolute path (browsers hide this),
  *  - resolving a dropped file to a scannable folder,
  *  - receiving "scan this path" pushes (dock drops, CLI args, tray actions).

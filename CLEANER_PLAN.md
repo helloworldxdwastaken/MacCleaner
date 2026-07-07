@@ -24,6 +24,15 @@ rounded-square; "Treemap" survives ONLY as the disk-visualizer feature/view name
    **Sidebar spec (user, 2026-07-07):** top = new logo ONLY (same mark as app icon); live info block
    with temperature + relevant stats (fan RPM/CPU) via unprivileged sensor reads; NO disk indicator
    on the rail — disk selector/usage lives in a dropdown instead.
+   **Scrap spec (user, 2026-07-07, rev b):** DELETE Compare entirely; Trends view removed but its
+   chart moves INTO Dashboard; MERGE Treemap+Grid → one "Disk Map" view with layout toggle; remove
+   dead "soon" rows (System Junk, Trash, Large & Old); file group = Disk Map + Duplicates.
+   **Dashboard redo (user):** REAL dashboard, never "choose folder to get started" (old TreeMap
+   launcher UX) — always-live disk usage, temps/fans, lifetime impact, activity, trend chart,
+   quick actions. **Known UI bugs to fix:** horizontal scrolling instead of fitting; top bar weird bg.
+   **Glass restyle (user):** app-wide Liquid-Glass look — Electron native vibrancy + CSS glass
+   (backdrop blur, translucent surfaces), both themes. Decision: STAY Electron (no Swift rewrite
+   this release; API layer keeps a future SwiftUI client possible).
 5. **Methods audit** — verify every cleaning method is best-practice; apply fixes.
 6. **Final audit + release** — multi-agent review, `npm run dist:mac`, publish to new repo.
 

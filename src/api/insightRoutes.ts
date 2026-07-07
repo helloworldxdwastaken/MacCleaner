@@ -1,10 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { requireScan, clampInt } from './scanRoutes';
 import {
-  allScans,
   collectLargestFolders,
   collectEmptyFolders,
-  compareTrees,
 } from '../services/diskScanner';
 import { getDuplicateJob } from '../services/duplicateFinder';
 import {
@@ -16,12 +14,12 @@ import {
 } from '../services/snapshots';
 import { guardQueryPath } from '../middleware/pathGuard';
 import { AppError } from '../middleware/errorHandler';
-import { CompareResult, ScanResult } from '../models/types';
+import { ScanResult } from '../models/types';
 
 /**
  * insightRoutes — analysis endpoints layered on top of completed scans:
- * duplicates, largest folders, empty folders, snapshot history (Trends)
- * and scan-to-scan comparison.
+ * duplicates, largest folders, empty folders, and snapshot history (the
+ * storage-trend chart on the Dashboard).
  */
 
 export const insightRouter = Router();
@@ -78,43 +76,6 @@ insightRouter.get('/empty-folders', (req: Request, res: Response) => {
   const scan = requireCompleteScan(req, req.query.scanId);
   const ignoreJunk = String(req.query.ignoreJunk ?? 'true') !== 'false';
   res.json(collectEmptyFolders(scan.root, ignoreJunk));
-});
-
-/** GET /api/scans — completed scans currently in memory (Compare picker). */
-insightRouter.get('/scans', (_req: Request, res: Response) => {
-  const scans = allScans()
-    .filter((s) => s.status === 'complete' && s.root)
-    .sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0))
-    .map((s) => ({
-      scanId: s.scanId,
-      rootPath: s.rootPath,
-      totalSize: s.root!.size,
-      fileCount: s.fileCount,
-      finishedAt: s.finishedAt,
-    }));
-  res.json({ scans });
-});
-
-/**
- * GET /api/compare?scanIdA=&scanIdB=
- * Structural diff between two completed scans of the same root path.
- */
-insightRouter.get('/compare', (req: Request, res: Response) => {
-  const scanA = requireCompleteScan(req, req.query.scanIdA);
-  const scanB = requireCompleteScan(req, req.query.scanIdB);
-  if (scanA.rootPath !== scanB.rootPath) {
-    throw new AppError(400, 'ROOT_MISMATCH', 'Both scans must cover the same root path');
-  }
-  const { entries, truncated } = compareTrees(scanA.root, scanB.root);
-  const result: CompareResult = {
-    scanIdA: scanA.scanId,
-    scanIdB: scanB.scanId,
-    rootPath: scanA.rootPath,
-    totalDelta: scanB.root.size - scanA.root.size,
-    entries,
-    truncated,
-  };
-  res.json(result);
 });
 
 /**

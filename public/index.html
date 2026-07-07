@@ -182,14 +182,16 @@ select option { background: var(--glass-strong); color: var(--text-1); }
   animation: shimmer 1.4s ease infinite; }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-/* ════════════════════════════ Header ════════════════════════════ */
+/* ════════════════════════════ Header ════════════════════════════
+   The header only carries floating right-aligned controls (disk chip + theme
+   toggle). It has no bar background of its own — a translucent pill sits behind
+   just the controls (.header-right) so content scrolls cleanly beneath it. */
 header {
   display: flex; align-items: center; gap: 18px; height: 58px; box-sizing: border-box;
   margin-left: 242px; padding: 12px 24px; position: sticky; top: 0; z-index: 50;
-  background: color-mix(in srgb, var(--bg-1) 72%, transparent);
-  backdrop-filter: blur(24px) saturate(170%);
-  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  background: transparent; pointer-events: none;
 }
+header > * { pointer-events: auto; }
 .logo { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
 .logo .sub { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 2px; }
 .tabbar {
@@ -207,7 +209,11 @@ header {
   background: var(--surface-3); color: var(--text-1);
   box-shadow: inset 0 1px 0 var(--shine), var(--shadow-1);
 }
-.header-right { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+.header-right { display: flex; gap: 8px; align-items: center; margin-left: auto;
+  padding: 5px; border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
+  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--hairline); box-shadow: var(--shadow-1); }
 
 /* ════════════════════════════ Sidebar (CleanMyMac-style) ════════════════════════════ */
 .sidebar {
@@ -254,6 +260,9 @@ header {
 .mnt-text b { font-size: 13.5px; font-weight: 600; }
 .mnt-text span { font-size: 12px; color: var(--text-3); line-height: 1.4; }
 .mnt-status { font-size: 12px; text-align: right; max-width: 230px; color: var(--text-3); }
+.mnt-elevate { border: none; background: none; color: var(--accent); font: inherit; font-size: 12px; font-weight: 600;
+  text-decoration: underline; cursor: pointer; padding: 0; margin-left: 4px; }
+.mnt-elevate:disabled { opacity: 0.5; cursor: default; }
 .mnt-scroll { max-height: 360px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
 /* Preferences modal (tabbed) */
 .prefs-body { display: flex; gap: 0; padding: 0 !important; min-height: 360px; }
@@ -346,21 +355,65 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .view.active { display: block; }
 @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-/* ── Empty state ── */
-#emptyState { display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-height: 66vh; text-align: center; gap: 14px; }
-#emptyState .mark { filter: drop-shadow(0 16px 50px var(--accent-glow)); animation: float 6s ease-in-out infinite; }
-@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-#emptyState h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.6px; margin-top: 8px; }
-#emptyState p { color: var(--text-2); font-size: 14px; max-width: 460px; line-height: 1.6; }
-.feature-row { display: flex; gap: 14px; margin: 14px 0 6px; }
-.feature { display: flex; align-items: center; gap: 9px; padding: 10px 16px; font-size: 12.5px; color: var(--text-2);
-  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 99px; }
-.feature .ic { color: var(--accent); }
-
 /* ── Dashboard ── */
 .dash-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 18px; align-items: start; }
-.dash-col { display: flex; flex-direction: column; gap: 18px; }
+.dash-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* Dashboard live temps + fans mini-panel */
+.dash-sensors { display: flex; flex-direction: column; gap: 12px; }
+.ds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ds-tile { padding: 11px 13px; border-radius: var(--r-md); background: var(--surface-1);
+  border: 1px solid var(--hairline); box-shadow: inset 0 1px 0 var(--shine); min-width: 0; }
+.ds-tile.hottest { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.ds-tile .ds-name { font-size: 11px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-tile .ds-val { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.ds-tile .ds-val .u { font-size: 11px; font-weight: 500; color: var(--text-3); margin-left: 1px; }
+.ds-tile.warm .ds-val { color: var(--warn); }
+.ds-tile.hot .ds-val { color: #ff6b61; }
+:root[data-theme="light"] .ds-tile.warm .ds-val { color: #b8860b; }
+:root[data-theme="light"] .ds-tile.hot .ds-val { color: #d63a30; }
+.ds-fanrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 13px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-1); font: inherit; cursor: pointer; text-align: left;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
+.ds-fanrow:hover { background: var(--surface-3); border-color: var(--hairline-2); }
+.ds-fanrow .ic-wrap { display: inline-flex; color: var(--text-3); flex: none; }
+.ds-fanrow .ds-fanlab { flex: 1; font-size: 12.5px; color: var(--text-2); }
+.ds-fanrow .ds-fanval { font-size: 13px; font-weight: 600; }
+.ds-fanrow .ds-chev { display: inline-flex; color: var(--text-3); flex: none; }
+
+/* Dashboard quick actions */
+.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qa-tile { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-radius: var(--r-md);
+  background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-1); font: inherit; cursor: pointer; text-align: left;
+  box-shadow: inset 0 1px 0 var(--shine); transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-2) var(--ease); }
+.qa-tile:hover { background: var(--surface-2); border-color: var(--hairline-2); transform: translateY(-1px); }
+.qa-tile .chip { width: 34px; height: 34px; border-radius: 9px; flex: none; }
+.qa-tile .qa-lab { font-size: 13px; font-weight: 600; }
+
+/* Dashboard storage-trend card */
+.dash-trend-sel { max-width: 240px; font-size: 12px; }
+#trendChart { display: block; width: 100%; border-radius: 10px; }
+
+/* ── Disk Map (merged Treemap ⇄ Grid) ── */
+.dm-empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 62vh; text-align: center; gap: 12px; }
+/* A class-level `display` beats the UA `[hidden]` rule — pin hidden explicitly. */
+.dm-empty[hidden] { display: none; }
+.dm-inline-empty[hidden] { display: none; }
+.dm-empty .mark { filter: drop-shadow(0 16px 50px var(--accent-glow)); }
+.dm-empty h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-top: 6px; }
+.dm-empty p { color: var(--text-2); font-size: 13.5px; max-width: 480px; line-height: 1.6; }
+.dm-empty .dm-scan-row { width: 100%; max-width: 560px; margin-top: 6px; }
+.dm-empty .scan-status, .dm-empty .scan-meta { text-align: center; justify-content: center; width: 100%; }
+.dm-empty .progress-track { width: 100%; max-width: 560px; }
+.dm-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.dm-toolbar .dm-rescan { margin-left: auto; }
+.dm-panel { min-width: 0; }
+.dm-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; margin-top: 18px; }
+.dm-breakdown > .card:first-child { grid-column: 1 / -1; }
+.dm-inline-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  min-height: 46vh; color: var(--text-3); text-align: center; }
+.dm-inline-empty .ic { color: var(--text-3); }
 .act-log { display: flex; flex-direction: column; gap: 1px; max-height: 360px; overflow-y: auto; }
 .act-item { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--hairline); }
 .act-item:last-child { border-bottom: none; }
@@ -653,26 +706,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .dup-progress .track { width: 320px; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .dup-progress .fill { height: 100%; width: 0%; border-radius: 3px; background: var(--accent); transition: width 300ms var(--ease); }
 
-/* ── Trends view ── */
-.trends-grid { display: grid; grid-template-columns: 7fr 5fr; gap: 18px; align-items: start; }
-.trends-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.trends-toolbar label { font-size: 12px; color: var(--text-2); }
-.trends-toolbar select { max-width: 430px; }
-#trendChart { display: block; width: 100%; border-radius: 10px; }
-.delta-row { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: var(--r-sm);
-  font-size: 12.5px; transition: background var(--dur-1) var(--ease); }
-.delta-row:hover { background: var(--surface-1); }
-.delta-row .meta { flex: 1; min-width: 0; }
-.delta-row .nm { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.delta-row .bar-track { width: 74px; height: 4px; border-radius: 2px; background: var(--surface-2); flex: none; }
-.delta-row .bar { height: 100%; border-radius: 2px; }
-.delta-badge { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 7px; white-space: nowrap;
-  background: var(--surface-2); }
-.delta-badge.up { color: #ff6b61; }
-.delta-badge.down { color: var(--ok); }
-:root[data-theme="light"] .delta-badge.up { color: #d63a30; }
-:root[data-theme="light"] .delta-badge.down { color: #1f9d45; }
-
 /* ── Settings modal ── */
 .set-h { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 1px; color: var(--text-2); margin-bottom: 8px; }
@@ -683,7 +716,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .sched-row input[type="checkbox"] { justify-self: center; }
 .ign-row { display: grid; grid-template-columns: 1fr 200px 30px; gap: 8px; align-items: center; margin-bottom: 8px; }
 
-/* ── Segmented control (Clean Up panes, Compare modes) ── */
+/* ── Segmented control (Clean Up panes, Disk Map layout) ── */
 .seg { display: inline-flex; background: var(--surface-1); border: 1px solid var(--hairline);
   border-radius: 10px; padding: 3px; gap: 2px; }
 .seg button { border: none; background: transparent; color: var(--text-2); font-size: 12.5px; font-weight: 500;
@@ -693,14 +726,12 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .seg button[aria-selected="true"] { background: var(--surface-3); color: var(--text-1);
   box-shadow: inset 0 1px 0 var(--shine), var(--shadow-1); }
 
-@media (max-width: 1360px) {
-  .logo .sub { display: none; }
-  .tabbar button { padding: 7px 13px; }
+@media (max-width: 1200px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dm-breakdown { grid-template-columns: 1fr; }
 }
-@media (max-width: 1240px) {
-  .dash-grid { grid-template-columns: 1fr 1fr; }
-  .quick-stats { grid-template-columns: 1fr; }
-  .trends-grid { grid-template-columns: 1fr; }
+@media (max-width: 1080px) {
+  .quick-stats { grid-template-columns: 1fr 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -751,13 +782,15 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent); color: var(--danger);
   border-radius: 9px; padding: 9px 12px; font-size: 12.5px; }
 .warn-banner .ic { flex: none; }
-.upd-card { max-width: 760px; }
 .upd-row { display: flex; align-items: center; gap: 12px; padding: 11px 4px; border-bottom: 1px solid var(--hairline); }
 .upd-row:last-child { border-bottom: none; }
-.upd-row .nm { font-size: 13.5px; font-weight: 500; }
+.upd-row .nm { font-size: 13.5px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .upd-row .ver { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.upd-uncertain { display: inline-flex; color: var(--warn); flex: none; }
+:root[data-theme="light"] .upd-uncertain { color: #b8860b; }
 .upd-head { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--text-3); padding: 4px 2px 8px; }
+.upd-head-brew { margin-top: 20px; border-top: 1px solid var(--hairline); padding-top: 16px; }
 .upd-head .ic { color: var(--text-3); }
 .upd-link { text-decoration: none; }
 @media (max-width: 900px) { .apps-wrap { grid-template-columns: 1fr; } .apps-list-card, .apps-detail-card { min-height: 0; } }
@@ -869,10 +902,10 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 /* Auto-rules */
 .rules-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .rules-head .rh-title { flex: 1; font-size: 13px; font-weight: 600; }
-.arule { display: grid; grid-template-columns: 1fr 92px 1fr 30px; gap: 10px; align-items: center; padding: 9px 0;
+.arule { display: grid; grid-template-columns: minmax(0,1fr) 92px minmax(0,1fr) 30px; gap: 10px; align-items: center; padding: 9px 0;
   border-top: 1px solid var(--hairline); }
 .arule:first-of-type { border-top: none; }
-.arule .ar-slider { display: flex; align-items: center; gap: 8px; }
+.arule .ar-slider { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .arule .ar-slider input[type="range"] { flex: 1; }
 .arule .ar-pct { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
 .arule input[type="number"] { width: 100%; }
@@ -944,12 +977,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   <button class="side-item" data-view="fastclean"><span data-icon="sparkles"></span>Smart Scan</button>
 
   <div class="side-group">
-    <div class="side-head">Cleanup</div>
-    <button class="side-item" disabled><span data-icon="hardDrive"></span>System Junk<span class="side-soon">soon</span></button>
-    <button class="side-item" disabled><span data-icon="trash"></span>Trash<span class="side-soon">soon</span></button>
-  </div>
-
-  <div class="side-group">
     <div class="side-head">Speed</div>
     <button class="side-item" data-view="maintenance"><span data-icon="settings"></span>Performance</button>
     <button class="side-item" data-view="fans"><span data-icon="fan"></span>Fans</button>
@@ -963,12 +990,8 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 
   <div class="side-group">
     <div class="side-head">Files</div>
-    <button class="side-item" data-view="treemap"><span data-icon="treemap"></span>Treemap</button>
-    <button class="side-item" data-view="grid"><span data-icon="grid"></span>Grid</button>
-    <button class="side-item" disabled><span data-icon="clock"></span>Large &amp; Old<span class="side-soon">soon</span></button>
+    <button class="side-item" data-view="treemap"><span data-icon="treemap"></span>Disk Map</button>
     <button class="side-item" data-view="duplicates"><span data-icon="copy"></span>Duplicates</button>
-    <button class="side-item" data-view="compare"><span data-icon="diff"></span>Compare</button>
-    <button class="side-item" data-view="trends"><span data-icon="trendUp"></span>Trends</button>
   </div>
 
   <button class="side-sys side-settings" id="sideSys" aria-label="System temperature and fans — open Fans view" title="Open Fans">
@@ -988,42 +1011,13 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 </aside>
 
 <main>
-  <!-- ═══════════ Empty state ═══════════ -->
-  <section id="emptyState">
-    <svg class="mark" width="92" height="92" viewBox="0 0 96 96" aria-hidden="true">
-      <defs>
-        <linearGradient id="emptyMark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#6A5BFF"/>
-          <stop offset="0.55" stop-color="#3E7BFA"/>
-          <stop offset="1" stop-color="#00C6FB"/>
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#emptyMark)"/>
-      <g fill="none" stroke="#fff">
-        <path d="M22 68 A28 28 0 1 1 72 64" stroke-width="5.4" stroke-linecap="round"/>
-        <circle cx="72" cy="64" r="4.4" fill="#fff" stroke="none"/>
-      </g>
-      <path d="M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z" fill="#fff"/>
-    </svg>
-    <h1>See what's eating your disk</h1>
-    <p>Scan any folder for a GrandPerspective-style treemap, a size-proportional grid, and safe one-click clean-up. Files go to the Trash — never deleted outright.</p>
-    <div class="feature-row">
-      <span class="feature"><span data-icon="zap"></span>500k files / min</span>
-      <span class="feature"><span data-icon="shield"></span>Trash-only deletes</span>
-      <span class="feature"><span data-icon="eyeOff"></span>No tracking, fully local</span>
-    </div>
-    <button class="btn btn-primary" id="emptyBrowseBtn" style="font-size:14px;min-height:44px;padding:0 26px;">
-      <span data-icon="folder"></span>Choose a folder to get started
-    </button>
-    <p class="muted" style="margin-top:18px;font-size:12px;">The disk-space treemap visualizer originates from <a href="https://github.com/Prithvi-Web/Treemap" target="_blank" rel="noopener">TreeMap</a> by Prithvi Vinay (@Prithvi-Web), used with permission — thank you!</p>
-  </section>
-
   <!-- ═══════════ Dashboard ═══════════ -->
   <section class="view" id="view-dashboard" role="tabpanel" aria-label="Dashboard" hidden>
     <div class="dash-grid">
       <div class="dash-col">
+        <!-- Disk usage -->
         <div class="card glass">
-          <h2><span data-icon="hardDrive"></span>System</h2>
+          <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span></h2>
           <div class="sys-row">
             <div class="ring-wrap">
               <svg width="132" height="132" viewBox="0 0 132 132">
@@ -1035,135 +1029,180 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
                 <circle class="ring-bg" cx="66" cy="66" r="55"/>
                 <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="55" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
               </svg>
-              <div class="ring-label"><b id="ringPct" class="num">–</b><span>used</span></div>
+              <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
             </div>
             <div class="sys-facts">
-              <div class="fact"><span>Host</span><b id="sysHost">–</b></div>
-              <div class="fact"><span>Platform</span><b id="sysPlatform">–</b></div>
-              <div class="fact"><span>Total disk</span><b id="sysTotal" class="num">–</b></div>
-              <div class="fact"><span>Free</span><b id="sysFree" class="num">–</b></div>
-              <div class="fact"><span>Used</span><b id="sysUsed" class="num">–</b></div>
+              <div class="fact"><span data-i18n="hostLabel">Host</span><b id="sysHost">–</b></div>
+              <div class="fact"><span data-i18n="platformLabel">Platform</span><b id="sysPlatform">–</b></div>
+              <div class="fact"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
+              <div class="fact"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
+              <div class="fact"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
             </div>
           </div>
         </div>
 
+        <!-- Live temps + fans mini panel -->
         <div class="card glass">
-          <h2><span data-icon="play"></span>Scan a Folder</h2>
-          <div class="scan-row">
-            <div class="field">
-              <span data-icon="folder"></span>
-              <input type="text" id="pathInput" placeholder="/Users/you/Documents" aria-label="Folder to scan" autocomplete="off" spellcheck="false">
-            </div>
-            <button class="btn" id="browseBtn">Browse…</button>
-            <button class="btn btn-primary" id="scanBtn"><span data-icon="play"></span>Scan</button>
-          </div>
-          <div class="scan-status" id="scanStatus">No scan yet — pick a folder above.</div>
-          <div class="scan-meta num" id="scanMeta"></div>
-          <div class="progress-track" id="progressTrack"><div class="progress-fill"></div></div>
+          <h2><span data-icon="thermometer"></span><span data-i18n="tempsAndFans">Temperature &amp; fans</span></h2>
+          <div id="dashSensors" class="dash-sensors"><div class="muted" data-i18n="sensorsLoading">Reading sensors…</div></div>
         </div>
 
+        <!-- Quick actions -->
         <div class="card glass">
-          <h2><span data-icon="activity"></span>Quick Stats</h2>
-          <div class="quick-stats">
-            <div class="stat-tile tile"><span class="chip" style="--tint:#0A84FF"><span data-icon="file"></span></span>
-              <div><div class="v num" id="statFiles">–</div><div class="k">Files</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#30D158"><span data-icon="folder"></span></span>
-              <div><div class="v num" id="statDirs">–</div><div class="k">Folders</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#FF9F0A"><span data-icon="trendUp"></span></span>
-              <div><div class="v small" id="statLargest">–</div><div class="k">Largest file</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#BF5AF2"><span data-icon="clock"></span></span>
-              <div><div class="v small num" id="statLastScan">–</div><div class="k">Last scan</div></div></div>
+          <h2><span data-icon="zap"></span><span data-i18n="quickActions">Quick actions</span></h2>
+          <div class="qa-grid">
+            <button class="qa-tile" data-qa="fastclean"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles"></span></span><span class="qa-lab" data-i18n="smartScan">Smart Scan</span></button>
+            <button class="qa-tile" data-qa="treemap"><span class="chip" style="--tint:#30D158"><span data-icon="treemap"></span></span><span class="qa-lab" data-i18n="diskMap">Disk Map</span></button>
+            <button class="qa-tile" data-qa="fans"><span class="chip" style="--tint:#FF9F0A"><span data-icon="fan"></span></span><span class="qa-lab" data-i18n="fans">Fans</span></button>
+            <button class="qa-tile" data-qa="apps"><span class="chip" style="--tint:#BF5AF2"><span data-icon="box"></span></span><span class="qa-lab" data-i18n="uninstaller">Uninstaller</span></button>
           </div>
         </div>
       </div>
 
       <div class="dash-col">
+        <!-- Lifetime impact -->
         <div class="card glass">
-          <h2><span data-icon="sparkles"></span>Lifetime impact<span class="muted" id="actSince" style="font-weight:400;margin-left:6px;"></span></h2>
+          <h2><span data-icon="sparkles"></span><span data-i18n="lifetimeImpact">Lifetime impact</span><span class="muted" id="actSince" style="font-weight:400;margin-left:6px;"></span></h2>
           <div class="quick-stats">
             <div class="stat-tile tile"><span class="chip" style="--tint:#30D158"><span data-icon="trash"></span></span>
-              <div><div class="v small num" id="actRecovered">–</div><div class="k">Moved to Trash</div></div></div>
+              <div><div class="v small num" id="actRecovered">–</div><div class="k" data-i18n="movedToTrash">Moved to Trash</div></div></div>
             <div class="stat-tile tile"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles"></span></span>
-              <div><div class="v num" id="actJunk">–</div><div class="k">Junk items cleaned</div></div></div>
+              <div><div class="v num" id="actJunk">–</div><div class="k" data-i18n="junkItemsCleaned">Junk items cleaned</div></div></div>
             <div class="stat-tile tile"><span class="chip" style="--tint:#FF9F0A"><span data-icon="box"></span></span>
-              <div><div class="v num" id="actUninstalled">–</div><div class="k">Apps uninstalled</div></div></div>
+              <div><div class="v num" id="actUninstalled">–</div><div class="k" data-i18n="appsUninstalled">Apps uninstalled</div></div></div>
             <div class="stat-tile tile"><span class="chip" style="--tint:#BF5AF2"><span data-icon="refresh"></span></span>
-              <div><div class="v num" id="actUpdated">–</div><div class="k">Updates applied</div></div></div>
+              <div><div class="v num" id="actUpdated">–</div><div class="k" data-i18n="updatesApplied">Updates applied</div></div></div>
           </div>
         </div>
 
+        <!-- Storage trend chart (absorbed from the old Trends view) -->
         <div class="card glass">
-          <h2><span data-icon="clock"></span>Recent activity</h2>
+          <h2><span data-icon="trendUp"></span><span data-i18n="storageTrend">Storage trend</span>
+            <select id="trendRoot" class="dash-trend-sel" aria-label="Folder to show history for" style="margin-left:auto;font-weight:400;"></select>
+          </h2>
+          <canvas id="trendChart" height="220" aria-label="Folder size history chart" role="img"></canvas>
+          <div class="muted num" id="trendInfo" style="margin-top:8px;font-size:11.5px;"></div>
+        </div>
+
+        <!-- Recent activity -->
+        <div class="card glass">
+          <h2><span data-icon="clock"></span><span data-i18n="recentActivity">Recent activity</span></h2>
           <div id="actLog" class="act-log"></div>
         </div>
+      </div>
+    </div>
+  </section>
 
+  <!-- ═══════════ Disk Map (Treemap ⇄ Grid) ═══════════ -->
+  <section class="view" id="view-treemap" role="tabpanel" aria-label="Disk Map" hidden>
+    <!-- In-view empty state / folder picker (shown until a scan exists) -->
+    <div id="diskMapEmpty" class="dm-empty">
+      <svg class="mark" width="72" height="72" viewBox="0 0 96 96" aria-hidden="true">
+        <defs>
+          <linearGradient id="emptyMark" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#6A5BFF"/>
+            <stop offset="0.55" stop-color="#3E7BFA"/>
+            <stop offset="1" stop-color="#00C6FB"/>
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#emptyMark)"/>
+        <g fill="none" stroke="#fff"><path d="M22 68 A28 28 0 1 1 72 64" stroke-width="5.4" stroke-linecap="round"/><circle cx="72" cy="64" r="4.4" fill="#fff" stroke="none"/></g>
+        <path d="M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z" fill="#fff"/>
+      </svg>
+      <h1 data-i18n="diskMapTitle">Map a folder's disk usage</h1>
+      <p data-i18n="diskMapSub">Scan any folder for a GrandPerspective-style treemap and a size-proportional grid. Files go to the Trash — never deleted outright.</p>
+      <div class="scan-row dm-scan-row">
+        <div class="field">
+          <span data-icon="folder"></span>
+          <input type="text" id="pathInput" placeholder="/Users/you/Documents" aria-label="Folder to scan" autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn" id="browseBtn" data-i18n="browse">Browse…</button>
+        <button class="btn btn-primary" id="scanBtn"><span data-icon="play"></span><span data-i18n="scan">Scan</span></button>
+      </div>
+      <div class="scan-status" id="scanStatus" data-i18n="noScanYet">No scan yet — pick a folder above.</div>
+      <div class="scan-meta num" id="scanMeta"></div>
+      <div class="progress-track" id="progressTrack"><div class="progress-fill"></div></div>
+    </div>
+
+    <!-- Results: layout toggle + treemap/grid panels -->
+    <div id="diskMapResult" hidden>
+      <div class="dm-toolbar">
+        <div class="seg" id="dmLayoutSeg" role="tablist" aria-label="Disk map layout">
+          <button role="tab" aria-selected="true" data-dm="treemap"><span data-icon="treemap"></span><span data-i18n="treemap">Treemap</span></button>
+          <button role="tab" aria-selected="false" data-dm="grid"><span data-icon="grid"></span><span data-i18n="grid">Grid</span></button>
+        </div>
+        <button class="btn dm-rescan" id="dmRescanBtn" title="Scan a different folder"><span data-icon="folder"></span><span data-i18n="scanFolder">Scan folder…</span></button>
+      </div>
+
+      <!-- Treemap panel -->
+      <div id="dmTreemap" class="dm-panel">
+        <div class="tm-toolbar">
+          <button class="btn" id="tmUpBtn" title="Zoom out one level (Escape)" aria-label="Zoom out one level"><span data-icon="arrowUp"></span></button>
+          <div class="crumbs" id="tmCrumbs"></div>
+          <div class="tm-controls">
+            <div class="field">
+              <span data-icon="search"></span>
+              <input type="text" id="tmSearch" placeholder="Highlight… (name or *.zip)" aria-label="Highlight matching files in the treemap" autocomplete="off" spellcheck="false">
+            </div>
+            <label for="tmDepth" data-i18n="depth">Depth</label>
+            <select id="tmDepth" aria-label="Treemap depth">
+              <option value="2">2</option><option value="3">3</option>
+              <option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
+            </select>
+            <button class="icon-btn" id="tmRefresh" aria-label="Re-render treemap" title="Re-render"></button>
+            <button class="btn" id="tmExportBtn" title="Download the treemap as an image"><span data-icon="download"></span><span data-i18n="exportBtn">Export</span></button>
+          </div>
+        </div>
+        <div class="glass" id="treemapWrap">
+          <div id="treemapZoom"><canvas id="treemapCanvas" tabindex="0" aria-label="Disk usage treemap. Click a directory to drill in, Escape to go up."></canvas></div>
+        </div>
+        <div class="tm-foot">
+          <span>1 MB</span><div class="legend-grad"></div><span>10 GB+</span>
+          <span class="num" id="tmStatus"></span>
+          <span class="hint"><span data-icon="mouse"></span><span data-i18n="tmHint">click a folder to drill in · right-click for actions · Esc to go up</span></span>
+        </div>
+      </div>
+
+      <!-- Grid panel -->
+      <div id="dmGrid" class="dm-panel" hidden>
+        <div class="grid-toolbar">
+          <button class="btn" id="gridUpBtn" title="Go up one folder (Escape)" aria-label="Go up one folder"><span data-icon="arrowUp"></span></button>
+          <div class="crumbs" id="gridCrumbs"></div>
+          <div class="spacer"></div>
+          <div class="field">
+            <span data-icon="search"></span>
+            <input type="text" id="gridSearch" placeholder="Filter files…  ( / )" aria-label="Filter files by name" autocomplete="off">
+          </div>
+          <label for="gridSort" data-i18n="sort">Sort</label>
+          <select id="gridSort" aria-label="Sort grid by">
+            <option value="size" data-i18n="sortSize">Size</option>
+            <option value="name" data-i18n="sortName">Name</option>
+            <option value="date" data-i18n="sortDate">Date modified</option>
+            <option value="type" data-i18n="sortType">Type</option>
+          </select>
+        </div>
+        <div class="glass" id="gridScroll"><div id="gridInner"></div></div>
+      </div>
+
+      <!-- Breakdown: file types + largest files/folders (scan-dependent) -->
+      <div class="dm-breakdown">
         <div class="card glass">
-          <h2><span data-icon="pie"></span>File Types by Size</h2>
+          <h2><span data-icon="pie"></span><span data-i18n="fileTypesBySize">File types by size</span></h2>
           <div class="donut-row">
             <canvas id="donutCanvas" width="230" height="230" aria-label="File type breakdown donut chart" role="img"></canvas>
-            <div class="donut-legend" id="donutLegend"><div class="muted">Run a scan to see the breakdown.</div></div>
+            <div class="donut-legend" id="donutLegend"></div>
           </div>
         </div>
         <div class="card glass">
-          <h2><span data-icon="trendUp"></span>Largest Files</h2>
-          <div id="bigFiles"><div class="muted">Run a scan to find your biggest files.</div></div>
+          <h2><span data-icon="trendUp"></span><span data-i18n="largestFiles">Largest files</span></h2>
+          <div id="bigFiles"></div>
         </div>
         <div class="card glass">
-          <h2><span data-icon="folder"></span>Largest Folders</h2>
-          <div id="bigFolders"><div class="muted">Run a scan to find your biggest folders.</div></div>
+          <h2><span data-icon="folder"></span><span data-i18n="largestFolders">Largest folders</span></h2>
+          <div id="bigFolders"></div>
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- ═══════════ Treemap ═══════════ -->
-  <section class="view" id="view-treemap" role="tabpanel" aria-label="Treemap" hidden>
-    <div class="tm-toolbar">
-      <button class="btn" id="tmUpBtn" title="Zoom out one level (Escape)" aria-label="Zoom out one level"><span data-icon="arrowUp"></span></button>
-      <div class="crumbs" id="tmCrumbs"></div>
-      <div class="tm-controls">
-        <div class="field">
-          <span data-icon="search"></span>
-          <input type="text" id="tmSearch" placeholder="Highlight… (name or *.zip)" aria-label="Highlight matching files in the treemap" autocomplete="off" spellcheck="false">
-        </div>
-        <label for="tmDepth">Depth</label>
-        <select id="tmDepth" aria-label="Treemap depth">
-          <option value="2">2</option><option value="3">3</option>
-          <option value="4" selected>4</option><option value="5">5</option><option value="6">6</option>
-        </select>
-        <button class="icon-btn" id="tmRefresh" aria-label="Re-render treemap" title="Re-render"></button>
-        <button class="btn" id="tmExportBtn" title="Download the treemap as an image"><span data-icon="download"></span>Export</button>
-      </div>
-    </div>
-    <div class="glass" id="treemapWrap">
-      <div id="treemapZoom"><canvas id="treemapCanvas" tabindex="0" aria-label="Disk usage treemap. Click a directory to drill in, Escape to go up."></canvas></div>
-    </div>
-    <div class="tm-foot">
-      <span>1 MB</span><div class="legend-grad"></div><span>10 GB+</span>
-      <span class="num" id="tmStatus"></span>
-      <span class="hint"><span data-icon="mouse"></span>click a folder to drill in · right-click for actions · Esc to go up</span>
-    </div>
-  </section>
-
-  <!-- ═══════════ Grid ═══════════ -->
-  <section class="view" id="view-grid" role="tabpanel" aria-label="Grid" hidden>
-    <div class="grid-toolbar">
-      <button class="btn" id="gridUpBtn" title="Go up one folder (Escape)" aria-label="Go up one folder"><span data-icon="arrowUp"></span></button>
-      <div class="crumbs" id="gridCrumbs"></div>
-      <div class="spacer"></div>
-      <div class="field">
-        <span data-icon="search"></span>
-        <input type="text" id="gridSearch" placeholder="Filter files…  ( / )" aria-label="Filter files by name" autocomplete="off">
-      </div>
-      <label for="gridSort">Sort</label>
-      <select id="gridSort" aria-label="Sort grid by">
-        <option value="size">Size</option>
-        <option value="name">Name</option>
-        <option value="date">Date modified</option>
-        <option value="type">Type</option>
-      </select>
-    </div>
-    <div class="glass" id="gridScroll"><div id="gridInner"></div></div>
   </section>
 
   <!-- ═══════════ Duplicates ═══════════ -->
@@ -1171,50 +1210,17 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
     <div class="dup-toolbar">
       <span class="dup-summary" id="dupSummary">Scanning for duplicates…</span>
       <div class="spacer"></div>
-      <label for="dupMinSize">Ignore files under</label>
+      <label for="dupMinSize" data-i18n="ignoreUnder">Ignore files under</label>
       <select id="dupMinSize" aria-label="Minimum file size for duplicate detection">
         <option value="1024">1 KB</option>
         <option value="102400" selected>100 KB</option>
         <option value="1048576">1 MB</option>
         <option value="10485760">10 MB</option>
       </select>
-      <button class="btn" id="dupAutoBtn" title="In every group, select all copies except the newest one"><span data-icon="sparkles"></span>Auto-select (keep newest)</button>
-      <button class="btn btn-danger" id="dupTrashBtn" disabled><span data-icon="trash"></span>Move to Trash</button>
+      <button class="btn" id="dupAutoBtn" title="In every group, select all copies except the newest one"><span data-icon="sparkles"></span><span data-i18n="autoSelectNewest">Auto-select (keep newest)</span></button>
+      <button class="btn btn-danger" id="dupTrashBtn" disabled><span data-icon="trash"></span><span data-i18n="moveToTrash">Move to Trash</span></button>
     </div>
     <div id="dupBody"></div>
-  </section>
-
-  <!-- ═══════════ Trends ═══════════ -->
-  <section class="view" id="view-trends" role="tabpanel" aria-label="Trends" hidden>
-    <div class="trends-toolbar">
-      <label for="trendRoot">Folder</label>
-      <select id="trendRoot" aria-label="Folder to show history for"></select>
-      <span class="muted" id="trendInfo"></span>
-    </div>
-    <div class="trends-grid">
-      <div class="card glass">
-        <h2><span data-icon="trendUp"></span>Total Size Over Time</h2>
-        <canvas id="trendChart" height="300" aria-label="Folder size history chart" role="img"></canvas>
-      </div>
-      <div class="card glass">
-        <h2><span data-icon="activity"></span>Since Previous Scan</h2>
-        <div id="trendDeltas"><div class="muted">Scan the same folder twice to see what grew or shrank.</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══════════ Compare ═══════════ -->
-  <section class="view" id="view-compare" role="tabpanel" aria-label="Compare" hidden>
-    <div class="trends-toolbar">
-      <label for="cmpA">Before</label>
-      <select id="cmpA" aria-label="Older scan or snapshot"></select>
-      <span class="muted">→</span>
-      <label for="cmpB">After</label>
-      <select id="cmpB" aria-label="Newer scan or snapshot"></select>
-      <button class="btn btn-primary" id="cmpRunBtn"><span data-icon="diff"></span>Compare</button>
-      <span class="muted" id="cmpInfo"></span>
-    </div>
-    <div id="cmpBody"><div class="card glass"><div class="muted">Pick two scans of the same folder — scans from this session give a full file-level diff; history snapshots compare top-level folders.</div></div></div>
   </section>
 
   <!-- ═══════════ Fast Clean (Cleaner) ═══════════ -->
@@ -1257,24 +1263,29 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   <section class="view" id="view-maintenance" role="tabpanel" aria-label="Performance" hidden>
     <div style="max-width:780px;margin:0 auto;">
       <div class="card glass" style="margin-bottom:16px;">
-        <h2><span data-icon="zap"></span>Login Items</h2>
+        <h2><span data-icon="zap"></span><span data-i18n="loginItems">Login Items</span></h2>
         <div class="muted" style="margin:-2px 0 10px;">Apps that open automatically when you log in. Turn one off to stop it (Apple system services aren't shown).</div>
         <div id="mntLoginItems" class="mnt-scroll"><div class="muted">Loading…</div></div>
       </div>
+      <div class="card glass" style="margin-bottom:16px;">
+        <h2><span data-icon="settings"></span><span data-i18n="launchAgents">Background items</span></h2>
+        <div class="muted" style="margin:-2px 0 10px;" data-i18n="launchAgentsDesc">Background helpers that load automatically (LaunchAgents). Turn one off to stop it from starting.</div>
+        <div id="mntLaunchAgents" class="mnt-scroll"><div class="muted">Loading…</div></div>
+      </div>
       <div class="card glass">
-        <h2><span data-icon="settings"></span>Maintenance</h2>
+        <h2><span data-icon="settings"></span><span data-i18n="maintenance">Maintenance</span></h2>
         <div class="muted" style="margin:-2px 0 8px;">Safe, no-password upkeep tasks.</div>
         <div class="mnt-row">
           <div class="mnt-ico"><span data-icon="refresh" data-size="17"></span></div>
-          <div class="mnt-text"><b>Flush DNS cache</b><span>Clears the resolver cache — fixes stale or unresolving domains.</span></div>
+          <div class="mnt-text"><b data-i18n="flushDns">Flush DNS cache</b><span>Clears the resolver cache — fixes stale or unresolving domains.</span></div>
           <span class="mnt-status" id="mntStatus-flush-dns"></span>
-          <button class="btn btn-primary" data-mnt="flush-dns">Run</button>
+          <button class="btn btn-primary" data-mnt="flush-dns" data-i18n="run">Run</button>
         </div>
         <div class="mnt-row">
           <div class="mnt-ico"><span data-icon="box" data-size="17"></span></div>
-          <div class="mnt-text"><b>Rebuild Launch Services</b><span>Fixes duplicate or wrong "Open With" app associations.</span></div>
+          <div class="mnt-text"><b data-i18n="rebuildLS">Rebuild Launch Services</b><span>Fixes duplicate or wrong "Open With" app associations.</span></div>
           <span class="mnt-status" id="mntStatus-rebuild-launchservices"></span>
-          <button class="btn btn-primary" data-mnt="rebuild-launchservices">Run</button>
+          <button class="btn btn-primary" data-mnt="rebuild-launchservices" data-i18n="run">Run</button>
         </div>
       </div>
     </div>
@@ -1665,8 +1676,9 @@ function applyTheme(mode) {
   $('themeToggle').innerHTML = icon(dark ? 'sun' : 'moon', 16);
   document.querySelectorAll('#themeSeg [data-theme-opt]').forEach(b =>
     b.setAttribute('aria-selected', String(b.dataset.themeOpt === mode)));
-  if (state.treemap.nodes.length && state.view === 'treemap') drawTreemap();
+  if (state.treemap.nodes.length && state.view === 'treemap' && state.diskMapLayout === 'treemap') drawTreemap();
   if (state.donut && state.donut.segs.length) drawDonut(1);
+  if (state.view === 'dashboard' && state.trends.snapshots.length) drawTrendChart();
 }
 let themeMode = localStorage.getItem('tm-theme') || 'system';
 // Header toggle flips between light/dark explicitly.
@@ -1685,6 +1697,18 @@ if (sysDark && sysDark.addEventListener) sysDark.addEventListener('change', () =
 const STRINGS = {
   en: { clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
     fans:'Fans',
+    // Dashboard + Disk Map + activity (English source for JS-rendered strings)
+    diskMap:'Disk Map', sensorsLoading:'Reading sensors…', dupNeedsScan:'Scan a folder in Disk Map first to look for duplicates.', openDiskMap:'Open Disk Map',
+    noHistoryYet:'No history yet', latest:'latest', filesWord:'files', foldersWord:'folders', noSnapshotsYet:'No snapshots yet — finish a scan to start tracking.', since:'since',
+    verbCleaned:'Cleaned', verbUninstalled:'Uninstalled', verbUpdated:'Updated', verbTrashed:'Trashed', noActivityYet:'No activity yet — clean, uninstall, or update to see it here.',
+    justNow:'just now', minAgo:'m ago', hourAgo:'h ago', dayAgo:'d ago',
+    // Updater
+    updUpToDate:"Everything's up to date.", updUpdate:'Update', updUpdating:'Updating…', updUpdated:'Updated', updInTerminal:'In Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'update available', updAvailablePlural:'updates available', updOnlyMac:'The Updater is available on macOS only.', updCheckFailed:'Could not check for updates', updConfirmTitle:'Update this app?', updConfirmUncertain:'This update may not be exact:', updConfirmProceed:'Update anyway', updCancel:'Cancel',
+    // Maintenance / launch agents / DNS
+    launchAgents:'Background items', launchAgentsDesc:'Background helpers that load automatically (LaunchAgents). Turn one off to stop it from starting.', noLaunchAgents:'No user background items found.', finishInTerminal:'Finish in Terminal', dnsPartial:'DNS partly flushed — some caches need admin rights.',
+    // Cache plan / cleaner honesty
+    protectedSkipped:'protected', inUseSkipped:'in use — skipped',
+    quitFirst:'Quit the app first', appRunningWarn:'is running — quit it before removing leftovers.',
     sCpuPerf:'CPU Performance', sCpuEff:'CPU Efficiency', sGpu:'GPU', sSsd:'SSD', sBattery:'Battery', sAmbient:'Ambient', hottest:'Hottest',
     pillNotInstalled:'Sensors only', pillInstalled:'Control available', pillActiveBoost:'Boost active', pillMacos:'Controlled by macOS',
     modeAuto:'Auto', modeManual:'Manual', modeMacos:'macOS',
@@ -1693,10 +1717,20 @@ const STRINGS = {
     onboardTitle:'Fan control needs a one-time authorization', onboardBody:'Fan control needs a one-time system authorization (your password, once). Sensors work without it.', installHelper:'Install fan control', sensorsNoHelper:'Temperature and RPM readings already work.',
     allFans:'All fans', target:'Target', threshold:'Threshold', mappedRpm:'Mapped RPM', controlledByMacos:'controlled by macOS',
     uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.' },
-  es: { dashboard:'Panel', smartScan:'Escaneo inteligente', cleanup:'Limpieza', systemJunk:'Basura del sistema', trash:'Papelera', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', grid:'Cuadrícula', largeOld:'Grandes y antiguos', duplicates:'Duplicados', compare:'Comparar', trends:'Tendencias', soon:'pronto',
+  es: { dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
     fans:'Ventiladores', used:'usado', totalDisk:'Disco total', freeSpace:'Libre', usedSpace:'Usado',
+    diskUsage:'Uso del disco', tempsAndFans:'Temperatura y ventiladores', sensorsLoading:'Leyendo sensores…', quickActions:'Acciones rápidas', lifetimeImpact:'Impacto total', movedToTrash:'Movido a la Papelera', junkItemsCleaned:'Elementos basura limpiados', appsUninstalled:'Apps desinstaladas', updatesApplied:'Actualizaciones aplicadas', storageTrend:'Tendencia de almacenamiento', recentActivity:'Actividad reciente', hostLabel:'Equipo', platformLabel:'Plataforma',
+    diskMapTitle:'Mapea el uso de disco de una carpeta', diskMapSub:'Escanea cualquier carpeta para ver un treemap tipo GrandPerspective y una cuadrícula proporcional al tamaño. Los archivos van a la Papelera — nunca se borran directamente.', browse:'Explorar…', scan:'Escanear', noScanYet:'Sin escaneo — elige una carpeta arriba.', treemap:'Treemap', grid:'Cuadrícula', scanFolder:'Escanear carpeta…', depth:'Profundidad', exportBtn:'Exportar', tmHint:'clic en una carpeta para entrar · clic derecho para acciones · Esc para subir', sort:'Ordenar', sortSize:'Tamaño', sortName:'Nombre', sortDate:'Fecha de modificación', sortType:'Tipo', fileTypesBySize:'Tipos de archivo por tamaño', largestFiles:'Archivos más grandes', largestFolders:'Carpetas más grandes',
+    ignoreUnder:'Ignorar archivos menores de', autoSelectNewest:'Autoseleccionar (conservar el más reciente)', moveToTrash:'Mover a la Papelera', dupNeedsScan:'Escanea una carpeta en Mapa de disco para buscar duplicados.', openDiskMap:'Abrir Mapa de disco',
+    noHistoryYet:'Sin historial aún', latest:'último', filesWord:'archivos', foldersWord:'carpetas', noSnapshotsYet:'Aún no hay instantáneas — termina un escaneo para empezar a registrar.', since:'desde',
+    verbCleaned:'Limpiado', verbUninstalled:'Desinstalado', verbUpdated:'Actualizado', verbTrashed:'Enviado a la Papelera', noActivityYet:'Sin actividad aún — limpia, desinstala o actualiza para verla aquí.',
+    justNow:'ahora mismo', minAgo:' min', hourAgo:' h', dayAgo:' d',
+    updUpToDate:'Todo está actualizado.', updUpdate:'Actualizar', updUpdating:'Actualizando…', updUpdated:'Actualizado', updInTerminal:'En Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'actualización disponible', updAvailablePlural:'actualizaciones disponibles', updOnlyMac:'El Actualizador solo está disponible en macOS.', updCheckFailed:'No se pudo buscar actualizaciones', updConfirmTitle:'¿Actualizar esta app?', updConfirmUncertain:'Esta actualización puede no ser exacta:', updConfirmProceed:'Actualizar igualmente', updCancel:'Cancelar',
+    launchAgents:'Elementos en segundo plano', launchAgentsDesc:'Ayudantes en segundo plano que se cargan automáticamente (LaunchAgents). Desactiva uno para impedir que se inicie.', noLaunchAgents:'No se encontraron elementos en segundo plano del usuario.', finishInTerminal:'Terminar en Terminal', dnsPartial:'DNS parcialmente vaciado — algunas cachés requieren permisos de administrador.',
+    protectedSkipped:'protegidas', inUseSkipped:'en uso — omitidas',
+    quitFirst:'Cierra la app primero', appRunningWarn:'está en ejecución — ciérrala antes de eliminar los restos.',
     fansTitle:'Control de ventiladores', sensors:'Sensores', fansHardware:'Ventiladores', control:'Control', autoRules:'Reglas automáticas', autoRulesDesc:'Sube la velocidad automáticamente cuando un sensor supera un umbral.', addRule:'Añadir regla', rulesHysteresis:'Cada regla se libera 5 °C por debajo de su disparador, para que no oscilen. Gana la regla activa más alta.', fansSafety:'MacCleaner solo puede subir la velocidad por encima del mínimo del sistema — nunca por debajo. El control automático se restaura al salir o si la app se cierra de forma inesperada.',
     sCpuPerf:'CPU rendimiento', sCpuEff:'CPU eficiencia', sGpu:'GPU', sSsd:'SSD', sBattery:'Batería', sAmbient:'Ambiente', hottest:'Más caliente',
     pillNotInstalled:'Solo sensores', pillInstalled:'Control disponible', pillActiveBoost:'Refuerzo activo', pillMacos:'Gestionado por macOS',
@@ -1706,10 +1740,20 @@ const STRINGS = {
     onboardTitle:'El control de ventiladores necesita una autorización', onboardBody:'El control de ventiladores requiere una autorización única del sistema (tu contraseña, una sola vez). Los sensores funcionan sin ella.', installHelper:'Instalar control', sensorsNoHelper:'Las lecturas de temperatura y RPM ya funcionan.',
     allFans:'Todos los ventiladores', target:'Objetivo', threshold:'Umbral', mappedRpm:'RPM previstas', controlledByMacos:'controlado por macOS',
     uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.' },
-  ru: { dashboard:'Панель', smartScan:'Умное сканирование', cleanup:'Очистка', systemJunk:'Системный мусор', trash:'Корзина', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', grid:'Сетка', largeOld:'Большие и старые', duplicates:'Дубликаты', compare:'Сравнить', trends:'Тренды', soon:'скоро',
+  ru: { dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
     fans:'Кулеры', used:'занято', totalDisk:'Всего на диске', freeSpace:'Свободно', usedSpace:'Занято',
+    diskUsage:'Использование диска', tempsAndFans:'Температура и кулеры', sensorsLoading:'Чтение датчиков…', quickActions:'Быстрые действия', lifetimeImpact:'Общий результат', movedToTrash:'В Корзину', junkItemsCleaned:'Очищено мусора', appsUninstalled:'Удалено приложений', updatesApplied:'Применено обновлений', storageTrend:'Динамика хранилища', recentActivity:'Недавние действия', hostLabel:'Хост', platformLabel:'Платформа',
+    diskMapTitle:'Постройте карту использования диска папки', diskMapSub:'Просканируйте любую папку, чтобы увидеть treemap в стиле GrandPerspective и пропорциональную по размеру сетку. Файлы попадают в Корзину — они не удаляются напрямую.', browse:'Обзор…', scan:'Сканировать', noScanYet:'Сканирования пока нет — выберите папку выше.', treemap:'Treemap', grid:'Сетка', scanFolder:'Сканировать папку…', depth:'Глубина', exportBtn:'Экспорт', tmHint:'клик по папке — войти · правый клик — действия · Esc — вверх', sort:'Сортировка', sortSize:'Размер', sortName:'Имя', sortDate:'Дата изменения', sortType:'Тип', fileTypesBySize:'Типы файлов по размеру', largestFiles:'Крупнейшие файлы', largestFolders:'Крупнейшие папки',
+    ignoreUnder:'Игнорировать файлы меньше', autoSelectNewest:'Автовыбор (оставить новейший)', moveToTrash:'В Корзину', dupNeedsScan:'Сначала просканируйте папку в Карте диска, чтобы искать дубликаты.', openDiskMap:'Открыть Карту диска',
+    noHistoryYet:'Истории пока нет', latest:'последнее', filesWord:'файлов', foldersWord:'папок', noSnapshotsYet:'Снимков пока нет — завершите сканирование, чтобы начать отслеживание.', since:'с',
+    verbCleaned:'Очищено', verbUninstalled:'Удалено', verbUpdated:'Обновлено', verbTrashed:'В Корзину', noActivityYet:'Действий пока нет — очистите, удалите или обновите, чтобы увидеть их здесь.',
+    justNow:'только что', minAgo:' мин назад', hourAgo:' ч назад', dayAgo:' дн назад',
+    updUpToDate:'Всё обновлено.', updUpdate:'Обновить', updUpdating:'Обновление…', updUpdated:'Обновлено', updInTerminal:'В Терминале', updApps:'Приложения', updHomebrew:'Homebrew', updAvailable:'обновление доступно', updAvailablePlural:'обновлений доступно', updOnlyMac:'Обновления доступны только в macOS.', updCheckFailed:'Не удалось проверить обновления', updConfirmTitle:'Обновить это приложение?', updConfirmUncertain:'Это обновление может быть неточным:', updConfirmProceed:'Всё равно обновить', updCancel:'Отмена',
+    launchAgents:'Фоновые объекты', launchAgentsDesc:'Фоновые помощники, загружающиеся автоматически (LaunchAgents). Отключите, чтобы они не запускались.', noLaunchAgents:'Пользовательских фоновых объектов не найдено.', finishInTerminal:'Завершить в Терминале', dnsPartial:'Кэш DNS очищен частично — для остального нужны права администратора.',
+    protectedSkipped:'защищено', inUseSkipped:'используется — пропущено',
+    quitFirst:'Сначала закройте приложение', appRunningWarn:'запущено — закройте его перед удалением остатков.',
     fansTitle:'Управление кулерами', sensors:'Датчики', fansHardware:'Кулеры', control:'Управление', autoRules:'Автоправила', autoRulesDesc:'Автоматически повышать обороты, когда датчик превышает порог.', addRule:'Добавить правило', rulesHysteresis:'Каждое правило отключается на 5 °C ниже порога, чтобы обороты не скакали. Побеждает самое высокое сработавшее правило.', fansSafety:'MacCleaner может только повышать обороты выше системного минимума — но не понижать. Автоматическое управление восстанавливается при выходе или при неожиданном закрытии приложения.',
     sCpuPerf:'CPU производит.', sCpuEff:'CPU эконом.', sGpu:'GPU', sSsd:'SSD', sBattery:'Батарея', sAmbient:'Окружение', hottest:'Самый горячий',
     pillNotInstalled:'Только датчики', pillInstalled:'Управление доступно', pillActiveBoost:'Разгон активен', pillMacos:'Управляется macOS',
@@ -1719,10 +1763,20 @@ const STRINGS = {
     onboardTitle:'Для управления нужна авторизация', onboardBody:'Управлению кулерами нужна однократная авторизация системы (ваш пароль, один раз). Датчики работают и без неё.', installHelper:'Установить управление', sensorsNoHelper:'Показания температуры и оборотов уже работают.',
     allFans:'Все кулеры', target:'Цель', threshold:'Порог', mappedRpm:'Ожидаемые об/мин', controlledByMacos:'управляется macOS',
     uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.' },
-  de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', cleanup:'Bereinigung', systemJunk:'Systemmüll', trash:'Papierkorb', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', grid:'Raster', largeOld:'Groß & alt', duplicates:'Duplikate', compare:'Vergleichen', trends:'Trends', soon:'bald',
+  de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
     fans:'Lüfter', used:'belegt', totalDisk:'Gesamt', freeSpace:'Frei', usedSpace:'Belegt',
+    diskUsage:'Speichernutzung', tempsAndFans:'Temperatur & Lüfter', sensorsLoading:'Sensoren werden gelesen…', quickActions:'Schnellaktionen', lifetimeImpact:'Gesamtwirkung', movedToTrash:'In den Papierkorb', junkItemsCleaned:'Müll-Objekte bereinigt', appsUninstalled:'Programme deinstalliert', updatesApplied:'Updates angewendet', storageTrend:'Speicher-Trend', recentActivity:'Letzte Aktivität', hostLabel:'Host', platformLabel:'Plattform',
+    diskMapTitle:'Speichernutzung eines Ordners abbilden', diskMapSub:'Scanne einen beliebigen Ordner für einen Treemap im GrandPerspective-Stil und ein größenproportionales Raster. Dateien landen im Papierkorb — sie werden nie direkt gelöscht.', browse:'Durchsuchen…', scan:'Scannen', noScanYet:'Noch kein Scan — wähle oben einen Ordner.', treemap:'Treemap', grid:'Raster', scanFolder:'Ordner scannen…', depth:'Tiefe', exportBtn:'Exportieren', tmHint:'Klick auf einen Ordner zum Öffnen · Rechtsklick für Aktionen · Esc zum Hochgehen', sort:'Sortieren', sortSize:'Größe', sortName:'Name', sortDate:'Änderungsdatum', sortType:'Typ', fileTypesBySize:'Dateitypen nach Größe', largestFiles:'Größte Dateien', largestFolders:'Größte Ordner',
+    ignoreUnder:'Dateien ignorieren unter', autoSelectNewest:'Autoauswahl (neueste behalten)', moveToTrash:'In den Papierkorb', dupNeedsScan:'Scanne zuerst einen Ordner in der Speicherkarte, um Duplikate zu finden.', openDiskMap:'Speicherkarte öffnen',
+    noHistoryYet:'Noch kein Verlauf', latest:'aktuell', filesWord:'Dateien', foldersWord:'Ordner', noSnapshotsYet:'Noch keine Snapshots — schließe einen Scan ab, um zu tracken.', since:'seit',
+    verbCleaned:'Bereinigt', verbUninstalled:'Deinstalliert', verbUpdated:'Aktualisiert', verbTrashed:'In den Papierkorb', noActivityYet:'Noch keine Aktivität — bereinige, deinstalliere oder aktualisiere, um sie hier zu sehen.',
+    justNow:'gerade eben', minAgo:' Min', hourAgo:' Std', dayAgo:' T',
+    updUpToDate:'Alles ist aktuell.', updUpdate:'Aktualisieren', updUpdating:'Aktualisiere…', updUpdated:'Aktualisiert', updInTerminal:'Im Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'Update verfügbar', updAvailablePlural:'Updates verfügbar', updOnlyMac:'Der Updater ist nur unter macOS verfügbar.', updCheckFailed:'Updates konnten nicht geprüft werden', updConfirmTitle:'Diese App aktualisieren?', updConfirmUncertain:'Dieses Update ist möglicherweise nicht exakt:', updConfirmProceed:'Trotzdem aktualisieren', updCancel:'Abbrechen',
+    launchAgents:'Hintergrundobjekte', launchAgentsDesc:'Hintergrundhelfer, die automatisch geladen werden (LaunchAgents). Schalte einen aus, um seinen Start zu verhindern.', noLaunchAgents:'Keine Hintergrundobjekte des Benutzers gefunden.', finishInTerminal:'Im Terminal abschließen', dnsPartial:'DNS teilweise geleert — einige Caches brauchen Administratorrechte.',
+    protectedSkipped:'geschützt', inUseSkipped:'in Benutzung — übersprungen',
+    quitFirst:'Beende zuerst die App', appRunningWarn:'läuft — beende sie, bevor du Reste entfernst.',
     fansTitle:'Lüftersteuerung', sensors:'Sensoren', fansHardware:'Lüfter', control:'Steuerung', autoRules:'Auto-Regeln', autoRulesDesc:'Lüfter automatisch hochdrehen, wenn ein Sensor eine Schwelle überschreitet.', addRule:'Regel hinzufügen', rulesHysteresis:'Jede Regel löst 5 °C unter ihrem Auslöser wieder aus, damit die Lüfter nicht pendeln. Die höchste zutreffende Regel gewinnt.', fansSafety:'MacCleaner kann die Lüfter nur über das Systemminimum anheben — niemals darunter. Die automatische Steuerung wird beim Beenden oder bei unerwartetem Schließen sofort wiederhergestellt.',
     sCpuPerf:'CPU Leistung', sCpuEff:'CPU Effizienz', sGpu:'GPU', sSsd:'SSD', sBattery:'Akku', sAmbient:'Umgebung', hottest:'Wärmster',
     pillNotInstalled:'Nur Sensoren', pillInstalled:'Steuerung verfügbar', pillActiveBoost:'Boost aktiv', pillMacos:'Von macOS geregelt',
@@ -1732,10 +1786,20 @@ const STRINGS = {
     onboardTitle:'Lüftersteuerung braucht eine Freigabe', onboardBody:'Die Lüftersteuerung braucht eine einmalige Systemfreigabe (dein Passwort, einmal). Sensoren funktionieren auch ohne.', installHelper:'Steuerung installieren', sensorsNoHelper:'Temperatur- und Drehzahlwerte funktionieren bereits.',
     allFans:'Alle Lüfter', target:'Ziel', threshold:'Schwelle', mappedRpm:'Erwartete U/min', controlledByMacos:'von macOS geregelt',
     uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.' },
-  fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', cleanup:'Nettoyage', systemJunk:'Fichiers inutiles', trash:'Corbeille', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', grid:'Grille', largeOld:'Volumineux & anciens', duplicates:'Doublons', compare:'Comparer', trends:'Tendances', soon:'bientôt',
+  fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
     fans:'Ventilateurs', used:'utilisé', totalDisk:'Disque total', freeSpace:'Libre', usedSpace:'Utilisé',
+    diskUsage:'Utilisation du disque', tempsAndFans:'Température et ventilateurs', sensorsLoading:'Lecture des capteurs…', quickActions:'Actions rapides', lifetimeImpact:'Impact total', movedToTrash:'Déplacé vers la Corbeille', junkItemsCleaned:'Éléments inutiles nettoyés', appsUninstalled:'Apps désinstallées', updatesApplied:'Mises à jour appliquées', storageTrend:'Tendance du stockage', recentActivity:'Activité récente', hostLabel:'Hôte', platformLabel:'Plateforme',
+    diskMapTitle:"Cartographier l'utilisation disque d'un dossier", diskMapSub:'Analysez n\'importe quel dossier pour un treemap façon GrandPerspective et une grille proportionnelle à la taille. Les fichiers vont à la Corbeille — jamais supprimés directement.', browse:'Parcourir…', scan:'Analyser', noScanYet:'Aucune analyse — choisissez un dossier ci-dessus.', treemap:'Treemap', grid:'Grille', scanFolder:'Analyser un dossier…', depth:'Profondeur', exportBtn:'Exporter', tmHint:'cliquez un dossier pour entrer · clic droit pour les actions · Échap pour remonter', sort:'Trier', sortSize:'Taille', sortName:'Nom', sortDate:'Date de modification', sortType:'Type', fileTypesBySize:'Types de fichiers par taille', largestFiles:'Fichiers les plus volumineux', largestFolders:'Dossiers les plus volumineux',
+    ignoreUnder:'Ignorer les fichiers de moins de', autoSelectNewest:'Sélection auto (garder le plus récent)', moveToTrash:'Déplacer vers la Corbeille', dupNeedsScan:'Analysez d\'abord un dossier dans la Carte du disque pour chercher les doublons.', openDiskMap:'Ouvrir la Carte du disque',
+    noHistoryYet:'Pas encore d\'historique', latest:'dernier', filesWord:'fichiers', foldersWord:'dossiers', noSnapshotsYet:'Aucun instantané — terminez une analyse pour commencer le suivi.', since:'depuis',
+    verbCleaned:'Nettoyé', verbUninstalled:'Désinstallé', verbUpdated:'Mis à jour', verbTrashed:'Mis à la Corbeille', noActivityYet:'Aucune activité — nettoyez, désinstallez ou mettez à jour pour la voir ici.',
+    justNow:"à l'instant", minAgo:' min', hourAgo:' h', dayAgo:' j',
+    updUpToDate:'Tout est à jour.', updUpdate:'Mettre à jour', updUpdating:'Mise à jour…', updUpdated:'Mis à jour', updInTerminal:'Dans le Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'mise à jour disponible', updAvailablePlural:'mises à jour disponibles', updOnlyMac:'Les Mises à jour ne sont disponibles que sur macOS.', updCheckFailed:'Impossible de vérifier les mises à jour', updConfirmTitle:'Mettre à jour cette app ?', updConfirmUncertain:'Cette mise à jour peut ne pas être exacte :', updConfirmProceed:'Mettre à jour quand même', updCancel:'Annuler',
+    launchAgents:'Éléments en arrière-plan', launchAgentsDesc:'Assistants en arrière-plan chargés automatiquement (LaunchAgents). Désactivez-en un pour l\'empêcher de démarrer.', noLaunchAgents:'Aucun élément en arrière-plan utilisateur trouvé.', finishInTerminal:'Terminer dans le Terminal', dnsPartial:'DNS partiellement vidé — certains caches nécessitent des droits admin.',
+    protectedSkipped:'protégés', inUseSkipped:'en cours d\'utilisation — ignorés',
+    quitFirst:'Quittez d\'abord l\'app', appRunningWarn:'est en cours d\'exécution — quittez-la avant de supprimer les restes.',
     fansTitle:'Contrôle des ventilateurs', sensors:'Capteurs', fansHardware:'Ventilateurs', control:'Contrôle', autoRules:'Règles auto', autoRulesDesc:'Augmenter la vitesse automatiquement quand un capteur dépasse un seuil.', addRule:'Ajouter une règle', rulesHysteresis:"Chaque règle se relâche 5 °C sous son seuil, pour éviter les oscillations. La règle active la plus haute l'emporte.", fansSafety:"MacCleaner ne peut qu'augmenter la vitesse au-dessus du minimum du système — jamais en dessous. Le contrôle automatique est rétabli dès que vous quittez l'app ou si elle se ferme de façon inattendue.",
     sCpuPerf:'CPU performance', sCpuEff:'CPU efficacité', sGpu:'GPU', sSsd:'SSD', sBattery:'Batterie', sAmbient:'Ambiant', hottest:'Le plus chaud',
     pillNotInstalled:'Capteurs seuls', pillInstalled:'Contrôle disponible', pillActiveBoost:'Boost actif', pillMacos:'Géré par macOS',
@@ -1751,9 +1815,9 @@ function t(key) {
   return (STRINGS[lang] && STRINGS[lang][key]) || key;
 }
 // Sidebar/header labels are translated from JS maps (no markup changes needed).
-const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', grid:'grid', duplicates:'duplicates', compare:'compare', trends:'trends' };
-const SIDE_TEXT_KEYS = { 'System Junk':'systemJunk', 'Trash':'trash', 'Large & Old':'largeOld' };
-const HEAD_KEYS = { 'Cleanup':'cleanup', 'Speed':'speed', 'Applications':'applications', 'Files':'files' };
+const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', treemap:'diskMap', duplicates:'duplicates' };
+const SIDE_TEXT_KEYS = {};
+const HEAD_KEYS = { 'Speed':'speed', 'Applications':'applications', 'Files':'files' };
 function firstTextNode(el) { for (const n of el.childNodes) { if (n.nodeType === 3 && n.textContent.trim()) return n; } return null; }
 const LANG_NAMES = { en: 'English', es: 'Español', ru: 'Русский', de: 'Deutsch', fr: 'Français' };
 function applyLang(lang, announce) {
@@ -1839,11 +1903,11 @@ const state = {
   types: [],
   bigFolders: [],
   treemap: { rootPath: null, rootName: '', rootSize: 0, nodes: [], pxRects: [], hover: null, maxDepth: 4, query: '', matches: 0 },
+  diskMapLayout: 'treemap', // 'treemap' | 'grid' — in-view toggle for the merged Disk Map
   grid: { path: null, sort: 'size', query: '', layout: [], totalH: 0, selection: new Set(), anchor: null, rangeStart: 0, rangeEnd: -1 },
   donut: { segs: [], hover: -1, animated: false },
   dup: { loadedFor: null, status: 'idle', groups: [], groupCount: 0, totalReclaimable: 0, selection: new Set(), pollTimer: 0 },
   trends: { roots: [], path: null, snapshots: [], points: [], hover: -1 },
-  compare: { options: [], result: null },
   fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false },
   apps: { loaded: false, items: [], selected: null, leftovers: null, sel: new Set() },
   updater: {},
@@ -1871,37 +1935,68 @@ const tabs = document.querySelectorAll('.side-item[data-view]');
 tabs.forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 function switchView(name) {
   state.view = name;
-  // Trends + Compare read persisted history; Fast Clean is system-wide — all
-  // work without a folder scan.
-  const standalone = name === 'trends' || name === 'compare' || name === 'fastclean'
-    || name === 'apps' || name === 'updater' || name === 'maintenance' || name === 'fans';
-  const empty = !state.root && !state.scanning && !standalone;
+  // Every remaining view renders something useful without a folder scan: the
+  // Dashboard shows live system data, Disk Map shows its own folder picker,
+  // Duplicates shows a prompt. The legacy global empty-state is no longer used.
   tabs.forEach(b => b.setAttribute('aria-current', String(b.dataset.view === name)));
   document.querySelectorAll('.view').forEach(v => {
-    const on = !empty && v.id === 'view-' + name;
+    const on = v.id === 'view-' + name;
     v.classList.toggle('active', on);
     v.hidden = !on;
   });
   hideTooltip(); hideCtxMenu();
-  $('emptyState').style.display = empty ? 'flex' : 'none';
-  if (name === 'treemap' && state.scanId && state.root) {
-    if (!state.treemap.rootPath) state.treemap.rootPath = state.root.path;
-    loadTreemap(state.treemap.rootPath);
-  }
-  if (name === 'grid' && state.root) {
-    if (!state.grid.path || !state.pathIndex.has(state.grid.path)) state.grid.path = state.root.path;
-    renderGrid();
-  }
-  if (name === 'duplicates' && state.scanId && state.root) loadDuplicates();
-  if (name === 'trends') loadTrends();
-  if (name === 'compare') loadCompareOptions();
+  if (name === 'treemap') syncDiskMap();
+  if (name === 'duplicates') renderDuplicatesGate();
   if (name === 'fastclean') loadFastClean();
   if (name === 'apps') loadApps();
   if (name === 'updater') loadUpdater();
   if (name === 'maintenance') loadMaintenance();
   if (name === 'fans') enterFansView();
-  if (name === 'dashboard') loadActivity();
+  if (name === 'dashboard') loadDashboard();
   fanPollAdjust();
+}
+
+/* Disk Map: show folder-picker empty state until a scan exists, then the
+   result panels honoring the current treemap⇄grid layout toggle. */
+function syncDiskMap() {
+  const has = !!(state.scanId && state.root);
+  $('diskMapEmpty').hidden = has;
+  $('diskMapResult').hidden = !has;
+  if (!has) return;
+  applyDiskMapLayout(state.diskMapLayout);
+}
+function applyDiskMapLayout(layout) {
+  state.diskMapLayout = layout;
+  document.querySelectorAll('#dmLayoutSeg [data-dm]').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.dm === layout)));
+  const tm = layout === 'treemap';
+  $('dmTreemap').hidden = !tm;
+  $('dmGrid').hidden = tm;
+  if (!state.scanId || !state.root) return;
+  if (tm) {
+    if (!state.treemap.rootPath) state.treemap.rootPath = state.root.path;
+    loadTreemap(state.treemap.rootPath);
+  } else {
+    if (!state.grid.path || !state.pathIndex.has(state.grid.path)) state.grid.path = state.root.path;
+    renderGrid();
+  }
+}
+document.querySelectorAll('#dmLayoutSeg [data-dm]').forEach(b =>
+  b.addEventListener('click', () => applyDiskMapLayout(b.dataset.dm)));
+$('dmRescanBtn').addEventListener('click', () => {
+  $('diskMapResult').hidden = true;
+  $('diskMapEmpty').hidden = false;
+  $('pathInput').focus();
+});
+
+/* Duplicates needs a scan; prompt for one in-view when none exists. */
+function renderDuplicatesGate() {
+  if (state.scanId && state.root) { loadDuplicates(); return; }
+  $('dupSummary').textContent = '';
+  $('dupBody').innerHTML = `<div class="card glass dm-inline-empty">${icon('copy', 34)}
+    <p class="muted">${escapeHtml(t('dupNeedsScan'))}</p>
+    <button class="btn btn-primary" id="dupGoScan">${icon('treemap', 15)}${escapeHtml(t('openDiskMap'))}</button></div>`;
+  $('dupBody').querySelector('#dupGoScan').addEventListener('click', () => switchView('treemap'));
 }
 
 /* ───────────────────────────── System info ───────────────────────────── */
@@ -1915,10 +2010,7 @@ async function loadSystem() {
     $('sysFree').textContent = formatBytes(sys.freeDisk);
     const used = sys.totalDisk - sys.freeDisk;
     $('sysUsed').textContent = formatBytes(used);
-    const pct = sys.totalDisk > 0 ? used / sys.totalDisk : 0;
-    countUp($('ringPct'), Math.round(pct * 100), (v) => v + '%');
-    const C = 2 * Math.PI * 55;
-    requestAnimationFrame(() => { $('ringFg').style.strokeDashoffset = String(C * (1 - pct)); });
+    updateDiskRing();
     if (!$('pathInput').value) $('pathInput').value = sys.homeDir;
     updateDiskChip();
   } catch (e) {
@@ -1949,8 +2041,12 @@ async function startScan(path) {
     $('bigFiles').innerHTML = skeletonRows(6);
     $('bigFolders').innerHTML = skeletonRows(6);
     $('donutLegend').innerHTML = skeletonRows(5, 24);
-    $('emptyState').style.display = 'none';
-    switchView('dashboard');
+    // Show the scan progress in the Disk Map's own picker/empty state.
+    state.view = 'treemap';
+    tabs.forEach(b => b.setAttribute('aria-current', String(b.dataset.view === 'treemap')));
+    document.querySelectorAll('.view').forEach(v => { const on = v.id === 'view-treemap'; v.classList.toggle('active', on); v.hidden = !on; });
+    $('diskMapEmpty').hidden = false;
+    $('diskMapResult').hidden = true;
 
     const t0 = performance.now();
     const { scanId } = await api('/api/scan', {
@@ -2038,10 +2134,6 @@ async function finishScan(root, durationMs) {
   $('scanStatus').classList.remove('error');
   $('scanStatus').innerHTML = icon('checkCircle', 14) +
     `<span class="num">Scanned <b>${formatCount(files)}</b> files in ${(durationMs / 1000).toFixed(1)}s — ${formatBytes(root.size)} in ${escapeHtml(root.path)}</span>`;
-  countUp($('statFiles'), files);
-  countUp($('statDirs'), dirs);
-  $('statLargest').textContent = largest ? `${largest.name} · ${formatBytes(largest.size)}` : '–';
-  $('statLastScan').textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
 
   state.dup = { loadedFor: null, status: 'idle', groups: [], groupCount: 0, totalReclaimable: 0, selection: new Set(), pollTimer: 0 };
   try {
@@ -2056,9 +2148,9 @@ async function finishScan(root, durationMs) {
   renderBigFolders();
   state.donut.animated = false;
   renderDonut();
-  if (state.view === 'treemap') loadTreemap(root.path);
-  if (state.view === 'grid') renderGrid();
-  switchView(state.view);
+  // Land on the Disk Map result panels with the current layout.
+  state.view = 'treemap';
+  switchView('treemap');
   toast(`Scan complete — ${formatBytes(root.size)} across ${formatCount(files)} files`);
 }
 
@@ -2116,6 +2208,7 @@ function renderBigFolders() {
   host.querySelectorAll('[data-jump]').forEach(row => {
     const jump = () => {
       state.treemap.rootPath = row.dataset.jump;
+      state.diskMapLayout = 'treemap';
       switchView('treemap');
     };
     row.addEventListener('click', jump);
@@ -2499,7 +2592,7 @@ $('tmDepth').addEventListener('change', (e) => {
 });
 $('tmRefresh').innerHTML = icon('refresh', 15);
 $('tmRefresh').addEventListener('click', () => { if (state.treemap.rootPath) loadTreemap(state.treemap.rootPath); });
-window.addEventListener('resize', () => { if (state.view === 'treemap' && state.treemap.nodes.length) drawTreemap(); });
+window.addEventListener('resize', () => { if (state.view === 'treemap' && state.diskMapLayout === 'treemap' && state.treemap.nodes.length) drawTreemap(); });
 
 /* ── Zoom out (button, breadcrumbs already handle jumps) ── */
 function treemapUp() {
@@ -2718,7 +2811,7 @@ $('confirmOk').addEventListener('click', async () => {
 
 async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan = false } = {}) {
   if (!paths.length) return { deleted: [], failed: [] };
-  const recovered = paths.reduce((s, p) => s + trashSizeOf(p, sizeHint), 0);
+  const estimate = paths.reduce((s, p) => s + trashSizeOf(p, sizeHint), 0);
   try {
     const result = await api('/api/files', {
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
@@ -2726,6 +2819,9 @@ async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan =
     });
     if (!silent) {
       if (result.deleted.length) {
+        // Prefer the server-confirmed freed bytes over the client-side estimate.
+        const recovered = typeof result.totalFreedBytes === 'number' && result.totalFreedBytes > 0
+          ? result.totalFreedBytes : estimate;
         toast(`Moved ${result.deleted.length} ${result.deleted.length === 1 ? 'item' : 'items'} to Trash — ${formatBytes(recovered)} recovered`);
       }
       if (result.failed.length) {
@@ -2816,8 +2912,9 @@ function renderLeftovers() {
   const data = state.apps.leftovers;
   if (!data) return;
   const app = data.app, rows = data.leftovers;
-  const warn = app.running
-    ? `<div class="warn-banner">${icon('alert', 16)}<span>Quit <b>${escapeHtml(app.name)}</b> first to remove it.</span></div>`
+  // Prefer the server's running-app warning string when present (follow-up 5).
+  const warn = (app.running || data.warning)
+    ? `<div class="warn-banner">${icon('alert', 16)}<span>${data.warning ? escapeHtml(data.warning) : `${escapeHtml(t('quitFirst'))} — <b>${escapeHtml(app.name)}</b> ${escapeHtml(t('appRunningWarn'))}`}</span></div>`
     : '';
   $('appsDetailBody').innerHTML = `
     <div class="lo-head">
@@ -2881,7 +2978,10 @@ function trashApp() {
     sizeHint, labels,
     onDone: (result) => {
       if (!result.deleted.length) return;
-      const bytes = result.deleted.reduce((s, p) => s + (sizeHint.get(p) || 0), 0);
+      // Credit truthful server-confirmed bytes when available, else the estimate.
+      const bytes = typeof result.totalFreedBytes === 'number' && result.totalFreedBytes > 0
+        ? result.totalFreedBytes
+        : result.deleted.reduce((s, p) => s + (sizeHint.get(p) || 0), 0);
       recordActivity({ kind: 'uninstall', label: appName, bytes, items: result.deleted.length });
       state.apps.loaded = false; state.apps.selected = null; state.apps.leftovers = null;
       $('appsDetailBody').hidden = true; $('appsDetailEmpty').hidden = false;
@@ -2900,13 +3000,13 @@ function recordActivity(delta) {
 /* ───────────────────────────── Dashboard activity hub ───────────────────────────── */
 const ACT_TINT = { 'fast-clean':'#0A84FF','system-junk':'#30D158','uninstall':'#FF9F0A','update':'#BF5AF2','large-old':'#64D2FF' };
 const ACT_ICON = { 'fast-clean':'sparkles','system-junk':'hardDrive','uninstall':'box','update':'refresh','large-old':'clock' };
-const ACT_VERB = { 'fast-clean':'Cleaned','system-junk':'Cleaned','uninstall':'Uninstalled','update':'Updated','large-old':'Trashed' };
+const ACT_VERB_KEY = { 'fast-clean':'verbCleaned','system-junk':'verbCleaned','uninstall':'verbUninstalled','update':'verbUpdated','large-old':'verbTrashed' };
 function relTime(ms) {
   const s = (Date.now() - ms) / 1000;
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.floor(s / 60) + 'm ago';
-  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-  return Math.floor(s / 86400) + 'd ago';
+  if (s < 60) return t('justNow');
+  if (s < 3600) return Math.floor(s / 60) + t('minAgo');
+  if (s < 86400) return Math.floor(s / 3600) + t('hourAgo');
+  return Math.floor(s / 86400) + t('dayAgo');
 }
 async function loadActivity() {
   let a;
@@ -2915,18 +3015,69 @@ async function loadActivity() {
   if ($('actUninstalled')) countUp($('actUninstalled'), a.appsUninstalled || 0);
   if ($('actUpdated')) countUp($('actUpdated'), a.programsUpdated || 0);
   if ($('actRecovered')) $('actRecovered').textContent = formatBytes(a.totalBytesRecovered || 0);
-  if ($('actSince')) $('actSince').textContent = a.firstRecordedAt ? 'since ' + formatDate(a.firstRecordedAt) : '';
+  if ($('actSince')) $('actSince').textContent = a.firstRecordedAt ? t('since') + ' ' + formatDate(a.firstRecordedAt) : '';
   const log = Array.isArray(a.log) ? a.log : [];
   if ($('actLog')) $('actLog').innerHTML = log.length
     ? log.slice(0, 15).map(e => `
       <div class="act-item">
         <span class="chip" style="--tint:${ACT_TINT[e.kind] || '#8E8E93'}">${icon(ACT_ICON[e.kind] || 'activity', 14)}</span>
         <div class="meta">
-          <div class="nm">${escapeHtml(ACT_VERB[e.kind] || 'Did')} ${escapeHtml(e.label || '')}${e.bytes ? ` · ${formatBytes(e.bytes)}` : ''}</div>
+          <div class="nm">${escapeHtml(t(ACT_VERB_KEY[e.kind]) || 'Did')} ${escapeHtml(e.label || '')}${e.bytes ? ` · ${formatBytes(e.bytes)}` : ''}</div>
           <div class="sub">${relTime(e.at)}</div>
         </div>
       </div>`).join('')
-    : '<div class="muted" style="padding:8px 2px;">No activity yet — clean, uninstall, or update to see it here.</div>';
+    : `<div class="muted" style="padding:8px 2px;">${escapeHtml(t('noActivityYet'))}</div>`;
+}
+
+/* ───────────────────────────── Dashboard ─────────────────────────────
+   Always-useful, zero-setup: disk usage, live temps/fans, lifetime impact,
+   activity feed, and the storage-trend chart. */
+function loadDashboard() {
+  if (state.system) { updateDiskRing(); } else { loadSystem(); }
+  renderDashSensors(state.fans.status);
+  fetchFanStatus();          // refresh the mini temps/fans panel
+  loadActivity();
+  loadTrends();              // storage-trend chart card
+}
+function updateDiskRing() {
+  const sys = state.system;
+  if (!sys || !sys.totalDisk) return;
+  const used = sys.totalDisk - sys.freeDisk;
+  const pct = used / sys.totalDisk;
+  countUp($('ringPct'), Math.round(pct * 100), (v) => v + '%');
+  const C = 2 * Math.PI * 55;
+  requestAnimationFrame(() => { $('ringFg').style.strokeDashoffset = String(C * (1 - pct)); });
+}
+/* Compact temps + fan-summary panel for the Dashboard (reuses the shared poller). */
+function renderDashSensors(s) {
+  const host = $('dashSensors');
+  if (!host) return;
+  if (!s || !s.temps) { host.innerHTML = `<div class="muted">${escapeHtml(t('sensorsLoading'))}</div>`; return; }
+  const temps = s.temps;
+  let hotDomain = null, hotVal = -Infinity;
+  for (const d of SENSOR_ORDER) {
+    if (typeof temps[d] === 'number' && temps[d] > hotVal) { hotVal = temps[d]; hotDomain = d; }
+  }
+  const tiles = SENSOR_ORDER.filter(d => typeof temps[d] === 'number').slice(0, 4).map(d => {
+    const v = temps[d], tier = tempTier(v);
+    return `<div class="ds-tile ${tier}${d === hotDomain ? ' hottest' : ''}">
+      <div class="ds-name">${escapeHtml(t(SENSOR_KEY[d]))}</div>
+      <div class="ds-val">${fmtTemp(v)}<span class="u">°C</span></div>
+    </div>`;
+  }).join('');
+  const fans = s.fans || [];
+  const anyThermal = fans.some(f => f.mode === 'thermal');
+  const avg = fans.length ? Math.round(fans.reduce((a, f) => a + (f.actualRpm || 0), 0) / fans.length) : 0;
+  const fanVal = (anyThermal && avg === 0) ? t('modeMacos') : (avg > 0 ? formatCount(avg) + ' RPM' : t('modeMacos'));
+  host.innerHTML = `<div class="ds-grid">${tiles}</div>
+    <button class="ds-fanrow" id="dashFanRow">
+      <span class="ic-wrap">${icon('fan', 15)}</span>
+      <span class="ds-fanlab">${escapeHtml(t('fans'))}</span>
+      <span class="ds-fanval num">${escapeHtml(fanVal)}</span>
+      <span class="ds-chev">${icon('chevronRight', 14)}</span>
+    </button>`;
+  const row = host.querySelector('#dashFanRow');
+  if (row) row.addEventListener('click', () => switchView('fans'));
 }
 
 /* ───────────────────────────── Applications: Updater ─────────────────────────────
@@ -2937,7 +3088,7 @@ async function loadActivity() {
 async function loadUpdater() {
   const body = $('updBody');
   if (state.system && state.system.platform !== 'darwin') {
-    body.innerHTML = '<p class="muted" style="padding:8px 0;">The Updater is available on macOS only.</p>';
+    body.innerHTML = `<p class="muted" style="padding:8px 0;">${escapeHtml(t('updOnlyMac'))}</p>`;
     return;
   }
   body.innerHTML = skeletonRows(5, 44);
@@ -2945,59 +3096,98 @@ async function loadUpdater() {
     const data = await api('/api/updater');
     renderUpdater(data);
   } catch (e) {
-    body.innerHTML = `<p class="muted" style="padding:8px 0;">Could not check for updates: ${escapeHtml(e.message)}</p>`;
+    body.innerHTML = `<p class="muted" style="padding:8px 0;">${escapeHtml(t('updCheckFailed'))}: ${escapeHtml(e.message)}</p>`;
   }
 }
+/* Renders one flat, chrome-less list: "Apps" (everything that isn't a brew cask)
+   first, then a "Homebrew" group LAST — shown only when brew is available and at
+   least one cask has an update. Uncertain casks require an explicit confirm. */
 function renderUpdater(data) {
   const body = $('updBody');
-  // Only show apps that actually have an update available.
   const updates = (data.apps || []).filter(a => a.update);
   if (!updates.length) {
-    body.innerHTML = `<div class="apps-empty" style="min-height:46vh;">${icon('checkCircle', 38)}<p class="muted">Everything's up to date.</p></div>`;
+    body.innerHTML = `<div class="apps-empty" style="min-height:46vh;">${icon('checkCircle', 38)}<p class="muted">${escapeHtml(t('updUpToDate'))}</p></div>`;
     return;
   }
-  const parts = [`<div class="upd-head">${icon('box', 14)}${updates.length} update${updates.length === 1 ? '' : 's'} available</div>`];
-  parts.push(updates.map(a => {
+  const casks = updates.filter(a => a.update.kind === 'cask');
+  const others = updates.filter(a => a.update.kind !== 'cask');
+  const showBrew = !!data.brewAvailable && casks.length > 0;
+
+  const row = (a) => {
     const sub = `${escapeHtml(a.currentVersion || '?')} → ${escapeHtml(a.update.latestVersion || 'latest')}`;
-    const attr = a.update.kind === 'cask' ? `data-cask="${escapeHtml(a.update.token)}"`
+    const uncertain = a.update.kind === 'cask' && a.update.uncertain;
+    const attr = a.update.kind === 'cask' ? `data-cask="${escapeHtml(a.update.token)}"${uncertain ? ` data-uncertain="1" data-reason="${escapeHtml(a.update.uncertainReason || '')}"` : ''}`
       : a.update.kind === 'mas' ? `data-mas="${escapeHtml(a.update.id)}"`
       : `data-open="${escapeHtml(a.path)}"`;
-    const action = `<button class="btn btn-primary upd-act" ${attr}>${icon('download', 14)}Update</button>`;
-    return `
-      <div class="upd-row">
+    const flag = uncertain ? `<span class="upd-uncertain" title="${escapeHtml(a.update.uncertainReason || '')}">${icon('alert', 13)}</span>` : '';
+    const action = `<button class="btn btn-primary upd-act" ${attr}>${icon('download', 14)}${escapeHtml(t('updUpdate'))}</button>`;
+    return `<div class="upd-row">
         ${appTile(a.icon, a.name)}
-        <div class="meta"><div class="nm">${escapeHtml(a.name)}</div><div class="ver">${sub}</div></div>
+        <div class="meta"><div class="nm">${escapeHtml(a.name)}${flag}</div><div class="ver">${sub}</div></div>
         ${action}
       </div>`;
-  }).join(''));
+  };
+
+  const parts = [];
+  // "Apps" group first (never labelled "Other apps").
+  if (others.length) {
+    parts.push(`<div class="upd-head">${icon('box', 14)}${escapeHtml(t('updApps'))} · ${others.length} ${escapeHtml(others.length === 1 ? t('updAvailable') : t('updAvailablePlural'))}</div>`);
+    parts.push(others.map(row).join(''));
+  }
+  // Homebrew group LAST — hidden entirely when no brew casks.
+  if (showBrew) {
+    parts.push(`<div class="upd-head upd-head-brew">${icon('box', 14)}${escapeHtml(t('updHomebrew'))} · ${casks.length}</div>`);
+    parts.push(casks.map(row).join(''));
+  }
 
   body.innerHTML = parts.join('');
   body.querySelectorAll('.upd-act[data-cask]').forEach(btn =>
-    btn.addEventListener('click', () => runCaskUpgrade(btn.dataset.cask, btn.closest('.upd-row'))));
+    btn.addEventListener('click', () => {
+      const rowEl = btn.closest('.upd-row');
+      if (btn.dataset.uncertain) {
+        confirmUncertainCask(rowEl.querySelector('.nm').textContent.trim(), btn.dataset.reason, () => runCaskUpgrade(btn.dataset.cask, rowEl));
+      } else {
+        runCaskUpgrade(btn.dataset.cask, rowEl);
+      }
+    }));
   body.querySelectorAll('.upd-act[data-mas]').forEach(btn =>
     btn.addEventListener('click', () => runMasUpgrade(btn.dataset.mas, btn.closest('.upd-row'))));
   body.querySelectorAll('.upd-act[data-open]').forEach(btn =>
     btn.addEventListener('click', () => openUpdaterApp(btn.dataset.open, btn)));
 }
+/* Confirm dialog for casks whose version match is uncertain. Reuses the generic
+   #permModal promise flow, temporarily swapping its title/button copy. */
+async function confirmUncertainCask(name, reason, onProceed) {
+  const title = $('permTitle'), ok = $('permOk');
+  const savedTitle = title.innerHTML, savedOk = ok.innerHTML;
+  title.innerHTML = icon('alert', 16) + escapeHtml(t('updConfirmTitle'));
+  ok.classList.remove('btn-danger'); ok.classList.add('btn-primary');
+  ok.innerHTML = icon('download', 14) + escapeHtml(t('updConfirmProceed'));
+  const proceed = await confirmPermanent(
+    `<b>${escapeHtml(name)}</b><br>${escapeHtml(t('updConfirmUncertain'))} <span style="color:var(--text-3)">${escapeHtml(reason || '')}</span>`);
+  title.innerHTML = savedTitle; ok.innerHTML = savedOk;
+  ok.classList.remove('btn-primary'); ok.classList.add('btn-danger');
+  if (proceed) onProceed();
+}
 async function runCaskUpgrade(token, row) {
   const btn = row.querySelector('.upd-act');
   const name = row.querySelector('.nm').textContent;
   btn.disabled = true;
-  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + 'Updating…';
+  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + t('updUpdating');
   try {
     const r = await api('/api/updater/cask-upgrade', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     });
     if (r.ok) {
-      btn.innerHTML = icon('check', 14) + 'Updated';
+      btn.innerHTML = icon('check', 14) + t('updUpdated');
       row.style.opacity = '0.55';
       recordActivity({ kind: 'update', label: name });
       toast(`Updated ${name}`);
     } else if (r.needsTerminal) {
       // pkg / permission-locked cask — finish it in Terminal where the user can
       // authenticate. Open Terminal with the brew command and guide them.
-      btn.innerHTML = icon('external', 14) + 'In Terminal';
+      btn.innerHTML = icon('external', 14) + t('updInTerminal');
       try {
         await api('/api/updater/cask-terminal', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -3005,38 +3195,38 @@ async function runCaskUpgrade(token, row) {
         });
         toast(`${name} needs admin permission — finishing in Terminal. Enter your password there, then refresh.`);
       } catch (e2) {
-        btn.disabled = false; btn.innerHTML = icon('download', 14) + 'Update';
+        btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
         toast('Could not open Terminal: ' + e2.message, 'error');
       }
     } else {
-      btn.disabled = false; btn.innerHTML = icon('download', 14) + 'Update';
+      btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
       toast(`Update failed: ${r.message}`, 'error');
     }
   } catch (e) {
-    btn.disabled = false; btn.innerHTML = icon('download', 14) + 'Update';
+    btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
     toast('Update failed: ' + e.message, 'error');
   }
 }
 async function runMasUpgrade(id, row) {
   const btn = row.querySelector('.upd-act');
   btn.disabled = true;
-  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + 'Updating…';
+  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + t('updUpdating');
   try {
     const r = await api('/api/updater/mas-upgrade', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
     if (r.ok) {
-      btn.innerHTML = icon('check', 14) + 'Updated';
+      btn.innerHTML = icon('check', 14) + t('updUpdated');
       row.style.opacity = '0.55';
       recordActivity({ kind: 'update', label: row.querySelector('.nm').textContent });
       toast('Updated');
     } else {
-      btn.disabled = false; btn.innerHTML = icon('download', 14) + 'Update';
+      btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
       toast(`Update failed: ${r.message}`, 'error');
     }
   } catch (e) {
-    btn.disabled = false; btn.innerHTML = icon('download', 14) + 'Update';
+    btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
     toast('Update failed: ' + e.message, 'error');
   }
 }
@@ -3136,6 +3326,7 @@ async function loadFastClean() {
     fc.trashScanId = data.trash.scanId;
     fc.exclude = (data.exclude || []).map(s => s.toLowerCase());
     fc.trashAccessible = data.trash.accessible !== false;
+    fc.cacheFlatPaths = []; fc.cacheExcluded = 0; fc.cacheSkippedRunning = 0;
 
     if (!fc.trashAccessible) {
       // ~/.Trash is TCC-protected and we lack Full Disk Access.
@@ -3147,6 +3338,20 @@ async function loadFastClean() {
     } else {
       pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; refreshFcButton(); });
     }
+    // Authoritative deletion set: the server-built cache plan (already scan-authorized).
+    // Also surfaces protected/in-use counts so we can be honest about what we skip.
+    try {
+      const plan = await api('/api/cleaner/cache-plan');
+      fc.cacheFlatPaths = plan.flatPaths || [];
+      fc.cacheExcluded = (plan.excluded || []).length;
+      fc.cacheSkippedRunning = (plan.skippedRunning || []).length;
+      const bits = [];
+      if (fc.cacheExcluded) bits.push(`${fc.cacheExcluded} ${t('protectedSkipped')}`);
+      if (fc.cacheSkippedRunning) bits.push(`${fc.cacheSkippedRunning} ${t('inUseSkipped')}`);
+      if (bits.length && fc.trashAccessible) $('fcSub').textContent = t('ssSub') + ' · ' + bits.join(' · ');
+      else if (bits.length) $('fcSub').textContent = $('fcSub').textContent + ' · ' + bits.join(' · ');
+    } catch (e) { /* fall back to the size-scan paths below */ }
+    // Size estimate for the button (cache-plan carries no sizes).
     pollScanSize(fc.cacheScanId, (d) => {
       const kids = d && d.root && d.root.children ? d.root.children : [];
       const keep = kids.filter(c => !fc.exclude.includes(c.name.toLowerCase()));
@@ -3163,7 +3368,9 @@ async function fastCleanRun() {
   const fc = state.fastclean;
   if (fc.cleaning || fcTotal() <= 0) return;
   const doBin = fc.trashAccessible && fc.binSize > 0;
-  const doCache = fc.cacheSize > 0 && fc.cachePaths.length > 0;
+  // Prefer the server's cache-plan flatPaths (protected/in-use already excluded).
+  const cachePaths = (fc.cacheFlatPaths && fc.cacheFlatPaths.length) ? fc.cacheFlatPaths : fc.cachePaths;
+  const doCache = cachePaths.length > 0;
 
   // The one permanent op gets an explicit, non-recoverable confirm.
   if (doBin) {
@@ -3177,15 +3384,16 @@ async function fastCleanRun() {
   btn.disabled = true;
   btn.classList.add('cleaning'); // light sweeps around the ring; button text hidden via CSS
   const done = [];
-  let recovered = 0;
+  let recovered = 0;       // credit ONLY server-confirmed bytes
   let cleanedItems = 0;
 
   // Empty Bin FIRST, then trash caches — so freshly-trashed caches aren't purged.
   if (doBin) {
     setFcStatus('Emptying the Bin…');
     try {
-      await api('/api/cleaner/empty-trash', { method: 'POST' });
-      recovered += fc.binSize; done.push('Bin emptied');
+      const r = await api('/api/cleaner/empty-trash', { method: 'POST' });
+      const freed = typeof r.freedBytes === 'number' ? r.freedBytes : 0;
+      recovered += freed; done.push('Bin emptied');
     } catch (e) {
       if (e.code === 'FULL_DISK_ACCESS_REQUIRED') { toast(e.message, 'error'); openFdaSettings(); }
       else toast('Empty Bin failed: ' + e.message, 'error');
@@ -3195,17 +3403,17 @@ async function fastCleanRun() {
   if (doCache) {
     setFcStatus('Clearing application caches…');
     let deleted = 0, failed = 0;
-    for (let i = 0; i < fc.cachePaths.length; i += 400) {
-      const chunk = fc.cachePaths.slice(i, i + 400);
+    for (let i = 0; i < cachePaths.length; i += 400) {
+      const chunk = cachePaths.slice(i, i + 400);
       try {
         const r = await api('/api/files', {
           method: 'DELETE', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paths: chunk }),
         });
         deleted += r.deleted.length; failed += r.failed.length;
+        recovered += typeof r.totalFreedBytes === 'number' ? r.totalFreedBytes : 0;
       } catch (e) { failed += chunk.length; }
     }
-    recovered += fc.cacheSize;
     cleanedItems += deleted;
     done.push(`${deleted} cache item${deleted === 1 ? '' : 's'} cleared`);
     if (failed) toast(`${failed} cache item${failed === 1 ? '' : 's'} couldn't be cleared — grant Full Disk Access to clear more.`, 'error');
@@ -3222,6 +3430,7 @@ async function fastCleanRun() {
   btn.disabled = true;
   if (recovered) toast(`Smart Scan — ${formatBytes(recovered)} freed`);
   if (recovered || cleanedItems) {
+    // Persist truthful, server-confirmed bytes into Lifetime Impact.
     recordActivity({ kind: 'fast-clean', label: done.join(' · ') || 'cleanup', bytes: recovered, items: cleanedItems });
   }
 }
@@ -3235,15 +3444,38 @@ async function runMnt(btn) {
   const statusEl = $('mntStatus-' + action);
   const orig = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + 'Running…';
-  if (statusEl) statusEl.textContent = '';
+  btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + t('run') + '…';
+  if (statusEl) statusEl.innerHTML = '';
   try {
     const r = await api('/api/maintenance/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action }),
     });
-    if (statusEl) { statusEl.style.color = r.ok ? '#30D158' : 'var(--danger)'; statusEl.textContent = r.message; }
-    toast(r.message, r.ok ? 'success' : 'error');
+    if (statusEl) {
+      statusEl.style.color = r.ok ? 'var(--ok)' : 'var(--danger)';
+      // Honest partial result → offer a one-click "Finish in Terminal" (follow-up 3).
+      if (r.partial && r.elevate) {
+        statusEl.style.color = 'var(--warn)';
+        statusEl.innerHTML = `${escapeHtml(r.message || t('dnsPartial'))} `;
+        const link = document.createElement('button');
+        link.className = 'mnt-elevate';
+        link.textContent = t('finishInTerminal');
+        link.addEventListener('click', async () => {
+          link.disabled = true;
+          try {
+            await api('/api/maintenance/elevate', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: r.elevate.action }),
+            });
+            toast(r.elevate.hint || t('finishInTerminal'));
+          } catch (e2) { toast(e2.message, 'error'); link.disabled = false; }
+        });
+        statusEl.appendChild(link);
+      } else {
+        statusEl.textContent = r.message;
+      }
+    }
+    toast(r.message, r.ok ? 'success' : (r.partial ? 'success' : 'error'));
   } catch (e) {
     if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = e.message; }
     toast('Maintenance failed: ' + e.message, 'error');
@@ -3280,7 +3512,59 @@ async function loadMaintenance() {
   } catch (e) {
     box.innerHTML = `<div class="muted">${escapeHtml(e.code === 'AUTOMATION_DENIED' ? e.message : 'Could not load login items: ' + e.message)}</div>`;
   }
+  loadLaunchAgents();
 }
+
+/* LaunchAgents (background helpers) — a separate group with enable/disable
+   toggles. Also satisfies "show deactivated items so they can be re-enabled"
+   since disabled agents are listed with enabled:false (follow-up 6). */
+async function loadLaunchAgents() {
+  const box = $('mntLaunchAgents');
+  if (!box) return;
+  if (state.system && state.system.platform !== 'darwin') { box.innerHTML = `<div class="muted">${escapeHtml(t('noLaunchAgents'))}</div>`; return; }
+  box.innerHTML = '<div class="muted">Loading…</div>';
+  try {
+    const { agents } = await api('/api/maintenance/launch-agents');
+    if (!agents || !agents.length) { box.innerHTML = `<div class="muted">${escapeHtml(t('noLaunchAgents'))}</div>`; return; }
+    box.innerHTML = agents.map(a => {
+      const name = a.label || (a.path.split('/').pop() || '').replace(/\.plist$/, '');
+      const letter = escapeHtml((name.trim()[0] || '?').toUpperCase());
+      const sub = a.program ? a.program : a.path;
+      // enabled can be true/false/null (unknown) — treat null as on for the switch.
+      const on = a.enabled !== false;
+      return `
+      <div class="mnt-row${on ? '' : ' mnt-off'}">
+        <div class="mnt-ico">${letter}</div>
+        <div class="mnt-text"><b>${escapeHtml(name)}</b><span title="${escapeHtml(sub)}">${escapeHtml(sub)}</span></div>
+        <label class="switch">
+          <input type="checkbox" class="la-toggle" ${on ? 'checked' : ''} data-path="${escapeHtml(a.path)}" data-name="${escapeHtml(name)}">
+          <span class="track"></span>
+        </label>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = `<div class="muted">${escapeHtml(t('noLaunchAgents'))}</div>`;
+  }
+}
+$('mntLaunchAgents')?.addEventListener('change', async (e) => {
+  const cb = e.target.closest('.la-toggle');
+  if (!cb) return;
+  const path = cb.dataset.path, name = cb.dataset.name, enabled = cb.checked;
+  const row = cb.closest('.mnt-row');
+  cb.disabled = true;
+  try {
+    await api('/api/maintenance/launch-agents', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, enabled }),
+    });
+    if (row) row.classList.toggle('mnt-off', !enabled);
+    toast(`${name} ${enabled ? '✓' : '✗'}`);
+  } catch (err) {
+    cb.checked = !enabled;
+    toast(err.message, 'error');
+  }
+  cb.disabled = false;
+});
 
 document.querySelectorAll('[data-mnt]').forEach(b => b.addEventListener('click', () => runMnt(b)));
 $('mntLoginItems')?.addEventListener('change', async (e) => {
@@ -3456,7 +3740,7 @@ $('gridSearch').addEventListener('input', (e) => {
   clearTimeout(searchDeb);
   searchDeb = setTimeout(() => { state.grid.query = e.target.value; renderGrid(); }, 140);
 });
-window.addEventListener('resize', () => { if (state.view === 'grid' && state.root) renderGrid(); });
+window.addEventListener('resize', () => { if (state.view === 'treemap' && state.diskMapLayout === 'grid' && state.root) renderGrid(); });
 
 function updateSelectionBar() {
   const sel = state.grid.selection;
@@ -3600,31 +3884,33 @@ $('dupTrashBtn').addEventListener('click', () => {
 });
 $('dupMinSize').addEventListener('change', () => loadDuplicates(true));
 
-/* ───────────────────────────── Trends view ───────────────────────────── */
+/* ───────────────────────────── Storage trend (Dashboard card) ─────────────────────────────
+   Absorbed from the removed Trends view: a folder-size history line chart fed by
+   persisted scan snapshots (/api/snapshots). Lives on the Dashboard. */
 async function loadTrends() {
   try {
     const { roots } = await api('/api/snapshots');
     state.trends.roots = roots;
     const sel = $('trendRoot');
     if (!roots.length) {
-      sel.innerHTML = '<option>No history yet</option>';
+      sel.innerHTML = `<option>${escapeHtml(t('noHistoryYet'))}</option>`;
       sel.disabled = true;
       $('trendInfo').textContent = '';
       state.trends.snapshots = [];
       drawTrendChart();
-      $('trendDeltas').innerHTML = '<div class="muted">Finish a scan and history starts building automatically — every scan saves a snapshot.</div>';
       return;
     }
     sel.disabled = false;
     const has = (p) => roots.some(r => r.rootPath === p);
+    const short = (p) => p.split('/').filter(Boolean).pop() || p;
     const preferred = (state.root && has(state.root.path) && state.root.path) ||
                       (state.trends.path && has(state.trends.path) && state.trends.path) ||
                       roots[0].rootPath;
     sel.innerHTML = roots.map(r =>
-      `<option value="${escapeHtml(r.rootPath)}"${r.rootPath === preferred ? ' selected' : ''}>${escapeHtml(r.rootPath)} · ${r.count} snapshot${r.count > 1 ? 's' : ''}</option>`).join('');
+      `<option value="${escapeHtml(r.rootPath)}"${r.rootPath === preferred ? ' selected' : ''}>${escapeHtml(short(r.rootPath))} · ${r.count} snapshot${r.count > 1 ? 's' : ''}</option>`).join('');
     state.trends.path = preferred;
     await loadTrendData();
-  } catch (e) { toast('Could not load history: ' + e.message, 'error'); }
+  } catch (e) { /* dashboard is best-effort; keep other cards alive */ }
 }
 
 async function loadTrendData() {
@@ -3632,21 +3918,19 @@ async function loadTrendData() {
   state.trends.snapshots = snapshots;
   state.trends.hover = -1;
   $('trendInfo').textContent = snapshots.length
-    ? `latest: ${formatBytes(snapshots[snapshots.length - 1].totalSize)} · ${formatCount(snapshots[snapshots.length - 1].fileCount)} files`
+    ? `${t('latest')}: ${formatBytes(snapshots[snapshots.length - 1].totalSize)} · ${formatCount(snapshots[snapshots.length - 1].fileCount)} ${t('filesWord')}`
     : '';
   drawTrendChart();
-  renderTrendDeltas();
 }
 $('trendRoot').addEventListener('change', (e) => {
   state.trends.path = e.target.value;
-  loadTrendData().catch(err => toast(err.message, 'error'));
+  loadTrendData().catch(() => {});
 });
 
 function drawTrendChart() {
   const canvas = $('trendChart');
-  if (!canvas.parentElement || state.view !== 'trends') { /* draw anyway when hidden — cheap */ }
-  const cssW = Math.max(320, (canvas.parentElement?.clientWidth || 600) - 44);
-  const cssH = 300;
+  const cssW = Math.max(280, (canvas.parentElement?.clientWidth || 600) - 44);
+  const cssH = 220;
   const dpr = window.devicePixelRatio || 1;
   canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
   canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
@@ -3660,7 +3944,7 @@ function drawTrendChart() {
     ctx.fillStyle = cssVar('--text-3');
     ctx.font = '13px -apple-system, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('No snapshots yet — finish a scan to start tracking.', cssW / 2, cssH / 2);
+    ctx.fillText(t('noSnapshotsYet'), cssW / 2, cssH / 2);
     return;
   }
 
@@ -3732,143 +4016,14 @@ $('trendChart').addEventListener('mousemove', (e) => {
     const s = state.trends.points[best].s;
     const tip = $('tooltip');
     tip.innerHTML = `<div class="t-head">${icon('clock', 14)}${new Date(s.takenAt).toLocaleString()}</div>
-      <div class="t-line num"><span class="t-strong">${formatBytes(s.totalSize)}</span> · ${formatCount(s.fileCount)} files · ${formatCount(s.dirCount)} folders</div>`;
+      <div class="t-line num"><span class="t-strong">${formatBytes(s.totalSize)}</span> · ${formatCount(s.fileCount)} ${t('filesWord')} · ${formatCount(s.dirCount)} ${t('foldersWord')}</div>`;
     tip.style.display = 'block';
     tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 10) + 'px';
     tip.style.top = (e.clientY - tip.offsetHeight - 12) + 'px';
   } else hideTooltip();
 });
 $('trendChart').addEventListener('mouseleave', () => { state.trends.hover = -1; drawTrendChart(); hideTooltip(); });
-window.addEventListener('resize', () => { if (state.view === 'trends') drawTrendChart(); });
-
-async function renderTrendDeltas() {
-  const host = $('trendDeltas');
-  const snaps = state.trends.snapshots;
-  if (snaps.length < 2) {
-    host.innerHTML = '<div class="muted">Scan this folder again later — what grew or shrank will show up here.</div>';
-    return;
-  }
-  const a = snaps[snaps.length - 2], b = snaps[snaps.length - 1];
-  try {
-    const diff = await api(`/api/snapshots/compare?a=${a.id}&b=${b.id}`);
-    const up = diff.totalDelta >= 0;
-    const head = `<div class="muted" style="margin-bottom:10px;" >${formatDate(a.takenAt)} → ${formatDate(b.takenAt)} — total ${up ? 'grew' : 'shrank'} by
-      <b class="num" style="color:${up ? '#ff6b61' : 'var(--ok)'}">${formatBytes(Math.abs(diff.totalDelta))}</b></div>`;
-    if (!diff.entries.length) { host.innerHTML = head + '<div class="muted">No top-level changes between the last two snapshots.</div>'; return; }
-    const maxD = Math.abs(diff.entries[0].delta) || 1;
-    host.innerHTML = head + diff.entries.slice(0, 12).map(en => deltaRow(en, maxD)).join('');
-  } catch (e) {
-    host.innerHTML = `<div class="muted">${escapeHtml(e.message)}</div>`;
-  }
-}
-
-/** Shared red/green delta row (Trends + Compare). */
-function deltaRow(en, maxD) {
-  const up = en.delta > 0;
-  const label = en.sizeA === null ? 'new' : en.sizeB === null ? 'removed' : up ? 'grew' : 'shrank';
-  const ext = en.type === 'file' ? (en.name.split('.').pop() || '').toLowerCase() : undefined;
-  return `
-    <div class="delta-row" title="${escapeHtml(en.path)}">
-      ${chipFor({ type: en.type, extension: ext }, 13)}
-      <div class="meta"><div class="nm">${escapeHtml(en.name)} <span class="muted">· ${label}</span></div></div>
-      <div class="bar-track"><div class="bar" style="width:${Math.max(5, (Math.abs(en.delta) / maxD) * 100)}%;background:${up ? '#FF453A' : '#30D158'};"></div></div>
-      <span class="delta-badge num ${up ? 'up' : 'down'}">${up ? '+' : '−'}${formatBytes(Math.abs(en.delta))}</span>
-    </div>`;
-}
-
-/* ───────────────────────────── Compare view ───────────────────────────── */
-async function loadCompareOptions() {
-  try {
-    const [scansRes, snapsRes] = await Promise.all([api('/api/scans'), api('/api/snapshots?all=true')]);
-    const options = [];
-    for (const s of scansRes.scans) {
-      options.push({ kind: 'scan', id: s.scanId, rootPath: s.rootPath, when: s.finishedAt, size: s.totalSize });
-    }
-    for (const sn of snapsRes.snapshots) {
-      options.push({ kind: 'snap', id: sn.id, rootPath: sn.rootPath, when: sn.takenAt, size: sn.totalSize });
-    }
-    state.compare.options = options;
-    if (!options.length) {
-      $('cmpA').innerHTML = $('cmpB').innerHTML = '<option>No scans yet</option>';
-      $('cmpA').disabled = $('cmpB').disabled = true;
-      return;
-    }
-    $('cmpA').disabled = $('cmpB').disabled = false;
-
-    const byRoot = new Map();
-    for (const o of options) {
-      if (!byRoot.has(o.rootPath)) byRoot.set(o.rootPath, []);
-      byRoot.get(o.rootPath).push(o);
-    }
-    const label = (o) => `${o.kind === 'scan' ? 'Scan (full diff)' : 'History'} · ${new Date(o.when).toLocaleString()} · ${formatBytes(o.size)}`;
-    const html = [...byRoot.entries()].map(([root, list]) =>
-      `<optgroup label="${escapeHtml(root)}">` +
-      list.sort((x, y) => y.when - x.when).map(o =>
-        `<option value="${o.kind}:${o.id}">${escapeHtml(label(o))}</option>`).join('') +
-      '</optgroup>').join('');
-    $('cmpA').innerHTML = html;
-    $('cmpB').innerHTML = html;
-
-    // Defaults: newest two entries of the current (or first) root, older → newer.
-    const rootKey = state.root && byRoot.has(state.root.path) ? state.root.path : [...byRoot.keys()][0];
-    const list = byRoot.get(rootKey).sort((x, y) => y.when - x.when);
-    $('cmpB').value = `${list[0].kind}:${list[0].id}`;
-    if (list.length > 1) $('cmpA').value = `${list[1].kind}:${list[1].id}`;
-    $('cmpInfo').textContent = list.length < 2 ? 'Only one record of this folder so far — scan it again to have something to compare.' : '';
-  } catch (e) {
-    toast('Could not load scans: ' + e.message, 'error');
-  }
-}
-
-function parseCmp(value) {
-  const i = value.indexOf(':');
-  if (i < 0) return null;
-  const kind = value.slice(0, i), id = value.slice(i + 1);
-  return state.compare.options.find(o => o.kind === kind && o.id === id) || null;
-}
-
-$('cmpRunBtn').addEventListener('click', async () => {
-  const a = parseCmp($('cmpA').value), b = parseCmp($('cmpB').value);
-  if (!a || !b) { toast('Pick two scans to compare', 'error'); return; }
-  if (a.rootPath !== b.rootPath) { toast('Both picks must cover the same folder', 'error'); return; }
-  if (a.kind === b.kind && a.id === b.id) { toast('Pick two different scans', 'error'); return; }
-  if (a.kind !== b.kind) {
-    toast('Mixing a live scan with a history snapshot isn’t supported — pick two of the same kind', 'error');
-    return;
-  }
-  const body = $('cmpBody');
-  body.innerHTML = `<div class="card glass dup-progress">${icon('loader', 20, REDUCED ? '' : 'spin')}<span>Comparing…</span></div>`;
-  try {
-    if (a.kind === 'scan') {
-      const diff = await api(`/api/compare?scanIdA=${a.id}&scanIdB=${b.id}`);
-      renderCompare({ entries: diff.entries, totalDelta: diff.totalDelta, truncated: diff.truncated, deep: true, whenA: a.when, whenB: b.when });
-    } else {
-      const diff = await api(`/api/snapshots/compare?a=${a.id}&b=${b.id}`);
-      renderCompare({ entries: diff.entries, totalDelta: diff.totalDelta, truncated: false, deep: false, whenA: diff.a.takenAt, whenB: diff.b.takenAt });
-    }
-  } catch (e) {
-    body.innerHTML = `<div class="card glass"><div class="muted">Compare failed: ${escapeHtml(e.message)}</div></div>`;
-  }
-});
-
-function renderCompare(r) {
-  const counts = { added: 0, removed: 0, grew: 0, shrank: 0 };
-  for (const en of r.entries) {
-    counts[en.sizeA === null ? 'added' : en.sizeB === null ? 'removed' : en.delta > 0 ? 'grew' : 'shrank']++;
-  }
-  const up = r.totalDelta >= 0;
-  const maxD = Math.abs(r.entries[0]?.delta ?? 0) || 1;
-  $('cmpBody').innerHTML = `
-    <div class="card glass">
-      <h2><span style="display:inline-flex;">${icon('diff', 13)}</span>${new Date(r.whenA).toLocaleString()} → ${new Date(r.whenB).toLocaleString()}${r.deep ? '' : ' · top-level folders only'}</h2>
-      <div class="muted num" style="margin-bottom:12px;">Total ${up ? 'grew' : 'shrank'} by
-        <b style="color:${up ? '#ff6b61' : 'var(--ok)'}">${formatBytes(Math.abs(r.totalDelta))}</b>
-        &nbsp;·&nbsp; ${counts.added} added · ${counts.removed} removed · ${counts.grew} grew · ${counts.shrank} shrank${r.truncated ? ' · biggest 1,000 shown' : ''}</div>
-      ${r.entries.length
-        ? r.entries.slice(0, 200).map(en => deltaRow(en, maxD)).join('')
-        : `<div class="muted" style="display:flex;align-items:center;gap:8px;">${icon('checkCircle', 15)} No differences — nothing changed between these two.</div>`}
-    </div>`;
-}
+window.addEventListener('resize', () => { if (state.view === 'dashboard' && state.trends.snapshots.length) drawTrendChart(); });
 
 /* ───────────────────────────── Browse modal ───────────────────────────── */
 let browsePath = null;
@@ -3897,7 +4052,6 @@ async function browseTo(path) {
   }
 }
 $('browseBtn').addEventListener('click', () => openBrowse($('pathInput').value.trim() || null));
-$('emptyBrowseBtn').addEventListener('click', () => openBrowse(null));
 $('browseUseBtn').addEventListener('click', () => {
   if (browsePath) $('pathInput').value = browsePath;
   closeModal('browseModal');
@@ -4305,6 +4459,7 @@ async function fetchFanStatus() {
     if (!state.fans.rules && s.rulesConfig) state.fans.rules = s.rulesConfig;
     updateSideSys(s);
     if (state.view === 'fans') renderFansLive(s);
+    if (state.view === 'dashboard') renderDashSensors(s);
   } catch (e) {
     // Degrade gracefully: hide the sidebar block, no console spam.
     state.fans.ok = false;
@@ -4758,7 +4913,7 @@ document.addEventListener('keydown', (e) => {
     if (!typing && state.grid.selection.size) { e.preventDefault(); confirmTrash([...state.grid.selection]); }
     return;
   }
-  if (e.key === '/' && !typing && state.view === 'grid') {
+  if (e.key === '/' && !typing && state.view === 'treemap' && state.diskMapLayout === 'grid') {
     e.preventDefault();
     $('gridSearch').focus();
     return;
@@ -4774,11 +4929,11 @@ document.addEventListener('keydown', (e) => {
       $('tmSearch').value = ''; state.treemap.query = '';
       renderSearchOverlay(); presentTreemap(); return;
     }
-    if (state.view === 'treemap' && state.root && state.treemap.rootPath !== state.root.path) {
+    if (state.view === 'treemap' && state.diskMapLayout === 'treemap' && state.root && state.treemap.rootPath !== state.root.path) {
       treemapUp();
       return;
     }
-    if (state.view === 'grid') {
+    if (state.view === 'treemap' && state.diskMapLayout === 'grid') {
       if (state.grid.selection.size) { state.grid.selection.clear(); updateSelectionBar(); renderGridWindow(true); }
       else gridUp();
     }
@@ -4812,10 +4967,14 @@ window.addEventListener('drop', async (e) => {
   }
 });
 
+/* ── Dashboard quick actions ── */
+document.querySelectorAll('.qa-tile[data-qa]').forEach(b =>
+  b.addEventListener('click', () => switchView(b.dataset.qa)));
+
 /* ───────────────────────────── Boot ───────────────────────────── */
-switchView('dashboard');
 loadSystem();
-fanPollAdjust(); // start the live temp/fan poller (sidebar block)
+switchView('dashboard');
+fanPollAdjust(); // start the live temp/fan poller (sidebar block + dashboard panel)
 </script>
 </body>
 </html>

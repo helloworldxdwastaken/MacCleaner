@@ -13,7 +13,7 @@
  *    restarting; updates require a code-signed build on macOS, so failures
  *    there are logged and otherwise ignored.
  */
-const { app, BrowserWindow, Tray, Menu, Notification, shell, ipcMain, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, shell, ipcMain, dialog, nativeImage, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -28,8 +28,23 @@ let running = null; // { server, port, shutdown }
 let mainWindow = null;
 let tray = null;
 let trayTimer = null;
+/** Last successful fan/temp status, or null while unavailable. Drives the
+ *  tray title suffix and the live menu section; cleared on a failed fetch. */
+let fanStatus = null;
+/** Consecutive fan-status fetch failures — used to back the poll off to 60s. */
+let fanFailures = 0;
+/** Set once we log the first successful fetch, to keep the log quiet after. */
+let fanStatusLogged = false;
+/** Current tray poll cadence in ms (15s normally, 60s after repeated fails). */
+let trayIntervalMs = 0;
 /** Paths handed to us before the window was ready (dock drops, CLI args). */
 const pendingScanPaths = [];
+
+const TRAY_POLL_OK_MS = 15_000;
+const TRAY_POLL_BACKOFF_MS = 60_000;
+const FAN_FETCH_TIMEOUT_MS = 3_000;
+/** After this many consecutive failures, slow the poll to conserve resources. */
+const FAN_BACKOFF_AFTER = 3;
 
 /* ─────────────────────────── Scan-path plumbing ─────────────────────────── */
 
@@ -142,6 +157,21 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
+/** Reveal the window and switch the renderer to a named view (e.g. 'fans').
+ *  If the window is still loading, the request is delivered once it finishes. */
+function showView(view) {
+  const wasReady = mainWindow && !mainWindow.webContents.isLoading();
+  showMainWindow();
+  if (!mainWindow) return;
+  if (wasReady) {
+    mainWindow.webContents.send('treemap:navigate-view', view);
+  } else {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.send('treemap:navigate-view', view);
+    });
+  }
+}
+
 /* ─────────────────────────────── Tray ─────────────────────────────── */
 
 function createTray() {
@@ -154,27 +184,169 @@ function createTray() {
     if (process.platform !== 'darwin') showMainWindow();
   });
   refreshTray();
-  trayTimer = setInterval(refreshTray, 5 * 60_000); // keep stats fresh
+  scheduleTrayPoll(TRAY_POLL_OK_MS);
+}
+
+/** (Re)arm the tray poll at the given cadence, replacing any existing timer.
+ *  Called on startup and whenever we cross the failure threshold either way,
+ *  so a recovered API snaps back to the fast 15s cadence. */
+function scheduleTrayPoll(intervalMs) {
+  if (intervalMs === trayIntervalMs && trayTimer) return;
+  trayIntervalMs = intervalMs;
+  if (trayTimer) clearInterval(trayTimer);
+  trayTimer = setInterval(refreshTray, intervalMs);
   trayTimer.unref();
+}
+
+/**
+ * Fetch GET /api/fans/status from the in-process server with a short timeout.
+ * Reads are unprivileged and normally succeed; on any error (server not up,
+ * timeout, non-200, bad JSON) it resolves to null so callers can fall back to
+ * the disk-only tray. Never rejects — the tray must never be blocked by this.
+ */
+function fetchFanStatus() {
+  return new Promise((resolve) => {
+    if (!running) return resolve(null);
+    let settled = false;
+    const done = (val) => {
+      if (settled) return;
+      settled = true;
+      resolve(val);
+    };
+    let request;
+    try {
+      request = net.request({
+        method: 'GET',
+        url: `http://127.0.0.1:${running.port}/api/fans/status`,
+      });
+    } catch {
+      return done(null);
+    }
+    const timer = setTimeout(() => {
+      try { request.abort(); } catch {}
+      done(null);
+    }, FAN_FETCH_TIMEOUT_MS);
+    timer.unref?.();
+    request.on('response', (response) => {
+      if (response.statusCode !== 200) {
+        response.on('data', () => {});
+        response.on('end', () => {});
+        clearTimeout(timer);
+        return done(null);
+      }
+      let body = '';
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        clearTimeout(timer);
+        try {
+          const parsed = JSON.parse(body);
+          done(parsed && Array.isArray(parsed.fans) ? parsed : null);
+        } catch {
+          done(null);
+        }
+      });
+      response.on('error', () => { clearTimeout(timer); done(null); });
+    });
+    request.on('error', () => { clearTimeout(timer); done(null); });
+    request.end();
+  });
+}
+
+/** Round a temp to a whole number; returns null for non-finite input. */
+function roundTemp(v) {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null;
+}
+
+/**
+ * Build the disabled info rows shown between the disk line and Open MacCleaner.
+ * Returns [] when the status is unavailable so the whole section is omitted.
+ */
+function fanMenuSection(status) {
+  if (!status || !status.temps) return [];
+  const rows = [];
+  const temps = status.temps;
+  const cpu = roundTemp(temps.cpuPerf);
+  const gpu = roundTemp(temps.gpu);
+  if (cpu !== null || gpu !== null) {
+    const parts = [];
+    if (cpu !== null) parts.push(`CPU ${cpu}°`);
+    if (gpu !== null) parts.push(`GPU ${gpu}°`);
+    rows.push({ label: parts.join(' · '), enabled: false });
+  }
+
+  const hottest = temps.hottest;
+  const hot = hottest ? roundTemp(hottest.value) : null;
+  if (hot !== null) {
+    const key = hottest.key ? ` (${hottest.key})` : '';
+    rows.push({ label: `Hottest: ${hot}°${key}`, enabled: false });
+  }
+
+  const fans = Array.isArray(status.fans) ? status.fans : [];
+  if (fans.length > 0) {
+    // All fans macOS-controlled (thermal mode) → collapse to a single note.
+    const allThermal = fans.every((f) => f && f.mode === 'thermal');
+    if (allThermal) {
+      rows.push({ label: 'Fans — controlled by macOS', enabled: false });
+    } else {
+      for (const f of fans) {
+        const label = f.label || `Fan ${(f.id ?? 0) + 1}`;
+        const rpm = typeof f.actualRpm === 'number' && Number.isFinite(f.actualRpm)
+          ? Math.round(f.actualRpm).toLocaleString()
+          : '—';
+        rows.push({ label: `${label} — ${rpm} RPM`, enabled: false });
+      }
+    }
+  }
+
+  if (rows.length === 0) return [];
+  return [{ type: 'separator' }, ...rows, { type: 'separator' }];
 }
 
 async function refreshTray() {
   if (!tray) return;
+
+  // Disk stats: unchanged formatting; the source of truth for the title base.
   let statsLabel = 'Disk stats unavailable';
-  let title = '';
+  let diskTitle = '';
   try {
     const { total, free } = await diskUsage(os.homedir());
     statsLabel = `${formatBytes(free)} free of ${formatBytes(total)} (${total > 0 ? Math.round(((total - free) / total) * 100) : 0}% used)`;
-    title = ` ${formatBytes(free, 0)} free`;
+    diskTitle = ` ${formatBytes(free, 0)} free`;
   } catch (err) {
     console.error('[treemap] tray disk stats failed:', err);
+  }
+
+  // Fan/temp status: best-effort. Track failures to drive the poll backoff.
+  const status = await fetchFanStatus();
+  if (status) {
+    fanStatus = status;
+    fanFailures = 0;
+    if (!fanStatusLogged) {
+      console.log('[treemap] tray updater: fan/temp status live');
+      fanStatusLogged = true;
+    }
+    scheduleTrayPoll(TRAY_POLL_OK_MS);
+  } else {
+    fanStatus = null;
+    fanFailures += 1;
+    if (fanFailures >= FAN_BACKOFF_AFTER) scheduleTrayPoll(TRAY_POLL_BACKOFF_MS);
+  }
+
+  // Title: the exact disk text as today, with " · 72°" appended when a hottest
+  // temp is available. If fans are unavailable, the disk text is left untouched.
+  let title = diskTitle;
+  if (fanStatus && fanStatus.temps && fanStatus.temps.hottest && diskTitle) {
+    const hot = roundTemp(fanStatus.temps.hottest.value);
+    if (hot !== null) title = `${diskTitle} · ${hot}°`;
   }
   if (process.platform === 'darwin') tray.setTitle(title); // text next to the icon
 
   const menu = Menu.buildFromTemplate([
     { label: statsLabel, enabled: false },
+    ...fanMenuSection(fanStatus),
     { type: 'separator' },
     { label: 'Open MacCleaner', click: showMainWindow },
+    { label: 'Open Fans', click: () => showView('fans') },
     {
       label: 'Scan Home Folder',
       click: () => {

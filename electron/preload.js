@@ -25,4 +25,8 @@ contextBridge.exposeInMainWorld('treemapDesktop', {
   onScanPath(callback) {
     ipcRenderer.on('treemap:scan-path', (_event, p) => callback(p));
   },
+  /** Fires when the tray asks the renderer to switch views (e.g. 'fans'). */
+  onNavigateView(callback) {
+    ipcRenderer.on('treemap:navigate-view', (_event, view) => callback(view));
+  },
 });

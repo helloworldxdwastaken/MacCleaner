@@ -5126,6 +5126,10 @@ if (window.treemapDesktop) {
     $('pathInput').value = p;
     startScan(p);
   });
+  // Tray "Open Fans" (and any future tray deep-links) route through switchView.
+  window.treemapDesktop.onNavigateView((view) => {
+    if (typeof view === 'string' && view) switchView(view);
+  });
 }
 window.addEventListener('dragover', (e) => { e.preventDefault(); });
 window.addEventListener('drop', async (e) => {

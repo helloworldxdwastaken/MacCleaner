@@ -13,8 +13,9 @@ import { AppError } from '../middleware/errorHandler';
  * Caches are cleared through the SAME pipeline as everything else: we run a
  * real `startScan()` of the cache directory, which registers it as a scan root,
  * so the existing `DELETE /api/files` (requireInsideScanRoot) authorizes the
- * trash with no change to the safety model. The frontend polls
- * `GET /api/scan/:id/result` for sizes + the child paths to trash.
+ * trash once the scan completes — with no change to the safety model. The
+ * frontend polls `GET /api/scan/:id/result` (202 until the scan is complete)
+ * for sizes + the child paths to trash.
  *
  * Emptying the Bin is a separate, permanent osascript verb with no path input
  * (see emptyTrash()).
@@ -70,6 +71,12 @@ cleanerRouter.get('/cleaner/cache-plan', async (_req: Request, res: Response) =>
   const plan = await buildCachePlan();
   // Register the Caches root as a scan root so the child content paths validate.
   const scan = await startScan(plan.root);
+  // flatPaths are trashable the moment we respond, but DELETE /api/files only
+  // authorizes COMPLETED scans — wait for this one to settle first.
+  const deadline = Date.now() + 60000; // generous cap for a large Caches dir
+  while (scan.status === 'running' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 60));
+  }
   const flatPaths = plan.entries.flatMap((e) => e.contents);
   res.json({
     root: plan.root,

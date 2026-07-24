@@ -301,9 +301,9 @@ export async function findLeftovers(appPath: string): Promise<AppLeftoversResult
 
   const candidates = await collectLeftovers(meta.bundleId, meta.name, fileBase);
 
-  // Register + size the bundle and each leftover. startScan registers the root
-  // immediately (before walking), so even a slow scan still authorizes the later
-  // DELETE; we await for accurate sizes.
+  // Register + size the bundle and each leftover. DELETE /api/files only
+  // authorizes COMPLETED scans, so registerAndSize awaits each scan settling
+  // (and gives us accurate sizes in the same pass).
   const targets = [appPath, ...candidates.map((c) => c.path)];
   const sizes = await Promise.all(targets.map(registerAndSize));
 

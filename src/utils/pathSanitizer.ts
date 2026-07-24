@@ -16,8 +16,40 @@ export class PathRejectedError extends Error {
   }
 }
 
-/** Virtual / volatile filesystems and OS internals we refuse to touch. */
-const UNIX_BLOCKLIST = ['/proc', '/sys', '/dev', '/run', '/private/var/db', '/System/Volumes/VM'];
+/** Virtual / volatile filesystems and OS internals we refuse to touch.
+ *  Compared case-insensitively: default APFS is case-insensitive, so a
+ *  case-sensitive check would let "/PRIVATE/VAR/db" slip past. Over-blocking
+ *  on case-sensitive volumes is the safe direction. */
+const UNIX_BLOCKLIST = [
+  // Virtual / volatile filesystems.
+  '/proc',
+  '/sys',
+  '/dev',
+  '/run',
+  '/boot',
+  // OS-managed trees.
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/system',
+  '/library',
+  '/system/volumes/vm',
+  // macOS: /etc, /var and /tmp are symlinks into /private — block the
+  // sensitive targets under BOTH spellings, since matching is lexical.
+  // (All of /var is NOT blocked: /var/folders holds user temp + caches,
+  // which are legitimate scan/clean targets.)
+  '/etc',
+  '/private/etc',
+  '/var/db',
+  '/private/var/db',
+  '/var/root',
+  '/private/var/root',
+  // Per-user secrets and OS-managed credential stores.
+  `${os.homedir()}/.ssh`,
+  `${os.homedir()}/.gnupg`,
+  `${os.homedir()}/.aws`,
+  `${os.homedir()}/library/keychains`,
+].map((b) => b.toLowerCase());
 const WINDOWS_BLOCKLIST = [
   'c:\\windows\\system32',
   'c:\\windows\\syswow64',
@@ -31,7 +63,8 @@ function isBlocked(resolved: string): boolean {
     const lower = resolved.toLowerCase();
     return WINDOWS_BLOCKLIST.some((b) => lower === b || lower.startsWith(b + path.sep));
   }
-  return UNIX_BLOCKLIST.some((b) => resolved === b || resolved.startsWith(b + '/'));
+  const lower = resolved.toLowerCase();
+  return UNIX_BLOCKLIST.some((b) => lower === b || lower.startsWith(b + '/'));
 }
 
 /**

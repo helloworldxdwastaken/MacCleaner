@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>MacCleaner — macOS Cleaner Suite</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236A5BFF'/%3E%3Cstop offset='.55' stop-color='%233E7BFA'/%3E%3Cstop offset='1' stop-color='%2300C6FB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='url(%23f)'/%3E%3Cpath d='M22 68 A28 28 0 1 1 72 64' fill='none' stroke='%23fff' stroke-width='5.4' stroke-linecap='round'/%3E%3Ccircle cx='72' cy='64' r='4.4' fill='%23fff'/%3E%3Cpath d='M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z' fill='%23fff'/%3E%3C/svg%3E">
 <script>
@@ -1742,6 +1743,9 @@ function formatDate(ms) {
 }
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 async function api(url, options) {
+  options = options || {};
+  // Per-launch token injected by the server into this page; required on /api.
+  options.headers = Object.assign({}, options.headers, { 'X-MacCleaner-Token': window.MACCLEANER_TOKEN });
   const res = await fetch(url, options);
   let body = null;
   try { body = await res.json(); } catch { /* no body */ }
@@ -2256,7 +2260,7 @@ async function startScan(path) {
     });
     state.scanId = scanId;
 
-    const es = new EventSource(`/api/scan/${scanId}/progress`);
+    const es = new EventSource(`/api/scan/${scanId}/progress?token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`);
     state.es = es;
     es.onmessage = async (ev) => {
       const msg = JSON.parse(ev.data);
@@ -3698,7 +3702,7 @@ async function loadMaintenance() {
     if (!items.length) { box.innerHTML = '<div class="muted">No user login items — nothing opens at login.</div>'; return; }
     box.innerHTML = items.map(it => {
       const letter = escapeHtml((it.name.trim()[0] || '?').toUpperCase());
-      const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}`;
+      const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}&token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`;
       return `
       <div class="mnt-row${it.enabled ? '' : ' mnt-off'}">
         <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" onerror="this.remove()"></div>

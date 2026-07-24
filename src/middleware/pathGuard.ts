@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { promises as fsp } from 'fs';
+import path from 'path';
 import { sanitizePath, isInside } from '../utils/pathSanitizer';
 import { allScans } from '../services/diskScanner';
 import { AppError } from './errorHandler';
@@ -12,8 +14,10 @@ import { AppError } from './errorHandler';
  *    clean absolute paths.
  *  - `requireInsideScanRoot`: for destructive/OS-touching endpoints — the
  *    path must additionally live inside the root of a scan this server
- *    actually performed. The server never trashes or opens anything it
- *    hasn't been pointed at first.
+ *    actually COMPLETED. A still-running scan authorizes nothing (its root is
+ *    registered before the walk finishes), and a failed or cancelled scan is
+ *    invalidated immediately rather than lingering until TTL eviction. The
+ *    server never trashes or opens anything it hasn't fully looked at first.
  */
 
 /** Sanitize req.body.path (single path field). */
@@ -55,22 +59,33 @@ export function guardQueryPath(...params: string[]) {
   };
 }
 
-/** Is `p` inside the root of any scan this server has run (and not evicted)? */
+/** Is `p` inside the root of any COMPLETED scan this server has run (and not evicted)? */
 export function insideAnyScanRoot(p: string): boolean {
-  return allScans().some((scan) => isInside(scan.rootPath, p));
+  return allScans().some((scan) => scan.status === 'complete' && isInside(scan.rootPath, p));
 }
 
-/** Reject body paths that fall outside every known scan root. */
-export function requireInsideScanRoot(req: Request, _res: Response, next: NextFunction): void {
+/** Reject body paths that fall outside every completed scan root. */
+export async function requireInsideScanRoot(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const body = req.body as { path?: string; paths?: string[] };
   const candidates = body.paths ?? (body.path !== undefined ? [body.path] : []);
   for (const p of candidates) {
-    if (!insideAnyScanRoot(p)) {
+    // Resolve symlinks in the parent chain: lexical containment alone lets a
+    // link planted inside a scanned tree make a path OUTSIDE it look
+    // contained. The final component stays lexical on purpose — trashing a
+    // symlink removes the link, not its target, so that case is safe.
+    let real = p;
+    try {
+      real = path.join(await fsp.realpath(path.dirname(p)), path.basename(p));
+    } catch {
+      // Vanished parent — keep the lexical path; the delete itself reports it.
+    }
+    sanitizePath(real); // blocklist applies to the real location too (throws -> errorHandler)
+    if (!insideAnyScanRoot(real)) {
       next(
         new AppError(
           403,
           'OUTSIDE_SCAN_ROOT',
-          `"${p}" is outside every scanned root — scan its folder first`
+          `"${p}" is outside every completed scan root — scan its folder first and wait for the scan to finish`
         )
       );
       return;

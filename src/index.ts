@@ -36,8 +36,14 @@ function shutdown(signal: string): void {
     console.log('[treemap] all connections closed, bye');
     process.exit(0);
   };
-  if (running) running.server.close(done);
-  else done();
+  if (running) {
+    // running.shutdown() already called server.close(); a second close would
+    // invoke done with ERR_SERVER_NOT_RUNNING, possibly before connections
+    // drain. Wait for the 'close' event the first close emits instead.
+    running.server.once('close', done);
+  } else {
+    done();
+  }
 
   // Hard deadline in case a keep-alive socket refuses to die.
   setTimeout(() => {

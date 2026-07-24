@@ -127,6 +127,7 @@ function createWindow(port) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
@@ -135,10 +136,17 @@ function createWindow(port) {
   mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.webContents.once('did-finish-load', flushPendingScans);
 
+  // Never let the window navigate away from the local app — a compromised
+  // renderer must not be able to load a remote page with the bridge attached.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(`http://127.0.0.1:${port}/`)) event.preventDefault();
+  });
+
   // Any external link (e.g. future "About") opens in the real browser, not in-app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://127.0.0.1')) return { action: 'allow' };
-    shell.openExternal(url);
+    // Only http(s) goes to the OS handler — never file:// or custom schemes.
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
 
@@ -219,6 +227,7 @@ function fetchFanStatus() {
         method: 'GET',
         url: `http://127.0.0.1:${running.port}/api/fans/status`,
       });
+      request.setHeader('X-MacCleaner-Token', running.token);
     } catch {
       return done(null);
     }

@@ -79,8 +79,10 @@ export async function updateSettings(patch: { ignore?: unknown; schedules?: unkn
       }
     }
   }
+  // Cache only after the write succeeds, so a failed write can't leave
+  // memory and disk silently diverged.
+  await writeJsonFile(SETTINGS_FILE, next);
   cache = next;
-  await writeJsonFile(SETTINGS_FILE, cache);
   return cache;
 }
 
@@ -89,8 +91,14 @@ export async function patchSchedule(id: string, patch: Partial<ScheduleConfig>):
   const current = await getSettings();
   const sched = current.schedules.find((s) => s.id === id);
   if (!sched) return;
-  Object.assign(sched, patch);
-  await writeJsonFile(SETTINGS_FILE, current);
+  // Build the next state without mutating the cache; swap it in only once
+  // the write has succeeded (same disk/memory consistency rule as above).
+  const next: AppSettings = {
+    ...current,
+    schedules: current.schedules.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+  };
+  await writeJsonFile(SETTINGS_FILE, next);
+  cache = next;
 }
 
 /** Compiled matchers for a scope, ready for the scanner / suggester. */

@@ -97,6 +97,16 @@ export async function readJsonFile<T>(name: string, fallback: T): Promise<T> {
   }
 }
 
+/** The write itself (tmp + rename) — only ever called through the per-file queue. */
+async function writeNow(name: string, data: unknown): Promise<void> {
+  const dir = appDataDir();
+  await fsp.mkdir(dir, { recursive: true });
+  const file = path.join(dir, name);
+  const tmp = file + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await fsp.rename(tmp, file);
+}
+
 /** Atomically write a JSON file (tmp + rename) in the app-data dir. */
 export function writeJsonFile(name: string, data: unknown): Promise<void> {
   const prev = writeQueues.get(name) ?? Promise.resolve();
@@ -104,14 +114,32 @@ export function writeJsonFile(name: string, data: unknown): Promise<void> {
     .catch(() => {
       /* an earlier failed write must not poison the queue */
     })
-    .then(async () => {
-      const dir = appDataDir();
-      await fsp.mkdir(dir, { recursive: true });
-      const file = path.join(dir, name);
-      const tmp = file + '.tmp';
-      await fsp.writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-      await fsp.rename(tmp, file);
-    });
+    .then(() => writeNow(name, data));
   writeQueues.set(name, next);
+  return next;
+}
+
+/**
+ * Run a whole read→mutate→write cycle for one file under the same per-path
+ * promise chain, so concurrent callers can't lose each other's changes.
+ * `fn` receives the current content (or `fallback` when missing/corrupt) and
+ * returns the value to persist; that value is written and also resolves the
+ * returned promise. Do NOT call writeJsonFile inside `fn` — it would queue
+ * behind the lock itself and deadlock.
+ */
+export function withFileLock<T>(name: string, fallback: T, fn: (current: T) => T | Promise<T>): Promise<T> {
+  const prev = writeQueues.get(name) ?? Promise.resolve();
+  const next = prev
+    .catch(() => {
+      /* an earlier failed write must not poison the queue */
+    })
+    .then(async () => {
+      const current = await readJsonFile<T>(name, fallback);
+      const updated = await fn(current);
+      await writeNow(name, updated);
+      return updated;
+    });
+  // The queue tracks completion only; a failure must not poison later writes.
+  writeQueues.set(name, next.then(() => undefined, () => undefined));
   return next;
 }

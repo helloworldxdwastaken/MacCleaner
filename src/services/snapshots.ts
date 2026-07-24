@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { ScanResult, Snapshot, SnapshotDiff, SnapshotDeltaEntry } from '../models/types';
-import { readJsonFile, writeJsonFile } from './storage';
+import { readJsonFile, withFileLock } from './storage';
 
 /**
  * Snapshots — lightweight scan history persisted to snapshots.json in the
@@ -46,21 +46,24 @@ export async function saveSnapshot(scan: ScanResult): Promise<Snapshot | null> {
     topEntries,
   };
 
-  const store = await load();
-  store.snapshots.push(snapshot);
+  // Load→append→trim→write runs under the per-file lock so two scans
+  // finishing at the same time can't lose each other's snapshot.
+  await withFileLock(SNAP_FILE, { snapshots: [] } as SnapshotStore, (store) => {
+    if (!Array.isArray(store.snapshots)) store = { snapshots: [] };
+    store.snapshots.push(snapshot);
 
-  // Trim per-root history.
-  const sameRoot = store.snapshots.filter((s) => s.rootPath === snapshot.rootPath);
-  if (sameRoot.length > MAX_PER_ROOT) {
-    const cutoff = sameRoot
-      .sort((a, b) => a.takenAt - b.takenAt)
-      .slice(0, sameRoot.length - MAX_PER_ROOT)
-      .map((s) => s.id);
-    const drop = new Set(cutoff);
-    store.snapshots = store.snapshots.filter((s) => !drop.has(s.id));
-  }
-
-  await writeJsonFile(SNAP_FILE, store);
+    // Trim per-root history.
+    const sameRoot = store.snapshots.filter((s) => s.rootPath === snapshot.rootPath);
+    if (sameRoot.length > MAX_PER_ROOT) {
+      const cutoff = sameRoot
+        .sort((a, b) => a.takenAt - b.takenAt)
+        .slice(0, sameRoot.length - MAX_PER_ROOT)
+        .map((s) => s.id);
+      const drop = new Set(cutoff);
+      store.snapshots = store.snapshots.filter((s) => !drop.has(s.id));
+    }
+    return store;
+  });
   return snapshot;
 }
 

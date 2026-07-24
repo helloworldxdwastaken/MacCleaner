@@ -1,4 +1,4 @@
-import { readJsonFile, writeJsonFile } from './storage';
+import { readJsonFile, withFileLock } from './storage';
 import { ActivityEvent, ActivityKind, ActivitySummary } from '../models/types';
 
 /**
@@ -38,14 +38,32 @@ function empty(): ActivitySummary {
   };
 }
 
-export async function getActivity(): Promise<ActivitySummary> {
-  const stored = await readJsonFile<ActivitySummary>(FILE, empty());
-  // Defensive normalize — the file is user-visible and could be hand-edited.
+/** Positive-integer guard for anything the persisted file claims is a count. */
+const num = (v: unknown): number => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+/** Defensive normalize — the file is user-visible and could be hand-edited. */
+function normalizeSummary(stored: ActivitySummary): ActivitySummary {
   return {
     ...empty(),
     ...stored,
+    firstRecordedAt:
+      typeof stored.firstRecordedAt === 'number' && Number.isFinite(stored.firstRecordedAt)
+        ? stored.firstRecordedAt
+        : null,
+    totalBytesRecovered: num(stored.totalBytesRecovered),
+    junkItemsCleaned: num(stored.junkItemsCleaned),
+    appsUninstalled: num(stored.appsUninstalled),
+    programsUpdated: num(stored.programsUpdated),
     log: Array.isArray(stored.log) ? stored.log : [],
   };
+}
+
+export async function getActivity(): Promise<ActivitySummary> {
+  const stored = await readJsonFile<ActivitySummary>(FILE, empty());
+  return normalizeSummary(stored);
 }
 
 export interface ActivityDelta {
@@ -56,13 +74,8 @@ export interface ActivityDelta {
 }
 
 export async function recordActivity(delta: ActivityDelta): Promise<ActivitySummary> {
-  const summary = await getActivity();
   const now = Date.now();
 
-  const num = (v: unknown): number => {
-    const n = Math.floor(Number(v));
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  };
   const event: ActivityEvent = {
     at: now,
     kind: delta.kind,
@@ -71,19 +84,24 @@ export async function recordActivity(delta: ActivityDelta): Promise<ActivitySumm
     items: num(delta.items),
   };
 
-  if (summary.firstRecordedAt == null) summary.firstRecordedAt = now;
-  summary.totalBytesRecovered += event.bytes;
-  if (event.kind === 'uninstall') {
-    summary.appsUninstalled += 1; // one event = one app removed
-  } else if (event.kind === 'update') {
-    summary.programsUpdated += 1;
-  } else {
-    summary.junkItemsCleaned += event.items; // fast-clean / system-junk / large-old
-  }
+  // The whole load→mutate→write runs under the per-file lock so concurrent
+  // records can't overwrite each other's events or totals.
+  return withFileLock(FILE, empty(), (current) => {
+    const summary = normalizeSummary(current);
 
-  summary.log.unshift(event);
-  if (summary.log.length > MAX_LOG) summary.log.length = MAX_LOG;
+    if (summary.firstRecordedAt == null) summary.firstRecordedAt = now;
+    summary.totalBytesRecovered += event.bytes;
+    if (event.kind === 'uninstall') {
+      summary.appsUninstalled += 1; // one event = one app removed
+    } else if (event.kind === 'update') {
+      summary.programsUpdated += 1;
+    } else {
+      summary.junkItemsCleaned += event.items; // fast-clean / system-junk / large-old
+    }
 
-  await writeJsonFile(FILE, summary);
-  return summary;
+    summary.log.unshift(event);
+    if (summary.log.length > MAX_LOG) summary.log.length = MAX_LOG;
+
+    return summary;
+  });
 }

@@ -17,6 +17,12 @@ export interface FileNode {
   /** Unix epoch milliseconds of last modification. */
   modifiedAt: number;
   isHidden: boolean;
+  /**
+   * Set on a directory whose children were dropped to cap the retained tree
+   * size; `size` stays the full recursive total. Renderers should treat such
+   * a dir as a leaf that hides detail.
+   */
+  truncated?: boolean;
 }
 
 export type ScanStatus = 'running' | 'complete' | 'error';

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import http from 'http';
 import { scanRouter, drainSseClients, activeSseCount } from './api/scanRoutes';
 import { fileRouter } from './api/fileRoutes';
@@ -13,6 +14,7 @@ import { activityRouter } from './api/activityRoutes';
 import { fanRouter } from './api/fanRoutes';
 import { rateLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { generateToken, hostGuard, createTokenGuard } from './middleware/auth';
 import { cancelAllScans } from './services/diskScanner';
 import { cancelAllDuplicateJobs } from './services/duplicateFinder';
 import { startScheduler, stopScheduler } from './services/scheduler';
@@ -25,16 +27,23 @@ import { migrateLegacyDataDir } from './services/storage';
  * frontend from a different on-disk location.
  *
  * @param publicDir Absolute path to the folder holding index.html.
+ * @param token     Per-launch API token (generateToken()). Injected into the
+ *                  served index.html and required on every /api request.
  */
-export function createApp(publicDir: string): express.Express {
+export function createApp(publicDir: string, token: string): express.Express {
   const app = express();
 
   // This is a local tool; trust no proxies (req.ip = socket address).
   app.set('trust proxy', false);
   app.disable('x-powered-by');
 
+  // Loopback Host headers only — on every route, so a DNS-rebound page can
+  // neither call the API nor fetch the HTML carrying the token.
+  app.use(hostGuard);
+
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', rateLimiter);
+  app.use('/api', createTokenGuard(token));
 
   app.use('/api', scanRouter);
   app.use('/api', fileRouter);
@@ -47,8 +56,18 @@ export function createApp(publicDir: string): express.Express {
   app.use('/api', activityRouter);
   app.use('/api', fanRouter);
 
-  // Frontend: the single-file UI.
-  app.use(express.static(publicDir, { index: 'index.html' }));
+  // Frontend: the single-file UI, with the per-launch token injected so its
+  // fetch/EventSource calls can authenticate. Read once; it never changes
+  // while the server runs.
+  const indexHtml = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
+  const tokenScript = `<script>window.MACCLEANER_TOKEN=${JSON.stringify(token)};</script>`;
+  const injected = indexHtml.includes('<head>')
+    ? indexHtml.replace('<head>', `<head>\n${tokenScript}`)
+    : tokenScript + indexHtml;
+  app.get('/', (_req, res) => {
+    res.type('html').send(injected);
+  });
+  app.use(express.static(publicDir, { index: false }));
 
   app.use('/api', notFoundHandler);
   app.use(errorHandler);
@@ -59,6 +78,8 @@ export function createApp(publicDir: string): express.Express {
 export interface RunningServer {
   server: http.Server;
   port: number;
+  /** Per-launch API token; required on every /api request. */
+  token: string;
   /** Drains SSE streams, cancels scans, and closes the server. */
   shutdown: () => void;
 }
@@ -73,7 +94,8 @@ export interface StartOptions {
 /** Start listening and resolve once the socket is bound. */
 export function startServer(opts: StartOptions): Promise<RunningServer> {
   const host = opts.host ?? '127.0.0.1';
-  const app = createApp(opts.publicDir);
+  const token = generateToken();
+  const app = createApp(opts.publicDir, token);
   const server = http.createServer(app);
 
   let shuttingDown = false;
@@ -101,7 +123,7 @@ export function startServer(opts: StartOptions): Promise<RunningServer> {
         server.removeListener('error', reject);
         const addr = server.address();
         const port = typeof addr === 'object' && addr ? addr.port : (opts.port ?? 0);
-        resolve({ server, port, shutdown });
+        resolve({ server, port, token, shutdown });
       });
     });
   });

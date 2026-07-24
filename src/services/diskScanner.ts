@@ -5,6 +5,7 @@ import { FileNode, ScanResult, LargeFolder, EmptyFoldersResult, CompareEntry } f
 import { saveSnapshot } from './snapshots';
 import { getIgnoreMatchers } from './settings';
 import { CompiledIgnore, matchesAny } from '../utils/glob';
+import { PathRejectedError, sanitizePath } from '../utils/pathSanitizer';
 
 /**
  * DiskScanner — asynchronous recursive directory walker.
@@ -60,11 +61,43 @@ export function cancelAllScans(): void {
 }
 
 /**
+ * Reject roots so broad that a scan would authorize deletion over the whole
+ * disk: the filesystem root itself (and Windows drive roots like C:\), plus
+ * the macOS firmlinked data volume, which is the whole disk by another name.
+ * The home directory stays allowed — scanning ~ is an advertised feature.
+ */
+function assertScanRootAllowed(rootPath: string): void {
+  if (path.parse(rootPath).root === rootPath) {
+    throw new PathRejectedError(
+      `Scanning the filesystem root "${rootPath}" is not allowed — pick a folder inside it`,
+      'ROOT_TOO_BROAD'
+    );
+  }
+  if (rootPath.toLowerCase() === '/system/volumes/data') {
+    throw new PathRejectedError(
+      'Scanning "/System/Volumes/Data" (the entire data volume) is not allowed — pick a folder inside it',
+      'ROOT_TOO_BROAD'
+    );
+  }
+}
+
+/**
  * Kick off a scan of `rootPath`. Returns the scan record immediately;
  * the walk continues in the background and mutates the record as it goes.
  */
 export async function startScan(rootPath: string): Promise<ScanResult> {
   ensureEvictor();
+
+  assertScanRootAllowed(rootPath);
+
+  // Resolve symlinks in the root itself: the registered root grants deletion
+  // authorization over everything beneath it, so it must name the real
+  // location — a symlinked root must not alias past assertScanRootAllowed or
+  // the blocklist (e.g. ~/link -> /System/Volumes/Data).
+  const realRoot = await fsp.realpath(rootPath);
+  assertScanRootAllowed(realRoot);
+  sanitizePath(realRoot); // blocklist check on the resolved location
+  rootPath = realRoot;
 
   // Fail fast on unreadable/nonexistent roots so the API can 4xx properly.
   const rootStat = await fsp.lstat(rootPath);
@@ -133,6 +166,7 @@ async function walk(scan: ScanResult, rootIsDir: boolean, ignore: CompiledIgnore
   if (scan.cancelled) return;
 
   sumDirSizes(root);
+  pruneTree(root);
   scan.root = root;
   scan.status = 'complete';
   scan.finishedAt = Date.now();
@@ -253,6 +287,54 @@ function sumDirSizes(node: FileNode): number {
   return total;
 }
 
+/**
+ * Cap on nodes retained per completed scan. The full tree is held in memory
+ * for the scan's TTL and JSON.stringify'd whole into the SSE 'complete'
+ * frame; ~500k nodes keeps that serialized frame in the tens of MB.
+ */
+const MAX_TREE_NODES = 500_000;
+
+/** Live node count of a subtree, honoring already-collapsed directories. */
+function liveCount(node: FileNode): number {
+  let n = 1;
+  if (node.children) for (const c of node.children) n += liveCount(c);
+  return n;
+}
+
+/**
+ * Bound a completed tree to ~MAX_TREE_NODES nodes by collapsing the deepest
+ * directories into their parent: the parent keeps its aggregated size but
+ * drops its children and is marked `truncated` so renderers can tell detail
+ * was hidden. A single post-processing pass at completion — the walker is
+ * unchanged, and leaf-dir handling elsewhere already tolerates a dir with
+ * no children.
+ */
+function pruneTree(root: FileNode): void {
+  // One DFS to count nodes and index every directory with its depth.
+  let count = 0;
+  const dirs: { node: FileNode; depth: number }[] = [];
+  const index = (node: FileNode, depth: number): void => {
+    count++;
+    if (node.type !== 'dir' || !node.children) return;
+    dirs.push({ node, depth });
+    for (const c of node.children) index(c, depth + 1);
+  };
+  index(root, 0);
+  if (count <= MAX_TREE_NODES) return;
+
+  // Collapse deepest first. Descendants are processed before their ancestors,
+  // so a dir is never detached by an earlier collapse, and liveCount() (which
+  // sees earlier collapses below) is never double-subtracted.
+  dirs.sort((a, b) => b.depth - a.depth);
+  for (const { node } of dirs) {
+    if (count <= MAX_TREE_NODES) break;
+    if (node === root || !node.children) continue;
+    count -= liveCount(node) - 1;
+    node.children = undefined;
+    node.truncated = true;
+  }
+}
+
 /* ---------- Aggregations over a completed scan ---------- */
 
 export function collectLargestFiles(root: FileNode, limit: number, minSize: number) {
@@ -323,6 +405,9 @@ export function collectEmptyFolders(root: FileNode, ignoreJunk: boolean): EmptyF
   // Pass 1, bottom-up: a dir is empty when every child is junk or an empty dir.
   const compute = (node: FileNode): boolean => {
     if (node.type === 'file') return isJunk(node);
+    // A truncated dir hides real content dropped by the tree cap — never
+    // report it (or anything above it) as empty.
+    if (node.truncated) return false;
     let empty = true;
     if (node.children) {
       for (const c of node.children) {

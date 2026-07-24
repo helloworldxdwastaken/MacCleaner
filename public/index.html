@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>MacCleaner — macOS Cleaner Suite</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236A5BFF'/%3E%3Cstop offset='.55' stop-color='%233E7BFA'/%3E%3Cstop offset='1' stop-color='%2300C6FB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='url(%23f)'/%3E%3Cpath d='M22 68 A28 28 0 1 1 72 64' fill='none' stroke='%23fff' stroke-width='5.4' stroke-linecap='round'/%3E%3Ccircle cx='72' cy='64' r='4.4' fill='%23fff'/%3E%3Cpath d='M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236A5BFF'/%3E%3Cstop offset='.55' stop-color='%233E7BFA'/%3E%3Cstop offset='1' stop-color='%2300C6FB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='url(%23f)'/%3E%3Cg fill='%23fff'%3E%3Crect x='21' y='23' width='30' height='50' rx='8'/%3E%3Crect x='55' y='23' width='20' height='23' rx='6' opacity='.72'/%3E%3Crect x='55' y='50' width='9' height='23' rx='4' opacity='.52'/%3E%3Crect x='67' y='50' width='8' height='23' rx='3' opacity='.9'/%3E%3C/g%3E%3C/svg%3E">
 <script>
 /* Apply saved theme before first paint to avoid a flash. 'system' (or unset)
    follows the OS; 'light'/'dark' are explicit. */
@@ -259,7 +259,7 @@ body::before {
 }
 .icon-btn:hover { background: var(--surface-2); color: var(--text-1); }
 .icon-btn.danger:hover { background: var(--danger-soft); color: #ff6b61; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input[type="text"], input[type="number"], select {
   background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-sm);
   color: var(--text-1); font-size: 13px; padding: 9px 12px; font-family: inherit;
@@ -345,8 +345,9 @@ header > * { pointer-events: auto; }
   padding: 8px 10px; border-radius: 9px; cursor: pointer; margin-bottom: 1px;
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
-.side-item .ic { color: var(--text-3); flex: none; }
+.side-item .ic { color: var(--text-3); flex: none; transition: color var(--dur-1) var(--ease); }
 .side-item:hover:not(:disabled) { background: var(--surface-3); color: var(--text-1); }
+.side-item:hover:not(:disabled) .ic { color: var(--text-2); }
 .side-item[aria-current="true"] {
   background: var(--surface-3); color: var(--text-1);
   box-shadow: inset 0 1px 0 var(--shine), var(--shadow-1);
@@ -364,6 +365,9 @@ header > * { pointer-events: auto; }
 .mnt-text { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .mnt-text b { font-size: 13.5px; font-weight: 600; }
 .mnt-text span { font-size: 12px; color: var(--text-3); line-height: 1.4; }
+.mnt-btm-badge { flex: none; align-self: center; font-size: 11px; font-weight: 600; padding: 3px 9px;
+  border-radius: 999px; color: var(--text-3); background: var(--surface-2, rgba(128,128,128,.12));
+  border: 1px solid var(--border, rgba(128,128,128,.25)); cursor: help; }
 .mnt-status { font-size: 12px; text-align: right; max-width: 230px; color: var(--text-3); }
 .mnt-elevate { border: none; background: none; color: var(--accent); font: inherit; font-size: 12px; font-weight: 600;
   text-decoration: underline; cursor: pointer; padding: 0; margin-left: 4px; }
@@ -438,8 +442,32 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ── Dashboard ── */
-.dash-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 18px; align-items: start; }
-.dash-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.dash-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 16px; align-items: start; }
+.dash-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* Dashboard hero: full-width disk-usage strip with the Smart Scan CTA */
+.dash-hero { margin-bottom: 16px; }
+.hero-body { display: flex; align-items: center; gap: 30px; }
+.hero-ring { width: 148px; height: 148px; }
+.hero-ring .ring-label b { font-size: 27px; }
+.hero-facts { display: flex; align-items: center; flex: 1; min-width: 0; }
+.hero-facts .hfact { display: flex; flex-direction: column; gap: 4px; padding: 2px 24px; min-width: 0;
+  border-left: 1px solid var(--hairline); }
+.hero-facts .hfact:first-child { border-left: none; padding-left: 0; }
+.hero-facts .hfact span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
+.hero-facts .hfact b { font-size: 14.5px; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.hero-cta { min-height: 46px; padding: 0 26px; font-size: 14px; font-weight: 600; border-radius: 12px; flex: none;
+  margin-left: auto;
+  transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease),
+              transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
+.hero-cta:hover { transform: translateY(-1px); }
+.hero-cta:active { transform: translateY(0); }
+@media (max-width: 1280px) {
+  .hero-body { flex-wrap: wrap; gap: 20px 28px; }
+  .hero-facts { flex-wrap: wrap; row-gap: 14px; }
+}
 
 /* Dashboard live temps + fans mini-panel */
 .dash-sensors { display: flex; flex-direction: column; gap: 12px; }
@@ -464,13 +492,17 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .ds-fanrow .ds-chev { display: inline-flex; color: var(--text-3); flex: none; }
 
 /* Dashboard quick actions */
-.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.qa-tile { display: flex; align-items: center; gap: 12px; padding: 13px 15px; border-radius: var(--r-md);
+.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.qa-tile { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-radius: 14px;
   background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-1); font: inherit; cursor: pointer; text-align: left;
-  box-shadow: inset 0 1px 0 var(--shine); transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), transform var(--dur-2) var(--ease); }
-.qa-tile:hover { background: var(--surface-2); border-color: var(--hairline-2); transform: translateY(-1px); }
-.qa-tile .chip { width: 34px; height: 34px; border-radius: 9px; flex: none; }
-.qa-tile .qa-lab { font-size: 13px; font-weight: 600; }
+  box-shadow: inset 0 1px 0 var(--shine);
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+              transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease); }
+.qa-tile:hover { background: var(--surface-2); border-color: var(--hairline-2); transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 var(--shine), var(--shadow-2); }
+.qa-tile:active { transform: translateY(0); box-shadow: inset 0 1px 0 var(--shine); }
+.qa-tile .chip { width: 40px; height: 40px; border-radius: 11px; flex: none; }
+.qa-tile .qa-lab { font-size: 13.5px; font-weight: 600; }
 
 /* Dashboard storage-trend card */
 .dash-trend-sel { max-width: 240px; font-size: 12px; }
@@ -503,10 +535,11 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .act-item .nm { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .act-item .sub { font-size: 11px; color: var(--text-3); }
 .card { padding: 22px; }
-.card h2 { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 1px; color: var(--text-2); margin-bottom: 18px; }
-.card h2 .ic { color: var(--text-3); }
-.sys-row { display: flex; gap: 26px; align-items: center; }
+.card h2 { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600;
+  letter-spacing: 0.02em; color: var(--text-1); margin-bottom: 16px; }
+.card h2 .ic { color: var(--accent); background: var(--accent-soft); border-radius: 7px;
+  padding: 4px; box-sizing: content-box; }
+.card h2 .muted { color: var(--text-3); }
 .ring-wrap { position: relative; width: 132px; height: 132px; flex: none; }
 .ring-wrap svg { transform: rotate(-90deg); }
 .ring-bg { fill: none; stroke: var(--surface-2); stroke-width: 10; }
@@ -515,10 +548,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .ring-label b { font-size: 24px; font-weight: 700; letter-spacing: -0.6px; }
 .ring-label span { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 2px; }
-.sys-facts { display: flex; flex-direction: column; gap: 9px; font-size: 13px; min-width: 0; flex: 1; }
-.sys-facts .fact { display: flex; justify-content: space-between; gap: 18px; }
-.sys-facts .fact span { color: var(--text-2); }
-.sys-facts .fact b { font-weight: 600; white-space: nowrap; }
 
 .scan-row { display: flex; gap: 8px; }
 .scan-row .field { position: relative; flex: 1; min-width: 0; }
@@ -537,12 +566,12 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   animation: indeterminate 1.3s var(--ease) infinite; }
 @keyframes indeterminate { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
 
-.quick-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.stat-tile { padding: 14px 16px; display: flex; align-items: center; gap: 13px; }
-.stat-tile .chip { width: 36px; height: 36px; border-radius: 10px; }
-.stat-tile .v { font-size: 19px; font-weight: 700; letter-spacing: -0.4px; }
-.stat-tile .v.small { font-size: 13px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat-tile .k { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.quick-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat-tile { padding: 15px 17px; display: flex; align-items: center; gap: 14px; border-radius: 14px; }
+.stat-tile .chip { width: 38px; height: 38px; border-radius: 11px; }
+.stat-tile .v { font-size: 28px; font-weight: 700; letter-spacing: -0.6px; line-height: 1.15; }
+.stat-tile .v.small { font-size: 15px; letter-spacing: -0.2px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-tile .k { font-size: 11px; color: var(--text-2); margin-top: 1px; line-height: 1.3; }
 
 .donut-row { display: flex; gap: 22px; align-items: center; }
 #donutCanvas { flex: none; }
@@ -924,7 +953,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .sensor .ring-t-fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset var(--dur-3) var(--ease); }
 
 /* Fan cards */
-.fan-card { padding: 16px 18px; }
+.fan-card { padding: 18px 20px; }
 .fan-card + .fan-card { margin-top: 12px; }
 .fan-card .fc-top { display: flex; align-items: baseline; gap: 10px; }
 .fan-card .fc-name { font-size: 13px; font-weight: 600; color: var(--text-2); flex: 1; }
@@ -1180,11 +1209,11 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
           <stop offset="1" stop-color="#00C6FB"/>
         </linearGradient>
       </defs>
-      <g fill="none" stroke="url(#sideMark)">
-        <path d="M6 22.5 A11 11 0 1 1 25.6 21" stroke-width="2.6" stroke-linecap="round"/>
-        <circle cx="25.6" cy="21" r="2.2" fill="url(#sideMark)" stroke="none"/>
+      <g fill="url(#sideMark)">
+        <rect x="4" y="3" width="12" height="26" rx="4"/>
+        <rect x="19" y="3" width="10" height="12" rx="3"/>
+        <rect x="19" y="18" width="10" height="11" rx="3"/>
       </g>
-      <path d="M16 8.4 Q16.75 14.5 18.4 15.25 Q23.4 16 18.4 16.75 Q16.75 17.5 16 23.6 Q15.25 17.5 13.6 16.75 Q8.6 16 13.6 15.25 Q15.25 14.5 16 8.4 Z" fill="url(#sideMark)"/>
     </svg>
     <span>MacCleaner</span>
   </div>
@@ -1215,34 +1244,35 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 <main>
   <!-- ═══════════ Dashboard ═══════════ -->
   <section class="view" id="view-dashboard" role="tabpanel" aria-label="Dashboard" hidden>
+    <!-- Hero: disk usage at a glance + the primary Smart Scan entry point -->
+    <div class="card glass dash-hero">
+      <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span></h2>
+      <div class="hero-body">
+        <div class="ring-wrap hero-ring">
+          <svg width="148" height="148" viewBox="0 0 132 132">
+            <defs>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0A84FF"/><stop offset="100%" stop-color="#5E5CE6"/>
+              </linearGradient>
+            </defs>
+            <circle class="ring-bg" cx="66" cy="66" r="55"/>
+            <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="55" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
+          </svg>
+          <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
+        </div>
+        <div class="hero-facts">
+          <div class="hfact"><span data-i18n="hostLabel">Host</span><b id="sysHost">–</b></div>
+          <div class="hfact"><span data-i18n="platformLabel">Platform</span><b id="sysPlatform">–</b></div>
+          <div class="hfact"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
+          <div class="hfact"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
+          <div class="hfact"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
+        </div>
+        <button class="btn btn-primary hero-cta" data-qa="fastclean"><span data-icon="sparkles" data-size="17"></span><span data-i18n="smartScan">Smart Scan</span></button>
+      </div>
+    </div>
+
     <div class="dash-grid">
       <div class="dash-col">
-        <!-- Disk usage -->
-        <div class="card glass">
-          <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span></h2>
-          <div class="sys-row">
-            <div class="ring-wrap">
-              <svg width="132" height="132" viewBox="0 0 132 132">
-                <defs>
-                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#0A84FF"/><stop offset="100%" stop-color="#5E5CE6"/>
-                  </linearGradient>
-                </defs>
-                <circle class="ring-bg" cx="66" cy="66" r="55"/>
-                <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="55" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
-              </svg>
-              <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
-            </div>
-            <div class="sys-facts">
-              <div class="fact"><span data-i18n="hostLabel">Host</span><b id="sysHost">–</b></div>
-              <div class="fact"><span data-i18n="platformLabel">Platform</span><b id="sysPlatform">–</b></div>
-              <div class="fact"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
-              <div class="fact"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
-              <div class="fact"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
-            </div>
-          </div>
-        </div>
-
         <!-- Live temps + fans mini panel -->
         <div class="card glass">
           <h2><span data-icon="thermometer"></span><span data-i18n="tempsAndFans">Temperature &amp; fans</span></h2>
@@ -1253,10 +1283,10 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
         <div class="card glass">
           <h2><span data-icon="zap"></span><span data-i18n="quickActions">Quick actions</span></h2>
           <div class="qa-grid">
-            <button class="qa-tile" data-qa="fastclean"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles"></span></span><span class="qa-lab" data-i18n="smartScan">Smart Scan</span></button>
-            <button class="qa-tile" data-qa="treemap"><span class="chip" style="--tint:#30D158"><span data-icon="treemap"></span></span><span class="qa-lab" data-i18n="diskMap">Disk Map</span></button>
-            <button class="qa-tile" data-qa="fans"><span class="chip" style="--tint:#FF9F0A"><span data-icon="fan"></span></span><span class="qa-lab" data-i18n="fans">Fans</span></button>
-            <button class="qa-tile" data-qa="apps"><span class="chip" style="--tint:#BF5AF2"><span data-icon="box"></span></span><span class="qa-lab" data-i18n="uninstaller">Uninstaller</span></button>
+            <button class="qa-tile" data-qa="fastclean"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles" data-size="19"></span></span><span class="qa-lab" data-i18n="smartScan">Smart Scan</span></button>
+            <button class="qa-tile" data-qa="treemap"><span class="chip" style="--tint:#30D158"><span data-icon="treemap" data-size="19"></span></span><span class="qa-lab" data-i18n="diskMap">Disk Map</span></button>
+            <button class="qa-tile" data-qa="fans"><span class="chip" style="--tint:#FF9F0A"><span data-icon="fan" data-size="19"></span></span><span class="qa-lab" data-i18n="fans">Fans</span></button>
+            <button class="qa-tile" data-qa="apps"><span class="chip" style="--tint:#BF5AF2"><span data-icon="box" data-size="19"></span></span><span class="qa-lab" data-i18n="uninstaller">Uninstaller</span></button>
           </div>
         </div>
       </div>
@@ -1308,8 +1338,12 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
           </linearGradient>
         </defs>
         <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#emptyMark)"/>
-        <g fill="none" stroke="#fff"><path d="M22 68 A28 28 0 1 1 72 64" stroke-width="5.4" stroke-linecap="round"/><circle cx="72" cy="64" r="4.4" fill="#fff" stroke="none"/></g>
-        <path d="M48 22 Q50.25 40.5 55.2 42.75 Q70.2 48 55.2 53.25 Q50.25 55.5 48 74 Q45.75 55.5 40.8 53.25 Q25.8 48 40.8 42.75 Q45.75 40.5 48 22 Z" fill="#fff"/>
+        <g fill="#fff">
+          <rect x="21" y="23" width="30" height="50" rx="8" opacity="0.96"/>
+          <rect x="55" y="23" width="20" height="23" rx="6" opacity="0.72"/>
+          <rect x="55" y="50" width="9" height="23" rx="4" opacity="0.52"/>
+          <rect x="67" y="50" width="8" height="23" rx="3" opacity="0.9"/>
+        </g>
       </svg>
       <h1 data-i18n="diskMapTitle">Map a folder's disk usage</h1>
       <p data-i18n="diskMapSub">Scan any folder for a GrandPerspective-style treemap and a size-proportional grid. Files go to the Trash — never deleted outright.</p>
@@ -3703,14 +3737,20 @@ async function loadMaintenance() {
     box.innerHTML = items.map(it => {
       const letter = escapeHtml((it.name.trim()[0] || '?').toUpperCase());
       const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}&token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`;
+      const isBtm = it.kind === 'background';
+      const status = isBtm
+        ? `${it.enabled ? 'Allowed in background' : 'Blocked'}${it.detail ? ' · ' + it.detail : ''}`
+        : (it.enabled ? 'Opens at login' : "Off — won't open at login");
       return `
       <div class="mnt-row${it.enabled ? '' : ' mnt-off'}">
         <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" onerror="this.remove()"></div>
-        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${it.enabled ? 'Opens at login' : "Off — won't open at login"}</span></div>
-        <label class="switch">
+        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(status)}</span></div>
+        ${isBtm
+          ? '<span class="mnt-btm-badge" title="Managed by macOS — change it in System Settings → General → Login Items & Extensions">Background</span>'
+          : `<label class="switch">
           <input type="checkbox" class="mnt-toggle" ${it.enabled ? 'checked' : ''} data-name="${escapeHtml(it.name)}" data-path="${escapeHtml(it.path)}">
           <span class="track"></span>
-        </label>
+        </label>`}
       </div>`;
     }).join('');
   } catch (e) {
@@ -5152,8 +5192,8 @@ window.addEventListener('drop', async (e) => {
   }
 });
 
-/* ── Dashboard quick actions ── */
-document.querySelectorAll('.qa-tile[data-qa]').forEach(b =>
+/* ── Dashboard quick actions (tiles + the hero Smart Scan CTA) ── */
+document.querySelectorAll('[data-qa]').forEach(b =>
   b.addEventListener('click', () => switchView(b.dataset.qa)));
 
 /* ───────────────────────────── Boot ───────────────────────────── */

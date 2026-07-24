@@ -152,6 +152,15 @@ export interface LoginItem {
   hidden: boolean;
   /** Present in the login-items list = will open at login. */
   enabled: boolean;
+  /**
+   * 'login' = classic System Events "Open at Login" entry (toggleable here).
+   * 'background' = modern Background Task Management item (SMAppService,
+   * LaunchAgent/Daemon registered by the app) — macOS owns the switch, so
+   * the UI shows these read-only. This is where Adobe & co. live.
+   */
+  kind: 'login' | 'background';
+  /** Short provenance line, e.g. the developer name or item type. */
+  detail?: string;
 }
 
 /** Render a macOS .app bundle's icon as a small PNG buffer (for the UI). */
@@ -249,20 +258,121 @@ export async function listLoginItems(): Promise<LoginItem[]> {
     const [name, path, hidden] = line.split('\t');
     if (!name || !path) continue;
     if (!isUserLoginItem(name, path)) continue;
-    items.push({ name, path, hidden: hidden === 'true', enabled: true });
+    items.push({ name, path, hidden: hidden === 'true', enabled: true, kind: 'login' });
     activePaths.add(path);
   }
   // Merge back remembered-disabled apps that aren't currently active.
   const disabled = await getDisabled();
   for (const d of disabled) {
     if (activePaths.has(d.path) || !isUserLoginItem(d.name, d.path)) continue;
-    items.push({ name: d.name, path: d.path, hidden: false, enabled: false });
+    items.push({ name: d.name, path: d.path, hidden: false, enabled: false, kind: 'login' });
   }
   // Prune any remembered-disabled that are active again (re-enabled elsewhere).
   const stillDisabled = disabled.filter((d) => !activePaths.has(d.path));
   if (stillDisabled.length !== disabled.length) await setDisabled(stillDisabled);
 
+  // Modern background items (SMAppService / BTM — Adobe Creative Cloud & co.)
+  // don't appear in System Events at all; merge them in read-only.
+  for (const b of await listBackgroundItems()) {
+    if (activePaths.has(b.path)) continue;
+    if (items.some((i) => i.name === b.name && i.path === b.path)) continue;
+    items.push(b);
+  }
+
   items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  return items;
+}
+
+/* ---------- Background Task Management items (sfltool dumpbtm) ---------- */
+
+interface BtmRecord {
+  name: string;
+  developer: string;
+  type: string;
+  disposition: string;
+  identifier: string;
+  url: string;
+  executablePath: string;
+}
+
+/**
+ * Parse `sfltool dumpbtm` output. Records look like:
+ *   " #3:\n    UUID: …\n    Name: DisplayLink Manager\n    Type: app (0x2)\n
+ *      Disposition: [enabled, allowed, notified] (0xb)\n    URL: file:///…"
+ * Split on the record markers, then pull the fields we care about.
+ */
+function parseBtmDump(out: string): BtmRecord[] {
+  const records: BtmRecord[] = [];
+  for (const chunk of out.split(/^ #\d+:\s*$/m).slice(1)) {
+    const get = (key: string): string => {
+      const m = chunk.match(new RegExp(`^\\s+${key}:\\s*(.*)$`, 'm'));
+      return m ? m[1].trim() : '';
+    };
+    records.push({
+      name: get('Name'),
+      developer: get('Developer Name'),
+      type: get('Type'),
+      disposition: get('Disposition'),
+      identifier: get('Identifier'),
+      url: get('URL'),
+      executablePath: get('Executable Path'),
+    });
+  }
+  return records;
+}
+
+/** Human label for the BTM "Type:" field. */
+function btmTypeLabel(type: string): string {
+  if (type.startsWith('app')) return 'App background item';
+  if (type.includes('daemon')) return 'Background daemon';
+  if (type.includes('agent')) return 'Background agent';
+  if (type.startsWith('developer')) return 'Background item';
+  if (type.startsWith('login')) return 'Login item';
+  return 'Background item';
+}
+
+/**
+ * List non-Apple Background Task Management items (System Settings → General
+ * → Login Items & Extensions). Modern apps register here via SMAppService —
+ * they never show up in System Events "login items", which is why the
+ * classic list alone misses things like Adobe Creative Cloud. macOS owns
+ * the on/off switch for these; they are reported read-only.
+ */
+export async function listBackgroundItems(): Promise<LoginItem[]> {
+  if (process.platform !== 'darwin') return [];
+  let out: string;
+  try {
+    out = await run('sfltool', ['dumpbtm'], 15000);
+  } catch {
+    return []; // older macOS without sfltool, or BTM unavailable — not fatal
+  }
+  const items: LoginItem[] = [];
+  const seen = new Set<string>();
+  for (const r of parseBtmDump(out)) {
+    if (!r.name) continue;
+    if (/apple/i.test(r.developer) || /^com\.apple\./i.test(r.identifier)) continue;
+    // Records without a payload URL/executable are containers — skip them.
+    const rawUrl = r.url && r.url !== '(null)' ? r.url : '';
+    let p = '';
+    try {
+      p = rawUrl ? decodeURIComponent(rawUrl.replace(/^file:\/\//, '')) : r.executablePath;
+    } catch {
+      p = r.executablePath; // malformed percent-encoding — fall back
+    }
+    if (!p) continue;
+    const key = r.identifier || `${r.name}|${p}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const dev = r.developer && r.developer !== '(null)' && r.developer !== r.name ? r.developer : '';
+    items.push({
+      name: r.name,
+      path: p,
+      hidden: false,
+      enabled: r.disposition.startsWith('[enabled'),
+      kind: 'background',
+      detail: dev ? `${dev} — ${btmTypeLabel(r.type)}` : btmTypeLabel(r.type),
+    });
+  }
   return items;
 }
 
@@ -274,6 +384,11 @@ export async function listLoginItems(): Promise<LoginItem[]> {
 export async function setLoginItemEnabled(name: string, path: string, enabled: boolean): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('Login items are managed on macOS only');
   if (!isUserLoginItem(name, path)) throw new Error('Refusing to modify a system login item');
+  // Only classic .app login items are toggleable through System Events.
+  // Background (BTM) items point at executables/plists and are owned by macOS.
+  if (!path.endsWith('.app')) {
+    throw new Error('Background items are managed by macOS — toggle them in System Settings → General → Login Items & Extensions');
+  }
   const disabled = await getDisabled();
 
   if (enabled) {

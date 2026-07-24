@@ -18,6 +18,10 @@
 ## Gotchas / lessons learned
 - `storage.ts` `withFileLock` serializes read→mutate→write per file — never call `writeJsonFile` inside its callback (deadlock).
 - Path blocklist (`src/utils/pathSanitizer.ts`) is lexical + case-insensitive; macOS symlinks need both spellings blocked (`/etc` + `/private/etc`, `/var/db` + `/private/var/db`). Do NOT block all of `/var` — `/var/folders` holds user temp/caches, a legitimate clean target.
+- Login items come from TWO sources: System Events (classic "Open at Login", toggleable) and `sfltool dumpbtm` (modern BTM/SMAppService background items — Adobe CC & co., read-only, macOS owns the switch). Both are merged in `src/services/maintenance.ts` `listLoginItems`; BTM records have `kind: 'background'`. `setLoginItemEnabled` only accepts `.app` paths.
+- The frontend is ONE file (`public/index.html`); JS binds by element id — never rename ids/data-* hooks. Any new raw `/api` URL (img/iframe/EventSource) must carry `?token=` — only `fetch` via `api()` gets the header automatically.
+- Icon pipeline: edit `build/icon.svg`, rasterize with `swift scripts/render-icon.swift build/icon.svg 1024` → rename to `build/icon.png`; tray glyph is procedural — edit `inGlyph` in `scripts/gen-tray-icon.js` and run it. In-app marks (sidebar, empty state, favicon) are inline SVG in `public/index.html` — keep them in sync manually.
 
 ## Log
 - 2026-07-24 — created. Full security audit + fixes: per-launch API token, Host guard, completed-scan deletion authorization, expanded case-insensitive blocklist, realpath checks, activity/snapshot write mutex, 500k-node tree cap, Electron lockdown (sandbox, will-navigate, CSP, openExternal https-only).
+- 2026-07-25 — login-item detection now includes BTM background items (fixes missing Adobe CC); new treemap-mosaic logo (app icon, tray, sidebar, favicon); dashboard redesigned (hero strip with disk ring + facts + Smart Scan CTA); app-wide card/focus/hover polish.

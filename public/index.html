@@ -707,6 +707,20 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   animation: fcSpin 0.9s linear infinite;
 }
 @keyframes fcSpin { to { transform: rotate(360deg); } }
+/* ── Smart Scan review list (scan → review → remove) ── */
+/* Hero centers vertically only until the results list appears. */
+.fc-hero:has(+ .fc-list:not([hidden])) { min-height: 0; padding: 30px 0 2px; }
+.fc-hero:has(+ .fc-list:not([hidden])) .fc-title { font-size: 24px; }
+.fc-list { width: min(520px, 100%); margin: 0 auto; padding: 0 12px 26px; }
+.fc-rows { padding: 6px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.fc-row { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  transition: background var(--dur-1) var(--ease); }
+.fc-row:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.fc-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); flex: none; cursor: pointer; }
+.fc-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.fc-row .s { color: var(--text-3); font-size: 12px; flex: none; }
+.fc-row.off .n, .fc-row.off .s { opacity: 0.45; }
+.fc-row-bin .n { font-weight: 600; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal { width: 660px; max-width: 92vw; max-height: 84vh; display: flex; flex-direction: column;
   animation: sheetIn var(--dur-3) var(--ease); background: var(--glass-strong);
@@ -1468,6 +1482,7 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
       <div class="fc-status" id="fcStatus"></div>
       <button class="fc-cta" id="fcCleanBtn" disabled><span class="fc-cta-main">Clean</span><span class="fc-cta-sub" id="fcCtaSize"></span></button>
     </div>
+    <div class="fc-list" id="fcList" hidden></div>
   </section>
 
   <!-- ═══════════ Uninstaller (Applications) ═══════════ -->
@@ -1935,6 +1950,7 @@ if (sysDark && sysDark.addEventListener) sysDark.addEventListener('change', () =
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
   en: { clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
+    scanning:'Scanning…', remove:'Remove', scanAgain:'Scan again', binRow:'Bin',
     fans:'Fans',
     // Dashboard + Disk Map + activity (English source for JS-rendered strings)
     diskMap:'Disk Map', sensorsLoading:'Reading sensors…', dupNeedsScan:'Scan a folder in Disk Map first to look for duplicates.', openDiskMap:'Open Disk Map',
@@ -1953,12 +1969,14 @@ const STRINGS = {
     modeAuto:'Auto', modeManual:'Manual', modeMacos:'macOS',
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Custom',
     autoDesc:'The system manages the fans by temperature. No boost applied.', boostActive:'Boost active', boostActiveDesc:'Fans are held above the system minimum.', backToAuto:'Back to Auto',
+    rulesBoostActive:'Auto rules boosting', rulesBoostActiveDesc:'A temperature rule raised fan speed.', pauseRules:'Pause rules',
     onboardTitle:'Fan control needs a one-time authorization', onboardBody:'Fan control needs a one-time system authorization (your password, once). Sensors work without it.', installHelper:'Install fan control', sensorsNoHelper:'Temperature and RPM readings already work.',
     allFans:'All fans', target:'Target', threshold:'Threshold', mappedRpm:'Mapped RPM', controlledByMacos:'controlled by macOS',
     uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.' },
   es: { dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
+    scanning:'Escaneando…', remove:'Eliminar', scanAgain:'Escanear de nuevo', binRow:'Papelera',
     fans:'Ventiladores', used:'usado', totalDisk:'Disco total', freeSpace:'Libre', usedSpace:'Usado',
     diskUsage:'Uso del disco', tempsAndFans:'Temperatura y ventiladores', sensorsLoading:'Leyendo sensores…', quickActions:'Acciones rápidas', lifetimeImpact:'Impacto total', movedToTrash:'Movido a la Papelera', junkItemsCleaned:'Elementos basura limpiados', appsUninstalled:'Apps desinstaladas', updatesApplied:'Actualizaciones aplicadas', storageTrend:'Tendencia de almacenamiento', recentActivity:'Actividad reciente', hostLabel:'Equipo', platformLabel:'Plataforma',
     diskMapTitle:'Mapea el uso de disco de una carpeta', diskMapSub:'Escanea cualquier carpeta para ver un treemap tipo GrandPerspective y una cuadrícula proporcional al tamaño. Los archivos van a la Papelera — nunca se borran directamente.', browse:'Explorar…', scan:'Escanear', noScanYet:'Sin escaneo — elige una carpeta arriba.', treemap:'Treemap', grid:'Cuadrícula', scanFolder:'Escanear carpeta…', depth:'Profundidad', exportBtn:'Exportar', tmHint:'clic en una carpeta para entrar · clic derecho para acciones · Esc para subir', sort:'Ordenar', sortSize:'Tamaño', sortName:'Nombre', sortDate:'Fecha de modificación', sortType:'Tipo', fileTypesBySize:'Tipos de archivo por tamaño', largestFiles:'Archivos más grandes', largestFolders:'Carpetas más grandes',
@@ -1976,12 +1994,14 @@ const STRINGS = {
     modeAuto:'Auto', modeManual:'Manual', modeMacos:'macOS',
     ctrlAuto:'Auto', ctrlBoost:'Refuerzo', ctrlCustom:'Personalizado',
     autoDesc:'El sistema gestiona los ventiladores según la temperatura. Sin refuerzo.', boostActive:'Refuerzo activo', boostActiveDesc:'Los ventiladores están por encima del mínimo del sistema.', backToAuto:'Volver a Auto',
+    rulesBoostActive:'Reglas automáticas activas', rulesBoostActiveDesc:'Una regla de temperatura subió la velocidad.', pauseRules:'Pausar reglas',
     onboardTitle:'El control de ventiladores necesita una autorización', onboardBody:'El control de ventiladores requiere una autorización única del sistema (tu contraseña, una sola vez). Los sensores funcionan sin ella.', installHelper:'Instalar control', sensorsNoHelper:'Las lecturas de temperatura y RPM ya funcionan.',
     allFans:'Todos los ventiladores', target:'Objetivo', threshold:'Umbral', mappedRpm:'RPM previstas', controlledByMacos:'controlado por macOS',
     uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.' },
   ru: { dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
+    scanning:'Сканирование…', remove:'Удалить', scanAgain:'Сканировать снова', binRow:'Корзина',
     fans:'Кулеры', used:'занято', totalDisk:'Всего на диске', freeSpace:'Свободно', usedSpace:'Занято',
     diskUsage:'Использование диска', tempsAndFans:'Температура и кулеры', sensorsLoading:'Чтение датчиков…', quickActions:'Быстрые действия', lifetimeImpact:'Общий результат', movedToTrash:'В Корзину', junkItemsCleaned:'Очищено мусора', appsUninstalled:'Удалено приложений', updatesApplied:'Применено обновлений', storageTrend:'Динамика хранилища', recentActivity:'Недавние действия', hostLabel:'Хост', platformLabel:'Платформа',
     diskMapTitle:'Постройте карту использования диска папки', diskMapSub:'Просканируйте любую папку, чтобы увидеть treemap в стиле GrandPerspective и пропорциональную по размеру сетку. Файлы попадают в Корзину — они не удаляются напрямую.', browse:'Обзор…', scan:'Сканировать', noScanYet:'Сканирования пока нет — выберите папку выше.', treemap:'Treemap', grid:'Сетка', scanFolder:'Сканировать папку…', depth:'Глубина', exportBtn:'Экспорт', tmHint:'клик по папке — войти · правый клик — действия · Esc — вверх', sort:'Сортировка', sortSize:'Размер', sortName:'Имя', sortDate:'Дата изменения', sortType:'Тип', fileTypesBySize:'Типы файлов по размеру', largestFiles:'Крупнейшие файлы', largestFolders:'Крупнейшие папки',
@@ -1999,12 +2019,14 @@ const STRINGS = {
     modeAuto:'Авто', modeManual:'Ручной', modeMacos:'macOS',
     ctrlAuto:'Авто', ctrlBoost:'Разгон', ctrlCustom:'Вручную',
     autoDesc:'Система управляет кулерами по температуре. Без разгона.', boostActive:'Разгон активен', boostActiveDesc:'Обороты выше системного минимума.', backToAuto:'Вернуть Авто',
+    rulesBoostActive:'Работают автоправила', rulesBoostActiveDesc:'Температурное правило подняло обороты.', pauseRules:'Пауза правил',
     onboardTitle:'Для управления нужна авторизация', onboardBody:'Управлению кулерами нужна однократная авторизация системы (ваш пароль, один раз). Датчики работают и без неё.', installHelper:'Установить управление', sensorsNoHelper:'Показания температуры и оборотов уже работают.',
     allFans:'Все кулеры', target:'Цель', threshold:'Порог', mappedRpm:'Ожидаемые об/мин', controlledByMacos:'управляется macOS',
     uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.' },
   de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
+    scanning:'Scanne…', remove:'Entfernen', scanAgain:'Erneut scannen', binRow:'Papierkorb',
     fans:'Lüfter', used:'belegt', totalDisk:'Gesamt', freeSpace:'Frei', usedSpace:'Belegt',
     diskUsage:'Speichernutzung', tempsAndFans:'Temperatur & Lüfter', sensorsLoading:'Sensoren werden gelesen…', quickActions:'Schnellaktionen', lifetimeImpact:'Gesamtwirkung', movedToTrash:'In den Papierkorb', junkItemsCleaned:'Müll-Objekte bereinigt', appsUninstalled:'Programme deinstalliert', updatesApplied:'Updates angewendet', storageTrend:'Speicher-Trend', recentActivity:'Letzte Aktivität', hostLabel:'Host', platformLabel:'Plattform',
     diskMapTitle:'Speichernutzung eines Ordners abbilden', diskMapSub:'Scanne einen beliebigen Ordner für einen Treemap im GrandPerspective-Stil und ein größenproportionales Raster. Dateien landen im Papierkorb — sie werden nie direkt gelöscht.', browse:'Durchsuchen…', scan:'Scannen', noScanYet:'Noch kein Scan — wähle oben einen Ordner.', treemap:'Treemap', grid:'Raster', scanFolder:'Ordner scannen…', depth:'Tiefe', exportBtn:'Exportieren', tmHint:'Klick auf einen Ordner zum Öffnen · Rechtsklick für Aktionen · Esc zum Hochgehen', sort:'Sortieren', sortSize:'Größe', sortName:'Name', sortDate:'Änderungsdatum', sortType:'Typ', fileTypesBySize:'Dateitypen nach Größe', largestFiles:'Größte Dateien', largestFolders:'Größte Ordner',
@@ -2022,12 +2044,14 @@ const STRINGS = {
     modeAuto:'Auto', modeManual:'Manuell', modeMacos:'macOS',
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Individuell',
     autoDesc:'Das System regelt die Lüfter nach Temperatur. Kein Boost.', boostActive:'Boost aktiv', boostActiveDesc:'Die Lüfter laufen über dem Systemminimum.', backToAuto:'Zurück zu Auto',
+    rulesBoostActive:'Auto-Regeln aktiv', rulesBoostActiveDesc:'Eine Temperaturregel hat die Lüfterdrehzahl erhöht.', pauseRules:'Regeln pausieren',
     onboardTitle:'Lüftersteuerung braucht eine Freigabe', onboardBody:'Die Lüftersteuerung braucht eine einmalige Systemfreigabe (dein Passwort, einmal). Sensoren funktionieren auch ohne.', installHelper:'Steuerung installieren', sensorsNoHelper:'Temperatur- und Drehzahlwerte funktionieren bereits.',
     allFans:'Alle Lüfter', target:'Ziel', threshold:'Schwelle', mappedRpm:'Erwartete U/min', controlledByMacos:'von macOS geregelt',
     uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.' },
   fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
+    scanning:'Analyse…', remove:'Supprimer', scanAgain:"Relancer l'analyse", binRow:'Corbeille',
     fans:'Ventilateurs', used:'utilisé', totalDisk:'Disque total', freeSpace:'Libre', usedSpace:'Utilisé',
     diskUsage:'Utilisation du disque', tempsAndFans:'Température et ventilateurs', sensorsLoading:'Lecture des capteurs…', quickActions:'Actions rapides', lifetimeImpact:'Impact total', movedToTrash:'Déplacé vers la Corbeille', junkItemsCleaned:'Éléments inutiles nettoyés', appsUninstalled:'Apps désinstallées', updatesApplied:'Mises à jour appliquées', storageTrend:'Tendance du stockage', recentActivity:'Activité récente', hostLabel:'Hôte', platformLabel:'Plateforme',
     diskMapTitle:"Cartographier l'utilisation disque d'un dossier", diskMapSub:'Analysez n\'importe quel dossier pour un treemap façon GrandPerspective et une grille proportionnelle à la taille. Les fichiers vont à la Corbeille — jamais supprimés directement.', browse:'Parcourir…', scan:'Analyser', noScanYet:'Aucune analyse — choisissez un dossier ci-dessus.', treemap:'Treemap', grid:'Grille', scanFolder:'Analyser un dossier…', depth:'Profondeur', exportBtn:'Exporter', tmHint:'cliquez un dossier pour entrer · clic droit pour les actions · Échap pour remonter', sort:'Trier', sortSize:'Taille', sortName:'Nom', sortDate:'Date de modification', sortType:'Type', fileTypesBySize:'Types de fichiers par taille', largestFiles:'Fichiers les plus volumineux', largestFolders:'Dossiers les plus volumineux',
@@ -2045,6 +2069,7 @@ const STRINGS = {
     modeAuto:'Auto', modeManual:'Manuel', modeMacos:'macOS',
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Personnalisé',
     autoDesc:'Le système gère les ventilateurs selon la température. Aucun boost.', boostActive:'Boost actif', boostActiveDesc:'Les ventilateurs tournent au-dessus du minimum système.', backToAuto:"Revenir à Auto",
+    rulesBoostActive:'Règles auto actives', rulesBoostActiveDesc:"Une règle de température a augmenté la vitesse.", pauseRules:'Suspendre les règles',
     onboardTitle:'Le contrôle nécessite une autorisation', onboardBody:"Le contrôle des ventilateurs nécessite une autorisation système unique (votre mot de passe, une fois). Les capteurs fonctionnent sans.", installHelper:'Installer le contrôle', sensorsNoHelper:'Les relevés de température et de vitesse fonctionnent déjà.',
     allFans:'Tous les ventilateurs', target:'Cible', threshold:'Seuil', mappedRpm:'Tr/min prévus', controlledByMacos:'géré par macOS',
     uninstallHelper:'Désinstaller le contrôle des ventilateurs', helperInstalled:'Contrôle des ventilateurs installé.', boostApplied:'Boost appliqué', autoRestored:'Contrôle automatique rétabli', rulesSaved:'Règles enregistrées', installed:'Contrôle des ventilateurs installé', installCancelled:'Installation annulée — vous pourrez le faire plus tard.', installFailed:"Impossible d'installer le contrôle", domain:'Capteur', noRules:'Aucune règle — ajoutez-en une pour accélérer en cas de chaleur.' },
@@ -2146,7 +2171,8 @@ const state = {
   donut: { segs: [], hover: -1, animated: false },
   dup: { loadedFor: null, status: 'idle', groups: [], groupCount: 0, totalReclaimable: 0, selection: new Set(), pollTimer: 0 },
   trends: { roots: [], path: null, snapshots: [], points: [], hover: -1 },
-  fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false },
+  fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false,
+    phase: 'scan', hasPlan: false, planEntries: [], entrySizes: {}, selected: new Set(), binSelected: false },
   apps: { loaded: false, items: [], selected: null, leftovers: null, sel: new Set() },
   updater: {},
   fans: { status: null, helperState: null, poll: 0, pollMs: 0, mode: 'auto', boostPct: 0,
@@ -3526,28 +3552,96 @@ function fcTotal() {
   const fc = state.fastclean;
   return fc.cacheSize + (fc.trashAccessible ? fc.binSize : 0);
 }
+/** Total size of the items currently ticked in the review list. */
+function fcSelectedTotal() {
+  const fc = state.fastclean;
+  let total = 0;
+  for (const e of fc.planEntries) {
+    if (fc.selected.has(e.name)) total += fc.entrySizes[e.name] || 0;
+  }
+  if (fc.binSelected && fc.trashAccessible) total += fc.binSize;
+  return total;
+}
+/**
+ * The Smart Scan button walks a phase machine:
+ *   scan   — disabled spinner while scans run
+ *   review — list visible; "Remove <size>" over the ticked items
+ *   done   — "Scan again", restarts the flow
+ * (cleaning is a transient state guarded by fc.cleaning)
+ */
 function refreshFcButton() {
   const fc = state.fastclean;
   if (fc.cleaning) return; // don't clobber the cleaning ring
-  const total = fcTotal();
   const btn = $('fcCleanBtn');
+  if (fc.phase === 'scan') {
+    btn.disabled = true;
+    btn.querySelector('.fc-cta-main').textContent = t('scanning');
+    $('fcCtaSize').textContent = '';
+    return;
+  }
+  if (fc.phase === 'done') {
+    btn.disabled = false;
+    btn.querySelector('.fc-cta-main').textContent = t('scanAgain');
+    $('fcCtaSize').textContent = '';
+    return;
+  }
+  const total = fc.hasPlan ? fcSelectedTotal() : fcTotal();
   btn.disabled = total <= 0;
-  btn.querySelector('.fc-cta-main').textContent = t('clean');
+  btn.querySelector('.fc-cta-main').textContent = t(fc.hasPlan ? 'remove' : 'clean');
   $('fcCtaSize').textContent = total > 0 ? formatBytes(total) : '';
 }
 
-/** Reset to the ready state (sparkles mark, default copy, disabled button). */
+/** Render the per-item review list (one row per cache entry + an opt-in Bin row). */
+function renderFcList() {
+  const fc = state.fastclean;
+  const host = $('fcList');
+  if (!fc.hasPlan || fc.phase === 'done') { host.hidden = true; host.innerHTML = ''; return; }
+  const rows = fc.planEntries.map(e => {
+    const size = fc.entrySizes[e.name];
+    const on = fc.selected.has(e.name);
+    return `<label class="fc-row${on ? '' : ' off'}">
+      <input type="checkbox" data-fcname="${escapeHtml(e.name)}"${on ? ' checked' : ''}>
+      <span class="n">${escapeHtml(e.name)}</span>
+      <span class="s num">${size == null ? '…' : formatBytes(size)}</span>
+    </label>`;
+  });
+  // The Bin is PERMANENT (not Trash) — always opt-in, never pre-ticked.
+  if (fc.trashAccessible && fc.binSize > 0) {
+    rows.push(`<label class="fc-row fc-row-bin${fc.binSelected ? '' : ' off'}">
+      <input type="checkbox" id="fcBinCheck"${fc.binSelected ? ' checked' : ''}>
+      <span class="n">${escapeHtml(t('binRow'))}</span>
+      <span class="s num">${formatBytes(fc.binSize)}</span>
+    </label>`);
+  }
+  host.innerHTML = `<div class="fc-rows card glass">${rows.join('')}</div>`;
+  host.hidden = false;
+  host.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
+    if (cb.id === 'fcBinCheck') fc.binSelected = cb.checked;
+    else if (cb.checked) fc.selected.add(cb.dataset.fcname);
+    else fc.selected.delete(cb.dataset.fcname);
+    cb.closest('.fc-row').classList.toggle('off', !cb.checked);
+    refreshFcButton();
+  }));
+}
+
+/** Reset to the ready state (sparkles mark, default copy, scanning button). */
 function resetFc() {
   const fc = state.fastclean;
   fc.cleaning = false;
+  fc.phase = 'scan';
+  fc.hasPlan = false;
+  fc.planEntries = [];
+  fc.entrySizes = {};
+  fc.selected = new Set();
+  fc.binSelected = false;
   const btn = $('fcCleanBtn');
   btn.classList.remove('cleaning');
-  btn.disabled = true;
-  btn.querySelector('.fc-cta-main').textContent = t('clean');
-  $('fcCtaSize').textContent = '';
   setFcMark('sparkles', false);
   setFcStatus('');
   $('fcSub').textContent = t('ssSub');
+  $('fcList').hidden = true;
+  $('fcList').innerHTML = '';
+  refreshFcButton();
 }
 
 async function loadFastClean() {
@@ -3574,7 +3668,7 @@ async function loadFastClean() {
         toast('Add MacCleaner (or your terminal) under Full Disk Access, then reopen Smart Scan.');
       });
     } else {
-      pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; refreshFcButton(); });
+      pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; renderFcList(); refreshFcButton(); });
     }
     // Authoritative deletion set: the server-built cache plan (already scan-authorized).
     // Also surfaces protected/in-use counts so we can be honest about what we skip.
@@ -3583,18 +3677,33 @@ async function loadFastClean() {
       fc.cacheFlatPaths = plan.flatPaths || [];
       fc.cacheExcluded = (plan.excluded || []).length;
       fc.cacheSkippedRunning = (plan.skippedRunning || []).length;
+      // One review row per catalog entry; all ticked by default.
+      fc.planEntries = plan.entries || [];
+      fc.hasPlan = fc.planEntries.length > 0;
+      fc.selected = new Set(fc.planEntries.map((e) => e.name));
+      fc.phase = 'review';
+      renderFcList();
+      refreshFcButton();
       const bits = [];
       if (fc.cacheExcluded) bits.push(`${fc.cacheExcluded} ${t('protectedSkipped')}`);
       if (fc.cacheSkippedRunning) bits.push(`${fc.cacheSkippedRunning} ${t('inUseSkipped')}`);
       if (bits.length && fc.trashAccessible) $('fcSub').textContent = t('ssSub') + ' · ' + bits.join(' · ');
       else if (bits.length) $('fcSub').textContent = $('fcSub').textContent + ' · ' + bits.join(' · ');
-    } catch (e) { /* fall back to the size-scan paths below */ }
-    // Size estimate for the button (cache-plan carries no sizes).
+    } catch (e) {
+      // No plan → old single-button flow once sizes arrive.
+      fc.phase = 'review';
+      refreshFcButton();
+    }
+    // Size estimate per entry (the cache-plan carries no sizes).
     pollScanSize(fc.cacheScanId, (d) => {
       const kids = d && d.root && d.root.children ? d.root.children : [];
       const keep = kids.filter(c => !fc.exclude.includes(c.name.toLowerCase()));
       fc.cachePaths = keep.map(c => c.path);
       fc.cacheSize = keep.reduce((s, c) => s + c.size, 0);
+      const byName = {};
+      for (const c of keep) byName[c.name.toLowerCase()] = c.size;
+      for (const e of fc.planEntries) fc.entrySizes[e.name] = byName[e.name.toLowerCase()] || 0;
+      renderFcList();
       refreshFcButton();
     });
   } catch (e) {
@@ -3604,11 +3713,18 @@ async function loadFastClean() {
 
 async function fastCleanRun() {
   const fc = state.fastclean;
-  if (fc.cleaning || fcTotal() <= 0) return;
-  const doBin = fc.trashAccessible && fc.binSize > 0;
-  // Prefer the server's cache-plan flatPaths (protected/in-use already excluded).
-  const cachePaths = (fc.cacheFlatPaths && fc.cacheFlatPaths.length) ? fc.cacheFlatPaths : fc.cachePaths;
+  if (fc.cleaning || fc.phase !== 'review') return;
+  // Bin only when the user explicitly ticked it in the review list (or, in the
+  // no-plan fallback, when it's non-empty — matching the old behavior).
+  const doBin = fc.hasPlan
+    ? fc.binSelected && fc.trashAccessible && fc.binSize > 0
+    : fc.trashAccessible && fc.binSize > 0;
+  // Only the ticked entries go to the Trash.
+  const cachePaths = fc.hasPlan
+    ? fc.planEntries.filter((e) => fc.selected.has(e.name)).flatMap((e) => e.contents)
+    : ((fc.cacheFlatPaths && fc.cacheFlatPaths.length) ? fc.cacheFlatPaths : fc.cachePaths);
   const doCache = cachePaths.length > 0;
+  if (!doBin && !doCache) return;
 
   // The one permanent op gets an explicit, non-recoverable confirm.
   if (doBin) {
@@ -3657,15 +3773,16 @@ async function fastCleanRun() {
     if (failed) toast(`${failed} cache item${failed === 1 ? '' : 's'} couldn't be cleared — grant Full Disk Access to clear more.`, 'error');
   }
 
-  // Finished — in place: checkmark on the mark, updated copy, button shows "Done".
+  // Finished — in place: checkmark on the mark, updated copy, list hidden,
+  // button becomes "Scan again".
   fc.cleaning = false;
+  fc.phase = 'done';
   btn.classList.remove('cleaning');
   setFcStatus('');
   setFcMark('checkCircle', true);
+  renderFcList(); // hides the list in done phase
   $('fcSub').textContent = recovered ? `${formatBytes(recovered)} freed — ${done.join(' · ')}.` : 'Nothing needed cleaning.';
-  btn.querySelector('.fc-cta-main').textContent = t('done');
-  $('fcCtaSize').textContent = '';
-  btn.disabled = true;
+  refreshFcButton();
   if (recovered) toast(`Smart Scan — ${formatBytes(recovered)} freed`);
   if (recovered || cleanedItems) {
     // Persist truthful, server-confirmed bytes into Lifetime Impact.
@@ -3673,7 +3790,11 @@ async function fastCleanRun() {
   }
 }
 if ($('fcCleanBtn')) {
-  $('fcCleanBtn').addEventListener('click', fastCleanRun);
+  $('fcCleanBtn').addEventListener('click', () => {
+    const fc = state.fastclean;
+    if (fc.phase === 'done') { loadFastClean(); return; } // "Scan again"
+    fastCleanRun();
+  });
 }
 
 /* ───────────────────────────── Maintenance (Speed) ───────────────────────────── */
@@ -4699,6 +4820,7 @@ async function fetchFanStatus() {
     const s = await api('/api/fans/status');
     state.fans.status = s;
     state.fans.helperState = s.helperState;
+    state.fans.boostSource = s.boostSource || null;
     state.fans.ok = true;
     if (!state.fans.rules && s.rulesConfig) state.fans.rules = s.rulesConfig;
     if (state.view === 'fans') renderFansLive(s);
@@ -4766,10 +4888,13 @@ document.addEventListener('mousedown', (e) => {
 
 /* ───────────────────────────── Fans view ───────────────────────────── */
 function enterFansView() {
-  // Reset the view-mode segmented state from the live helper/boost state.
-  const hs = state.fans.helperState;
-  if (hs === 'active-boost') state.fans.viewMode = state.fans.viewMode || 'boost';
-  else if (state.fans.viewMode == null) state.fans.viewMode = 'auto';
+  // Default the segmented control from live state ONCE: only an explicit user
+  // boost preselects "Boost" — a rules-driven boost is part of Auto mode and
+  // must leave "Auto" selected. After that the user's choice is sticky.
+  if (state.fans.viewMode == null) {
+    const src = state.fans.boostSource;
+    state.fans.viewMode = (src === 'user' || src === 'both') ? 'boost' : 'auto';
+  }
   // Kick an immediate fetch; renderFansLive() paints the rest.
   if (state.fans.status) renderFansLive(state.fans.status);
   else { $('sensorGrid').innerHTML = skeletonRows(6, 60); }
@@ -4884,14 +5009,15 @@ function renderControl(s) {
     $('installHelperBtn').addEventListener('click', installHelper);
     return;
   }
-  // Helper present. Sync viewMode with live boost state.
-  if (s.helperState === 'active-boost' && state.fans.viewMode === 'auto') state.fans.viewMode = 'boost';
+  // Helper present. NEVER flip the segmented control on behalf of live state:
+  // a rules-driven boost keeps "Auto" selected — rules are part of Auto mode.
   const mode = state.fans.viewMode || 'auto';
+  const rulesOnly = (s.boostSource || null) === 'rules';
   const banner = s.helperState === 'active-boost' ? `
     <div class="boost-banner">
       ${icon('zap', 18)}
-      <div class="bb-text"><b>${escapeHtml(t('boostActive'))}</b><span>${escapeHtml(t('boostActiveDesc'))}</span></div>
-      <button class="btn" id="bannerAutoBtn">${escapeHtml(t('backToAuto'))}</button>
+      <div class="bb-text"><b>${escapeHtml(t(rulesOnly ? 'rulesBoostActive' : 'boostActive'))}</b><span>${escapeHtml(t(rulesOnly ? 'rulesBoostActiveDesc' : 'boostActiveDesc'))}</span></div>
+      <button class="btn" id="bannerAutoBtn">${escapeHtml(t(rulesOnly ? 'pauseRules' : 'backToAuto'))}</button>
     </div>` : '';
   body.innerHTML = banner + `
     <div class="seg ctrl-seg" role="tablist">

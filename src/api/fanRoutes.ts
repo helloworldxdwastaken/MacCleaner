@@ -3,6 +3,7 @@ import { AppError } from '../middleware/errorHandler';
 import {
   readStatus,
   helperState,
+  boostSource,
   getRules,
   saveRules,
   startBoost,
@@ -46,7 +47,7 @@ fanRouter.get('/fans/status', async (_req: Request, res: Response) => {
     );
   }
   const [state, rulesConfig] = await Promise.all([helperState(), getRules()]);
-  res.json({ fans: status.fans, temps: status.temps, helperState: state, rulesConfig });
+  res.json({ fans: status.fans, temps: status.temps, helperState: state, boostSource: boostSource(status.fans), rulesConfig });
 });
 
 /**

@@ -466,6 +466,26 @@ function onSessionLost(): void {
 
 /* ───────────────────────── Public boost API ───────────────────────── */
 
+export type BoostSource = 'user' | 'rules' | 'both' | null;
+
+/**
+ * Who is currently demanding a boost: the explicit user boost, the auto-rules
+ * engine, both, or neither. The UI uses this to keep "Auto" selected when the
+ * boost came from rules — rules-driven boosting is part of Auto mode, not a
+ * switch to manual Boost.
+ */
+export function boostSource(fans?: FanInfo[]): BoostSource {
+  const user = userBoost !== null;
+  const rules = engineBoostPercent !== null;
+  if (user && rules) return 'both';
+  if (user) return 'user';
+  if (rules) return 'rules';
+  // A manual-pinned fan with no local demand is a stale boost from a previous
+  // app run (the daemon re-asserted it) — treat it as a user boost.
+  if (fans && fans.some((f) => f.mode === 'manual')) return 'user';
+  return null;
+}
+
 /** Start (or retarget) a user boost. Percent 0–100 maps into [min,max]. */
 export async function startBoost(req: BoostRequest): Promise<BoostResult> {
   if (typeof req.percent !== 'number' || !Number.isFinite(req.percent)) {

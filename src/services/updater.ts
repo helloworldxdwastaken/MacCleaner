@@ -1,10 +1,12 @@
 import { execFile } from 'child_process';
 import { promises as fsp, constants as fsConstants } from 'fs';
 import path from 'path';
-import { appRoots, appIconDataUri, listInstalledApps } from './apps';
+import { appRoots, appIconDataUri, listInstalledApps, isAppRunning } from './apps';
 import {
   OutdatedCask, BrewUpgradeResult, UpdaterOtherApp, MasUpdate, SparkleUpdate, AppUpdate, AppUpdateInfo,
+  AppSummary,
 } from '../models/types';
+import { AppError } from '../middleware/errorHandler';
 
 /**
  * updater — the macOS "Updater". A deliberately small, honest panel built on
@@ -48,6 +50,23 @@ function execFileP(cmd: string, args: string[], timeoutMs: number): Promise<Exec
 }
 
 const BREW_CANDIDATES = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
+
+/* ---------- brew write serialization ----------
+ * brew holds one global lock; two concurrent installs/upgrades race it and one
+ * fails (or interleaves stage dirs). Chain every brew WRITE through this
+ * promise queue so they run one at a time, in request order — concurrent
+ * requests simply wait their turn. */
+let brewChain: Promise<unknown> = Promise.resolve();
+
+function withBrewLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = brewChain.then(fn);
+  // Never let a failure poison the queue — the next caller still runs.
+  brewChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
 
 // Cache the resolved brew path (or null) for the process lifetime.
 let cachedBrew: string | null | undefined;
@@ -184,7 +203,9 @@ export async function upgradeCask(token: string): Promise<BrewUpgradeResult> {
   const brew = await brewPath();
   if (!brew) return { ok: false, token, message: 'Homebrew is not installed' };
   try {
-    const { stdout } = await execFileP(brew, ['upgrade', '--cask', token], 5 * 60 * 1000);
+    const { stdout } = await withBrewLock(() =>
+      execFileP(brew, ['upgrade', '--cask', token], 5 * 60 * 1000)
+    );
     return { ok: true, token, message: lastLine(stdout) || 'Updated' };
   } catch (err) {
     const e = err as NodeJS.ErrnoException & ExecResult;
@@ -261,6 +282,17 @@ export async function upgradeMas(id: string): Promise<BrewUpgradeResult> {
   const mas = await masPath();
   if (!mas) return { ok: false, token: id, message: 'mas is not installed' };
   if (!/^\d+$/.test(id)) return { ok: false, token: id, message: 'Invalid App Store id' };
+  // Same running-app guard as the cask path: `mas upgrade` swaps the .app in
+  // place, which breaks (or silently corrupts state of) a running app.
+  const hit = (await outdatedMasApps()).find((m) => m.id === id);
+  if (hit) {
+    const app = (await listInstalledApps()).find(
+      (a) => normalizeToken(a.name) === normalizeToken(hit.name)
+    );
+    if (app && (await isAppRunning(app.executable))) {
+      throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
+    }
+  }
   try {
     const { stdout } = await execFileP(mas, ['upgrade', id], 10 * 60 * 1000);
     return { ok: true, token: id, message: lastLine(stdout) || 'Updated' };
@@ -550,14 +582,95 @@ async function caskCatalog(): Promise<Map<string, CaskInfo>> {
   return map;
 }
 
+/**
+ * Resolve a cask token back to the installed app it was matched to — the
+ * reverse of the name→cask lookup appUpdates() makes when it builds the offer.
+ * Needed so the apply path can run pre/post checks on the actual bundle.
+ */
+async function installedAppForCask(token: string): Promise<AppSummary | null> {
+  const [apps, catalog] = await Promise.all([listInstalledApps(), caskCatalog()]);
+  const names = new Set<string>();
+  for (const [key, info] of catalog) if (info.token === token) names.add(key);
+  if (names.size === 0) return null;
+  return apps.find((a) => names.has(normalizeToken(a.name))) ?? null;
+}
+
+/**
+ * Post-update verification. brew exiting 0 is not proof the app was actually
+ * replaced (permission-locked bundles can survive a "successful" install), so
+ * re-read the bundle afterwards. Hard-fail when the .app is missing from
+ * /Applications or its version didn't move to the cask's version; codesign
+ * failures only log a warning — several mainstream casks ship known signature
+ * quirks and still run fine, so we don't fail the update over them.
+ */
+async function verifyCaskInstall(token: string, previousVersion: string | null): Promise<string | null> {
+  const app = await installedAppForCask(token);
+  if (!app || !app.path.startsWith('/Applications/')) {
+    return 'The update reported success, but the app could not be found in /Applications afterwards — the install may not have completed.';
+  }
+  const info = await readPlistInfo(app.path);
+  const installed = info.shortVersion || info.build;
+  let expected: string | null = null;
+  for (const c of (await caskCatalog()).values()) {
+    if (c.token === token) {
+      expected = c.version;
+      break;
+    }
+  }
+  if (installed) {
+    if (previousVersion && installed === previousVersion) {
+      return `Update incomplete: ${app.name} is still version ${installed}. Try updating again, or finish in Terminal.`;
+    }
+    if (expected && cmpVersion(installed, expected) < 0) {
+      return `Update incomplete: ${app.name} is version ${installed}, expected ${expected}. Try updating again, or finish in Terminal.`;
+    }
+  } else {
+    console.warn(`[updater] could not read a version from ${app.path} after update — skipping the version check`);
+  }
+  try {
+    await execFileP('/usr/bin/codesign', ['--verify', '--deep', app.path], 60000);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & ExecResult;
+    console.warn(`[updater] codesign --verify failed for ${app.path}:`, lastLine(e.stderr || '') || e.message);
+  }
+  return null;
+}
+
 /** `brew install --cask --force <token>` — install the latest over the existing
  *  app (works whether or not brew installed it; `--force` overwrites). `--adopt`
- *  can't be combined with `--force`, and we want the newest version anyway. */
+ *  can't be combined with `--force`, and we want the newest version anyway.
+ *
+ *  Guards (the reasons apps used to break after updating through here):
+ *   - the app must NOT be running — replacing a live bundle corrupts its state;
+ *   - the app must live in /Applications — brew always installs there, so
+ *     "updating" a ~/Applications app would leave the old copy and drop a
+ *     duplicate into /Applications.
+ *  After brew succeeds, the install is verified (bundle present, version moved,
+ *  codesign advisory). */
 export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult> {
   const brew = await brewPath();
   if (!brew) return { ok: false, token, message: 'Homebrew is not installed' };
+
+  const app = await installedAppForCask(token);
+  if (app) {
+    if (!app.path.startsWith('/Applications/')) {
+      throw new AppError(
+        409,
+        'APP_OUTSIDE_APPLICATIONS',
+        `${app.name} is in ${path.dirname(app.path)}, but Homebrew installs into /Applications — a cask update would install a duplicate next to the old copy. Move the app to /Applications first.`
+      );
+    }
+    if (await isAppRunning(app.executable)) {
+      throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
+    }
+  }
+
   try {
-    const { stdout } = await execFileP(brew, ['install', '--cask', '--force', token], 10 * 60 * 1000);
+    const { stdout } = await withBrewLock(() =>
+      execFileP(brew, ['install', '--cask', '--force', token], 10 * 60 * 1000)
+    );
+    const problem = await verifyCaskInstall(token, app ? app.version : null);
+    if (problem) return { ok: false, token, message: problem };
     return { ok: true, token, message: lastLine(stdout) || 'Updated' };
   } catch (err) {
     const e = err as NodeJS.ErrnoException & ExecResult;
@@ -647,7 +760,16 @@ export async function appUpdates(): Promise<AppUpdate[]> {
       batch.map(async (a): Promise<AppUpdate> => {
         let update: AppUpdateInfo | null = null;
 
-        const cask = catalog.get(normalizeToken(a.name));
+        // Cask offers are withheld in two cases:
+        //  - MAS apps (App Store receipt): a receipt-less brew build would
+        //    silently replace the app and break its App Store update channel.
+        //  - apps outside /Applications: brew always installs into
+        //    /Applications, so "updating" a ~/Applications app would leave the
+        //    old copy in place and add a duplicate.
+        const cask =
+          a.updateSource === 'mas' || !a.path.startsWith('/Applications/')
+            ? undefined
+            : catalog.get(normalizeToken(a.name));
         if (cask && a.version && cmpVersion(cask.version, a.version) > 0) {
           update = gateCaskMatch(cask, a.bundleId, a.version);
         }

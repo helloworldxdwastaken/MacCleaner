@@ -63,7 +63,7 @@
   --skeleton-a:    rgba(255,255,255,0.05);
   --skeleton-b:    rgba(255,255,255,0.10);
 
-  --r-lg: 18px; --r-md: 12px; --r-sm: 9px;
+  --r-lg: 22px; --r-md: 14px; --r-sm: 10px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-1: 150ms; --dur-2: 240ms; --dur-3: 380ms;
   --shadow-1: 0 1px 2px rgba(0,0,0,0.3);
@@ -287,16 +287,6 @@ select option { background: var(--glass-strong); color: var(--text-1); }
   animation: shimmer 1.4s ease infinite; }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 
-/* ════════════════════════════ Header ════════════════════════════
-   The header only carries floating right-aligned controls (disk chip + theme
-   toggle). It has no bar background of its own — a translucent pill sits behind
-   just the controls (.header-right) so content scrolls cleanly beneath it. */
-header {
-  display: flex; align-items: center; gap: 18px; height: 58px; box-sizing: border-box;
-  margin-left: 242px; padding: 12px 24px; position: sticky; top: 0; z-index: 50;
-  background: transparent; pointer-events: none;
-}
-header > * { pointer-events: auto; }
 .logo { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
 .logo .sub { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 2px; }
 .tabbar {
@@ -314,11 +304,6 @@ header > * { pointer-events: auto; }
   background: var(--surface-3); color: var(--text-1);
   box-shadow: inset 0 1px 0 var(--shine), var(--shadow-1);
 }
-.header-right { display: flex; gap: 8px; align-items: center; margin-left: auto;
-  padding: 5px; border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-1) 55%, transparent);
-  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
-  border: 1px solid var(--hairline); box-shadow: var(--shadow-1); }
 
 /* ════════════════════════════ Sidebar (CleanMyMac-style) ════════════════════════════ */
 .sidebar {
@@ -354,7 +339,10 @@ header > * { pointer-events: auto; }
 }
 .side-item[aria-current="true"] .ic { color: var(--accent); }
 .side-item:disabled { opacity: 0.4; cursor: default; }
-.side-settings { margin-top: auto; }
+/* Sidebar footer: Preferences + scan spinner + theme toggle in one row. */
+.side-footer { margin-top: auto; display: flex; align-items: center; gap: 2px; }
+.side-footer .side-settings { width: auto; flex: 1; }
+.side-footer .icon-btn { flex: none; }
 .mnt-row { display: flex; align-items: center; gap: 13px; padding: 11px 4px; border-top: 1px solid var(--hairline); }
 .mnt-row:first-of-type { border-top: none; }
 .mnt-ico { position: relative; width: 34px; height: 34px; border-radius: 9px; flex: none; overflow: hidden;
@@ -408,32 +396,8 @@ header > * { pointer-events: auto; }
 }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-#headerSpin { display: none; color: var(--accent); }
+#headerSpin { display: none; color: var(--accent); padding: 0 4px; }
 #headerSpin.on { display: inline-flex; }
-
-/* ── Disk chip + popover (moved off the rail) ── */
-.disk-chip { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
-  border-radius: 9px; border: 1px solid var(--hairline); background: var(--surface-1); color: var(--text-2);
-  font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
-  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease); }
-.disk-chip:hover { background: var(--surface-2); border-color: var(--hairline-2); color: var(--text-1); }
-.disk-chip .ic { color: var(--text-3); }
-.disk-chip .dbar { width: 46px; height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; flex: none; }
-.disk-chip .dbar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
-.disk-chip .dpct { font-variant-numeric: tabular-nums; }
-#diskPop { position: fixed; z-index: 210; width: 280px; padding: 16px; display: none;
-  background: var(--glass-strong); border: 1px solid var(--hairline-2); border-radius: var(--r-md);
-  box-shadow: var(--shadow-3); animation: fadeIn var(--dur-1) var(--ease); }
-#diskPop.open { display: block; }
-#diskPop .dp-ring { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
-#diskPop .dp-num { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-#diskPop .dp-num span { font-size: 12px; font-weight: 500; color: var(--text-3); margin-left: 4px; }
-#diskPop .dp-fact { display: flex; justify-content: space-between; gap: 16px; font-size: 12.5px; padding: 4px 0; }
-#diskPop .dp-fact span { color: var(--text-2); }
-#diskPop .dp-fact b { font-weight: 600; font-variant-numeric: tabular-nums; }
-#diskPop .dp-track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 2px 0 12px; }
-#diskPop .dp-track > i { display: block; height: 100%; border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent), #5e9dff); }
 
 /* ════════════════════════════ Layout ════════════════════════════ */
 main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position: relative; }
@@ -445,28 +409,32 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .dash-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 16px; align-items: start; }
 .dash-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-/* Dashboard hero: full-width disk-usage strip with the Smart Scan CTA */
+/* Dashboard hero: gauge on the left, stat tiles + CTA on the right */
 .dash-hero { margin-bottom: 16px; }
-.hero-body { display: flex; align-items: center; gap: 30px; }
-.hero-ring { width: 148px; height: 148px; }
-.hero-ring .ring-label b { font-size: 27px; }
-.hero-facts { display: flex; align-items: center; flex: 1; min-width: 0; }
-.hero-facts .hfact { display: flex; flex-direction: column; gap: 4px; padding: 2px 24px; min-width: 0;
-  border-left: 1px solid var(--hairline); }
-.hero-facts .hfact:first-child { border-left: none; padding-left: 0; }
-.hero-facts .hfact span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
-.hero-facts .hfact b { font-size: 14.5px; font-weight: 600; white-space: nowrap;
+.hero-sys { margin-left: auto; font-size: 12px; font-weight: 400; }
+.hero-sys b { font-weight: 500; color: var(--text-2); }
+.hero-body { display: flex; align-items: center; gap: 28px; }
+.hero-ring { width: 132px; height: 132px; }
+.hero-ring svg { width: 100%; height: 100%; }
+.hero-ring .ring-label b { font-size: 26px; }
+.hero-right { flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hero-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hero-tile { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  box-shadow: inset 0 1px 0 var(--shine); }
+.hero-tile span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
+.hero-tile b { font-size: 17px; font-weight: 600; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
-.hero-cta { min-height: 46px; padding: 0 26px; font-size: 14px; font-weight: 600; border-radius: 12px; flex: none;
-  margin-left: auto;
+.hero-cta { min-height: 46px; padding: 0 26px; font-size: 14px; font-weight: 600; border-radius: 12px;
+  justify-content: center; align-self: stretch;
   transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease),
               transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
 .hero-cta:hover { transform: translateY(-1px); }
 .hero-cta:active { transform: translateY(0); }
 @media (max-width: 1280px) {
-  .hero-body { flex-wrap: wrap; gap: 20px 28px; }
-  .hero-facts { flex-wrap: wrap; row-gap: 14px; }
+  .hero-body { flex-wrap: wrap; justify-content: center; }
+  .hero-right { flex-basis: 100%; }
 }
 
 /* Dashboard live temps + fans mini-panel */
@@ -545,7 +513,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .ring-bg { fill: none; stroke: var(--surface-2); stroke-width: 10; }
 .ring-fg { fill: none; stroke: url(#ringGrad); stroke-width: 10; stroke-linecap: round;
   transition: stroke-dashoffset 1.3s var(--ease); }
-.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-label { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; }
 .ring-label b { font-size: 24px; font-weight: 700; letter-spacing: -0.6px; }
 .ring-label span { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1.2px; margin-top: 2px; }
 
@@ -720,7 +688,20 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .fc-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .fc-row .s { color: var(--text-3); font-size: 12px; flex: none; }
 .fc-row.off .n, .fc-row.off .s { opacity: 0.45; }
-.fc-row-bin .n { font-weight: 600; }
+/* The Bin row is the only PERMANENT action — danger tint + badge set it apart. */
+.fc-row-bin { border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent); background: var(--danger-soft); }
+.fc-row-bin:hover { background: color-mix(in srgb, var(--danger) 20%, transparent); }
+.fc-row-bin .n { font-weight: 600; color: var(--danger); }
+.fc-row-bin input[type="checkbox"] { accent-color: var(--danger); }
+.fc-badge-perm { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--danger); background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 38%, transparent);
+  border-radius: 999px; padding: 1px 7px; }
+.fc-row-bin.off .fc-badge-perm { opacity: 0.45; }
+.fc-list-head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 6px; }
+.fc-list-actions button { background: none; border: 0; padding: 2px 3px; color: var(--accent); font-size: 12px; cursor: pointer; }
+.fc-list-actions button:hover { text-decoration: underline; }
+.fc-list-actions .sep { color: var(--text-3); font-size: 12px; }
+.fc-list-note { margin: 8px 4px 0; text-align: center; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal { width: 660px; max-width: 92vw; max-height: 84vh; display: flex; flex-direction: column;
   animation: sheetIn var(--dur-3) var(--ease); background: var(--glass-strong);
@@ -1102,7 +1083,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
    These sit above a card, so they get stronger blur + a brighter hairline to
    separate cleanly. They are the "single active overlay" in the blur budget. */
 .vibrant .modal,
-.vibrant #diskPop,
 .vibrant #ctxMenu,
 .vibrant #tooltip,
 .vibrant .toast {
@@ -1115,15 +1095,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 .vibrant .modal-backdrop { background: var(--scrim); }
 .vibrant select option { background: var(--glass-bg-strong); }
 
-/* Header controls pill — align to the token system (it was already translucent). */
-.vibrant .header-right {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--blur-1)) saturate(170%);
-  -webkit-backdrop-filter: blur(var(--blur-1)) saturate(170%);
-  border-color: var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
-}
-
 /* ── Small translucent surfaces: tiles, segmented controls, inputs, chips ──
    Flat alpha fills (no backdrop-filter) so we stay inside the blur budget and
    never nest blur inside a blurred card. */
@@ -1135,7 +1106,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 .vibrant .gcell,
 .vibrant .fc-item,
 .vibrant .lang-opt,
-.vibrant .disk-chip,
 .vibrant .apps-search,
 .vibrant .status-pill,
 .vibrant .mode-chip {
@@ -1174,12 +1144,10 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   .vibrant .glass { background: var(--glass);
     backdrop-filter: blur(24px) saturate(170%); -webkit-backdrop-filter: blur(24px) saturate(170%);
     border-color: var(--hairline); box-shadow: inset 0 1px 0 var(--shine), var(--shadow-2); }
-  .vibrant .modal, .vibrant #diskPop, .vibrant #ctxMenu, .vibrant #tooltip, .vibrant .toast {
+  .vibrant .modal, .vibrant #ctxMenu, .vibrant #tooltip, .vibrant .toast {
     background: var(--glass-strong); border-color: var(--hairline-2); }
-  .vibrant .header-right { background: color-mix(in srgb, var(--bg-1) 55%, transparent);
-    border-color: var(--hairline); box-shadow: var(--shadow-1); }
   .vibrant .tile, .vibrant .ds-tile, .vibrant .qa-tile, .vibrant .ds-fanrow, .vibrant .sensor,
-  .vibrant .gcell, .vibrant .fc-item, .vibrant .lang-opt, .vibrant .disk-chip,
+  .vibrant .gcell, .vibrant .fc-item, .vibrant .lang-opt,
   .vibrant .apps-search, .vibrant .status-pill, .vibrant .mode-chip,
   .vibrant .seg, .vibrant .tabbar, .vibrant .btn,
   .vibrant input[type="text"], .vibrant input[type="number"], .vibrant select {
@@ -1189,29 +1157,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 </head>
 <body>
 <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-
-<header>
-  <div class="header-right">
-    <span id="headerSpin" aria-hidden="true"></span>
-    <button class="disk-chip" id="diskChip" aria-label="Disk usage" title="Disk usage" aria-haspopup="true" aria-expanded="false" hidden>
-      <span data-icon="hardDrive" data-size="15"></span>
-      <span class="dbar"><i id="diskChipBar" style="width:0%"></i></span>
-      <span class="dpct num" id="diskChipPct">—</span>
-    </button>
-    <button class="icon-btn" id="themeToggle" aria-label="Toggle light or dark theme" title="Toggle theme"><span data-icon="moon"></span></button>
-  </div>
-</header>
-
-<!-- ═══════════ Disk usage popover ═══════════ -->
-<div id="diskPop" role="dialog" aria-label="Disk usage">
-  <div class="dp-ring">
-    <span class="dp-num"><span class="num" id="dpPct">—</span><span data-i18n="used">used</span></span>
-  </div>
-  <div class="dp-track"><i id="dpBar" style="width:0%"></i></div>
-  <div class="dp-fact"><span data-i18n="totalDisk">Total disk</span><b class="num" id="dpTotal">—</b></div>
-  <div class="dp-fact"><span data-i18n="freeSpace">Free</span><b class="num" id="dpFree">—</b></div>
-  <div class="dp-fact"><span data-i18n="usedSpace">Used</span><b class="num" id="dpUsed">—</b></div>
-</div>
 
 <aside class="sidebar" role="navigation" aria-label="Sections">
   <div class="logo side-logo">
@@ -1252,7 +1197,11 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
     <button class="side-item" data-view="duplicates"><span data-icon="copy"></span>Duplicates</button>
   </div>
 
-  <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
+  <div class="side-footer">
+    <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
+    <span id="headerSpin" aria-hidden="true"></span>
+    <button class="icon-btn" id="themeToggle" aria-label="Toggle light or dark theme" title="Toggle theme"><span data-icon="moon"></span></button>
+  </div>
 </aside>
 
 <main>
@@ -1260,28 +1209,29 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   <section class="view" id="view-dashboard" role="tabpanel" aria-label="Dashboard" hidden>
     <!-- Hero: disk usage at a glance + the primary Smart Scan entry point -->
     <div class="card glass dash-hero">
-      <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span></h2>
+      <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span>
+        <span class="hero-sys muted"><b id="sysHost">–</b> · <b id="sysPlatform">–</b></span></h2>
       <div class="hero-body">
         <div class="ring-wrap hero-ring">
-          <svg width="148" height="148" viewBox="0 0 132 132">
+          <svg width="160" height="160" viewBox="0 0 160 160">
             <defs>
               <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#0A84FF"/><stop offset="100%" stop-color="#5E5CE6"/>
               </linearGradient>
             </defs>
-            <circle class="ring-bg" cx="66" cy="66" r="55"/>
-            <circle class="ring-fg" id="ringFg" cx="66" cy="66" r="55" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
+            <circle class="ring-bg" cx="80" cy="80" r="60"/>
+            <circle class="ring-fg" id="ringFg" cx="80" cy="80" r="60" stroke-dasharray="377" stroke-dashoffset="377"/>
           </svg>
           <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
         </div>
-        <div class="hero-facts">
-          <div class="hfact"><span data-i18n="hostLabel">Host</span><b id="sysHost">–</b></div>
-          <div class="hfact"><span data-i18n="platformLabel">Platform</span><b id="sysPlatform">–</b></div>
-          <div class="hfact"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
-          <div class="hfact"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
-          <div class="hfact"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
+        <div class="hero-right">
+          <div class="hero-tiles">
+            <div class="hero-tile"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
+            <div class="hero-tile"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
+            <div class="hero-tile"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
+          </div>
+          <button class="btn btn-primary hero-cta" data-qa="fastclean"><span data-icon="sparkles" data-size="17"></span><span data-i18n="smartScan">Smart Scan</span></button>
         </div>
-        <button class="btn btn-primary hero-cta" data-qa="fastclean"><span data-icon="sparkles" data-size="17"></span><span data-i18n="smartScan">Smart Scan</span></button>
       </div>
     </div>
 
@@ -1935,7 +1885,7 @@ function applyTheme(mode) {
   if (state.view === 'dashboard' && state.trends.snapshots.length) drawTrendChart();
 }
 let themeMode = localStorage.getItem('tm-theme') || 'system';
-// Header toggle flips between light/dark explicitly.
+// Sidebar footer toggle flips between light/dark explicitly.
 $('themeToggle').addEventListener('click', () => {
   themeMode = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
   applyTheme(themeMode);
@@ -2172,7 +2122,8 @@ const state = {
   dup: { loadedFor: null, status: 'idle', groups: [], groupCount: 0, totalReclaimable: 0, selection: new Set(), pollTimer: 0 },
   trends: { roots: [], path: null, snapshots: [], points: [], hover: -1 },
   fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false,
-    phase: 'scan', hasPlan: false, planEntries: [], entrySizes: {}, selected: new Set(), binSelected: false },
+    phase: 'scan', hasPlan: false, planEntries: [], entrySizes: {}, selected: new Set(), binSelected: false,
+    confirming: false, loadId: 0, planLoadedAt: 0 },
   apps: { loaded: false, items: [], selected: null, leftovers: null, sel: new Set() },
   updater: {},
   fans: { status: null, helperState: null, poll: 0, pollMs: 0, mode: 'auto', boostPct: 0,
@@ -2276,7 +2227,6 @@ async function loadSystem() {
     $('sysUsed').textContent = formatBytes(used);
     updateDiskRing();
     if (!$('pathInput').value) $('pathInput').value = sys.homeDir;
-    updateDiskChip();
   } catch (e) {
     toast('Could not load system info: ' + e.message, 'error');
   }
@@ -3309,7 +3259,7 @@ function updateDiskRing() {
   const used = sys.totalDisk - sys.freeDisk;
   const pct = used / sys.totalDisk;
   countUp($('ringPct'), Math.round(pct * 100), (v) => v + '%');
-  const C = 2 * Math.PI * 55;
+  const C = 2 * Math.PI * 60;
   requestAnimationFrame(() => { $('ringFg').style.strokeDashoffset = String(C * (1 - pct)); });
 }
 /* Compact temps + fan-summary panel for the Dashboard (reuses the shared poller). */
@@ -3515,6 +3465,8 @@ if ($('appsSearch')) $('appsSearch').addEventListener('input', renderAppsList);
 /* ───────────────────────────── Fast Clean (Cleaner) ───────────────────────────── */
 let permResolve = null;
 function confirmPermanent(text) {
+  // A second opener while one is pending cancels the first instead of leaking it.
+  if (permResolve) resolvePerm(false);
   $('permText').innerHTML = text;
   $('permModal').classList.add('open');
   return new Promise(res => { permResolve = res; });
@@ -3530,16 +3482,18 @@ async function openFdaSettings() {
   try { await api('/api/cleaner/open-fda', { method: 'POST' }); } catch (e) { /* best effort */ }
 }
 
-/** Poll a scan's /result until it completes; hand the final body (or null) to onDone. */
-function pollScanSize(scanId, onDone, tries = 0) {
+/** Poll a scan's /result until it completes; hand the final body (or null) to onDone.
+    Optional isAlive() guard makes stale polls (older load, view left) self-terminate. */
+function pollScanSize(scanId, onDone, tries = 0, isAlive) {
   api(`/api/scan/${scanId}/result`).then(d => {
+    if (isAlive && !isAlive()) return;
     if (d.status === 'running') {
       if (tries > 850) { onDone(null); return; } // ~10 min safety cap
-      setTimeout(() => pollScanSize(scanId, onDone, tries + 1), 700);
+      setTimeout(() => pollScanSize(scanId, onDone, tries + 1, isAlive), 700);
       return;
     }
     onDone(d);
-  }).catch(() => onDone(null));
+  }).catch(() => { if (!isAlive || isAlive()) onDone(null); });
 }
 
 function setFcStatus(text) { $('fcStatus').textContent = text || ''; }
@@ -3567,6 +3521,7 @@ function fcSelectedTotal() {
  *   scan   — disabled spinner while scans run
  *   review — list visible; "Remove <size>" over the ticked items
  *   done   — "Scan again", restarts the flow
+ *   error  — "Try again", restarts the flow after a failed scan
  * (cleaning is a transient state guarded by fc.cleaning)
  */
 function refreshFcButton() {
@@ -3585,10 +3540,36 @@ function refreshFcButton() {
     $('fcCtaSize').textContent = '';
     return;
   }
+  if (fc.phase === 'error') {
+    btn.disabled = false;
+    btn.querySelector('.fc-cta-main').textContent = 'Try again';
+    $('fcCtaSize').textContent = '';
+    return;
+  }
   const total = fc.hasPlan ? fcSelectedTotal() : fcTotal();
   btn.disabled = total <= 0;
   btn.querySelector('.fc-cta-main').textContent = t(fc.hasPlan ? 'remove' : 'clean');
   $('fcCtaSize').textContent = total > 0 ? formatBytes(total) : '';
+  updateFcListHead();
+}
+
+/** "N items · <size>" line above the review list; follows the ticked selection. */
+function updateFcListHead() {
+  const el = $('fcListCount');
+  if (!el) return;
+  const fc = state.fastclean;
+  const n = fc.selected.size + ((fc.binSelected && fc.trashAccessible && fc.binSize > 0) ? 1 : 0);
+  el.textContent = `${n} item${n === 1 ? '' : 's'} · ${formatBytes(fcSelectedTotal())}`;
+}
+
+/** Tick/untick the review rows at once. The permanent Bin row stays opt-in —
+    "All" ticks only the recoverable (Trash-bound) cache entries. */
+function fcSetAll(on) {
+  const fc = state.fastclean;
+  fc.selected = on ? new Set(fc.planEntries.map(e => e.name)) : new Set();
+  if (!on) fc.binSelected = false;
+  renderFcList();
+  refreshFcButton();
 }
 
 /** Render the per-item review list (one row per cache entry + an opt-in Bin row). */
@@ -3610,11 +3591,20 @@ function renderFcList() {
     rows.push(`<label class="fc-row fc-row-bin${fc.binSelected ? '' : ' off'}">
       <input type="checkbox" id="fcBinCheck"${fc.binSelected ? ' checked' : ''}>
       <span class="n">${escapeHtml(t('binRow'))}</span>
+      <span class="fc-badge-perm">Permanent</span>
       <span class="s num">${formatBytes(fc.binSize)}</span>
     </label>`);
   }
-  host.innerHTML = `<div class="fc-rows card glass">${rows.join('')}</div>`;
+  host.innerHTML = `<div class="fc-list-head">
+      <span class="muted" id="fcListCount"></span>
+      <span class="fc-list-actions"><button type="button" id="fcAllBtn">All</button><span class="sep">·</span><button type="button" id="fcNoneBtn">None</button></span>
+    </div>
+    <div class="fc-rows card glass">${rows.join('')}</div>
+    <p class="fc-list-note muted">Everything else goes to the Trash — you can restore it later.</p>`;
   host.hidden = false;
+  updateFcListHead();
+  $('fcAllBtn').addEventListener('click', () => fcSetAll(true));
+  $('fcNoneBtn').addEventListener('click', () => fcSetAll(false));
   host.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener('change', () => {
     if (cb.id === 'fcBinCheck') fc.binSelected = cb.checked;
     else if (cb.checked) fc.selected.add(cb.dataset.fcname);
@@ -3628,12 +3618,14 @@ function renderFcList() {
 function resetFc() {
   const fc = state.fastclean;
   fc.cleaning = false;
+  fc.confirming = false;
   fc.phase = 'scan';
   fc.hasPlan = false;
   fc.planEntries = [];
   fc.entrySizes = {};
   fc.selected = new Set();
   fc.binSelected = false;
+  fc.planLoadedAt = 0;
   const btn = $('fcCleanBtn');
   btn.classList.remove('cleaning');
   setFcMark('sparkles', false);
@@ -3645,8 +3637,20 @@ function resetFc() {
 }
 
 async function loadFastClean() {
-  resetFc();
   const fc = state.fastclean;
+  // Re-entering the view with a recent plan re-renders it (ticks intact) instead
+  // of wiping the review with a fresh scan. 5-minute freshness window.
+  if (fc.phase === 'review' && fc.hasPlan && fc.planEntries.length &&
+      fc.planLoadedAt && (Date.now() - fc.planLoadedAt) < 5 * 60 * 1000) {
+    renderFcList();
+    refreshFcButton();
+    return;
+  }
+  // Generation counter: async continuations and poll chains from an older load
+  // (or after the user left the view) bail out instead of touching the UI.
+  const myLoad = ++fc.loadId;
+  const alive = () => fc.loadId === myLoad && state.view === 'fastclean';
+  resetFc();
   fc.binSize = 0; fc.cacheSize = 0; fc.cachePaths = [];
   if (state.system && state.system.platform !== 'darwin') {
     $('fcSub').textContent = 'Smart Scan is available on macOS only.';
@@ -3654,6 +3658,7 @@ async function loadFastClean() {
   }
   try {
     const data = await api('/api/cleaner/fast-clean');
+    if (!alive()) return;
     fc.cacheScanId = data.cache.scanId;
     fc.trashScanId = data.trash.scanId;
     fc.exclude = (data.exclude || []).map(s => s.toLowerCase());
@@ -3668,12 +3673,13 @@ async function loadFastClean() {
         toast('Add MacCleaner (or your terminal) under Full Disk Access, then reopen Smart Scan.');
       });
     } else {
-      pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; renderFcList(); refreshFcButton(); });
+      pollScanSize(fc.trashScanId, (d) => { fc.binSize = d && d.root ? d.root.size : 0; renderFcList(); refreshFcButton(); }, 0, alive);
     }
     // Authoritative deletion set: the server-built cache plan (already scan-authorized).
     // Also surfaces protected/in-use counts so we can be honest about what we skip.
     try {
       const plan = await api('/api/cleaner/cache-plan');
+      if (!alive()) return;
       fc.cacheFlatPaths = plan.flatPaths || [];
       fc.cacheExcluded = (plan.excluded || []).length;
       fc.cacheSkippedRunning = (plan.skippedRunning || []).length;
@@ -3682,6 +3688,7 @@ async function loadFastClean() {
       fc.hasPlan = fc.planEntries.length > 0;
       fc.selected = new Set(fc.planEntries.map((e) => e.name));
       fc.phase = 'review';
+      fc.planLoadedAt = Date.now();
       renderFcList();
       refreshFcButton();
       const bits = [];
@@ -3690,6 +3697,7 @@ async function loadFastClean() {
       if (bits.length && fc.trashAccessible) $('fcSub').textContent = t('ssSub') + ' · ' + bits.join(' · ');
       else if (bits.length) $('fcSub').textContent = $('fcSub').textContent + ' · ' + bits.join(' · ');
     } catch (e) {
+      if (!alive()) return;
       // No plan → old single-button flow once sizes arrive.
       fc.phase = 'review';
       refreshFcButton();
@@ -3705,15 +3713,19 @@ async function loadFastClean() {
       for (const e of fc.planEntries) fc.entrySizes[e.name] = byName[e.name.toLowerCase()] || 0;
       renderFcList();
       refreshFcButton();
-    });
+    }, 0, alive);
   } catch (e) {
+    if (!alive()) return;
+    // Scan failed — say so and offer a way back instead of a frozen "Scanning…".
+    fc.phase = 'error';
     $('fcSub').textContent = 'Could not start Smart Scan: ' + e.message;
+    refreshFcButton();
   }
 }
 
 async function fastCleanRun() {
   const fc = state.fastclean;
-  if (fc.cleaning || fc.phase !== 'review') return;
+  if (fc.cleaning || fc.confirming || fc.phase !== 'review') return;
   // Bin only when the user explicitly ticked it in the review list (or, in the
   // no-plan fallback, when it's non-empty — matching the old behavior).
   const doBin = fc.hasPlan
@@ -3726,11 +3738,17 @@ async function fastCleanRun() {
   const doCache = cachePaths.length > 0;
   if (!doBin && !doCache) return;
 
-  // The one permanent op gets an explicit, non-recoverable confirm.
+  // The one permanent op gets an explicit, non-recoverable confirm. Guard entry
+  // BEFORE the await so a second click can't re-enter and clobber the modal.
   if (doBin) {
+    fc.confirming = true;
+    $('fcCleanBtn').disabled = true;
+    const steps = [`permanently empties your Bin${fc.binSize ? ` (${formatBytes(fc.binSize)})` : ''}`];
+    if (doCache) steps.push('clears application caches to the Trash');
     const ok = await confirmPermanent(
-      `This permanently empties your Bin${fc.binSize ? ` (${formatBytes(fc.binSize)})` : ''} and clears application caches to the Trash.<br><span style="color:var(--danger)">Emptying the Bin can't be undone.</span>`);
-    if (!ok) return;
+      `This ${steps.join(' and ')}.<br><span style="color:var(--danger)">Emptying the Bin can't be undone.</span>`);
+    fc.confirming = false;
+    if (!ok) { refreshFcButton(); return; }
   }
 
   fc.cleaning = true;
@@ -3767,6 +3785,7 @@ async function fastCleanRun() {
         deleted += r.deleted.length; failed += r.failed.length;
         recovered += typeof r.totalFreedBytes === 'number' ? r.totalFreedBytes : 0;
       } catch (e) { failed += chunk.length; }
+      setFcStatus(`Clearing caches — ${Math.min(i + 400, cachePaths.length)}/${cachePaths.length}…`);
     }
     cleanedItems += deleted;
     done.push(`${deleted} cache item${deleted === 1 ? '' : 's'} cleared`);
@@ -3792,7 +3811,7 @@ async function fastCleanRun() {
 if ($('fcCleanBtn')) {
   $('fcCleanBtn').addEventListener('click', () => {
     const fc = state.fastclean;
-    if (fc.phase === 'done') { loadFastClean(); return; } // "Scan again"
+    if (fc.phase === 'done' || fc.phase === 'error') { loadFastClean(); return; } // "Scan again" / "Try again"
     fastCleanRun();
   });
 }
@@ -3853,31 +3872,56 @@ async function loadMaintenance() {
   }
   box.innerHTML = '<div class="muted">Loading…</div>';
   try {
+    // Default fetch = consent-free sources only (BTM background items via
+    // sfltool). Classic "Open at Login" apps come from System Events, which
+    // prompts for Automation permission — so they're loaded on demand below.
     const { items } = await api('/api/maintenance/login-items');
-    if (!items.length) { box.innerHTML = '<div class="muted">No user login items — nothing opens at login.</div>'; return; }
-    box.innerHTML = items.map(it => {
-      const letter = escapeHtml((it.name.trim()[0] || '?').toUpperCase());
-      const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}&token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`;
-      const isBtm = it.kind === 'background';
-      const status = isBtm
-        ? `${it.enabled ? 'Allowed in background' : 'Blocked'}${it.detail ? ' · ' + it.detail : ''}`
-        : (it.enabled ? 'Opens at login' : "Off — won't open at login");
-      return `
-      <div class="mnt-row${it.enabled ? '' : ' mnt-off'}">
-        <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" onerror="this.remove()"></div>
-        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(status)}</span></div>
-        ${isBtm
-          ? '<span class="mnt-btm-badge" title="Managed by macOS — change it in System Settings → General → Login Items & Extensions">Background</span>'
-          : `<label class="switch">
-          <input type="checkbox" class="mnt-toggle" ${it.enabled ? 'checked' : ''} data-name="${escapeHtml(it.name)}" data-path="${escapeHtml(it.path)}">
-          <span class="track"></span>
-        </label>`}
-      </div>`;
-    }).join('');
+    renderLoginItems(box, items, false);
+  } catch (e) {
+    box.innerHTML = `<div class="muted">${escapeHtml('Could not load login items: ' + e.message)}</div>`;
+  }
+  loadLaunchAgents();
+}
+
+function renderLoginItems(box, items, classicLoaded) {
+  let html = items.length ? items.map(it => {
+    const letter = escapeHtml((it.name.trim()[0] || '?').toUpperCase());
+    const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}&token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`;
+    const isBtm = it.kind === 'background';
+    const status = isBtm
+      ? `${it.enabled ? 'Allowed in background' : 'Blocked'}${it.detail ? ' · ' + it.detail : ''}`
+      : (it.enabled ? 'Opens at login' : "Off — won't open at login");
+    return `
+    <div class="mnt-row${it.enabled ? '' : ' mnt-off'}">
+      <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" onerror="this.remove()"></div>
+      <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(status)}</span></div>
+      ${isBtm
+        ? '<span class="mnt-btm-badge" title="Managed by macOS — change it in System Settings → General → Login Items & Extensions">Background</span>'
+        : `<label class="switch">
+        <input type="checkbox" class="mnt-toggle" ${it.enabled ? 'checked' : ''} data-name="${escapeHtml(it.name)}" data-path="${escapeHtml(it.path)}">
+        <span class="track"></span>
+      </label>`}
+    </div>`;
+  }).join('') : '';
+  if (!items.length && classicLoaded) html = '<div class="muted">No user login items — nothing opens at login.</div>';
+  if (!classicLoaded) {
+    html += `<div style="margin-top:10px"><button class="btn" id="mntLoadClassic">Show “Open at Login” apps</button>
+      <div class="muted" style="margin-top:6px;font-size:12px">Needs one Automation permission (System Events) the first time.</div></div>`;
+  }
+  box.innerHTML = html;
+  $('mntLoadClassic')?.addEventListener('click', loadClassicLoginItems);
+}
+
+async function loadClassicLoginItems() {
+  const box = $('mntLoginItems');
+  const btn = $('mntLoadClassic');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  try {
+    const { items } = await api('/api/maintenance/login-items?classic=1');
+    renderLoginItems(box, items, true);
   } catch (e) {
     box.innerHTML = `<div class="muted">${escapeHtml(e.code === 'AUTOMATION_DENIED' ? e.message : 'Could not load login items: ' + e.message)}</div>`;
   }
-  loadLaunchAgents();
 }
 
 /* LaunchAgents (background helpers) — a separate group with enable/disable
@@ -4828,7 +4872,6 @@ async function fetchFanStatus() {
   } catch (e) {
     // Degrade gracefully: no console spam.
     state.fans.ok = false;
-    $('diskChip')?.setAttribute('hidden', '');
   } finally {
     fanFetching = false;
   }
@@ -4849,42 +4892,6 @@ function fanPollAdjust() {
   }
 }
 document.addEventListener('visibilitychange', fanPollAdjust);
-
-/* ───────────────────────────── Disk chip + popover ───────────────────────────── */
-function updateDiskChip() {
-  const sys = state.system;
-  const chip = $('diskChip');
-  if (!sys || !sys.totalDisk) { chip.setAttribute('hidden', ''); return; }
-  const used = sys.totalDisk - sys.freeDisk;
-  const pct = Math.round((used / sys.totalDisk) * 100);
-  chip.removeAttribute('hidden');
-  $('diskChipBar').style.width = pct + '%';
-  $('diskChipPct').textContent = pct + '%';
-  $('dpPct').textContent = pct + '% ';
-  $('dpBar').style.width = pct + '%';
-  $('dpTotal').textContent = formatBytes(sys.totalDisk);
-  $('dpFree').textContent = formatBytes(sys.freeDisk);
-  $('dpUsed').textContent = formatBytes(used);
-}
-function openDiskPop() {
-  updateDiskChip();
-  const pop = $('diskPop'), chip = $('diskChip');
-  const r = chip.getBoundingClientRect();
-  pop.style.top = (r.bottom + 8) + 'px';
-  pop.style.right = Math.max(12, window.innerWidth - r.right) + 'px';
-  pop.style.left = 'auto';
-  pop.classList.add('open');
-  chip.setAttribute('aria-expanded', 'true');
-}
-function closeDiskPop() { $('diskPop').classList.remove('open'); $('diskChip').setAttribute('aria-expanded', 'false'); }
-$('diskChip').addEventListener('click', (e) => {
-  e.stopPropagation();
-  $('diskPop').classList.contains('open') ? closeDiskPop() : openDiskPop();
-});
-document.addEventListener('mousedown', (e) => {
-  if ($('diskPop').classList.contains('open') && !$('diskPop').contains(e.target) && e.target.closest('#diskChip') == null)
-    closeDiskPop();
-});
 
 /* ───────────────────────────── Fans view ───────────────────────────── */
 function enterFansView() {

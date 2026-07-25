@@ -66,11 +66,19 @@ maintenanceRouter.get('/maintenance/app-icon', guardQueryPath('path'), async (re
   }
 });
 
-/** GET /api/maintenance/login-items → { items } */
-maintenanceRouter.get('/maintenance/login-items', async (_req: Request, res: Response) => {
+/**
+ * GET /api/maintenance/login-items → { items, classic }
+ * Default (`classic` absent) returns only consent-free sources (BTM via
+ * sfltool + nothing from System Events) so simply opening the tab never
+ * triggers an Automation prompt. `?classic=1` additionally queries System
+ * Events "Open at Login" apps — the only call that can prompt for
+ * Automation consent (or fail with -1743).
+ */
+maintenanceRouter.get('/maintenance/login-items', async (req: Request, res: Response) => {
   requireMac();
+  const includeClassic = req.query.classic === '1' || req.query.classic === 'true';
   try {
-    res.json({ items: await listLoginItems() });
+    res.json({ items: await listLoginItems({ includeClassic }), classic: includeClassic });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (isAutomationDenied(msg)) {

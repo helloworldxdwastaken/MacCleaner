@@ -236,43 +236,69 @@ async function setDisabled(list: { name: string; path: string }[]): Promise<void
 }
 
 /**
- * List the user's "Open at Login" items via System Events (these are user apps,
- * not Apple daemons), merged with the apps the user disabled (shown as off).
- * Requires Automation permission for System Events (macOS prompts / -1743 if denied).
+ * List login/background items. Two sources:
+ *  - classic "Open at Login" apps via System Events (osascript) — this needs
+ *    Automation consent from macOS (prompts / -1743 if denied), so it is
+ *    OPT-IN (includeClassic) and only fetched when the user asks for it;
+ *  - modern BTM background items via `sfltool dumpbtm` — needs NO consent,
+ *    always included.
+ * Results are cached for 60s so tab-hopping doesn't re-run the osascript
+ * prompt; the cache is invalidated by setLoginItemEnabled.
  */
-export async function listLoginItems(): Promise<LoginItem[]> {
+const LOGIN_ITEMS_TTL_MS = 60_000;
+let loginItemsCache: { at: number; classic: boolean; items: LoginItem[] } | null = null;
+
+/** Drop the cached list (called after any enable/disable change). */
+export function invalidateLoginItemsCache(): void {
+  loginItemsCache = null;
+}
+
+export async function listLoginItems(opts: { includeClassic?: boolean } = {}): Promise<LoginItem[]> {
+  const includeClassic = opts.includeClassic !== false;
   if (process.platform !== 'darwin') return [];
-  const out = await run('osascript', [
-    '-e', 'tell application "System Events"',
-    '-e', 'set acc to ""',
-    '-e', 'repeat with li in login items',
-    '-e', 'set acc to acc & (name of li) & tab & (path of li) & tab & (hidden of li) & linefeed',
-    '-e', 'end repeat',
-    '-e', 'return acc',
-    '-e', 'end tell',
-  ]);
+  if (
+    loginItemsCache &&
+    loginItemsCache.classic === includeClassic &&
+    Date.now() - loginItemsCache.at < LOGIN_ITEMS_TTL_MS
+  ) {
+    return loginItemsCache.items;
+  }
+
   const items: LoginItem[] = [];
   const activePaths = new Set<string>();
-  for (const line of out.split('\n')) {
-    if (!line.trim()) continue;
-    const [name, path, hidden] = line.split('\t');
-    if (!name || !path) continue;
-    if (!isUserLoginItem(name, path)) continue;
-    items.push({ name, path, hidden: hidden === 'true', enabled: true, kind: 'login' });
-    activePaths.add(path);
+
+  if (includeClassic) {
+    const out = await run('osascript', [
+      '-e', 'tell application "System Events"',
+      '-e', 'set acc to ""',
+      '-e', 'repeat with li in login items',
+      '-e', 'set acc to acc & (name of li) & tab & (path of li) & tab & (hidden of li) & linefeed',
+      '-e', 'end repeat',
+      '-e', 'return acc',
+      '-e', 'end tell',
+    ]);
+    for (const line of out.split('\n')) {
+      if (!line.trim()) continue;
+      const [name, path, hidden] = line.split('\t');
+      if (!name || !path) continue;
+      if (!isUserLoginItem(name, path)) continue;
+      items.push({ name, path, hidden: hidden === 'true', enabled: true, kind: 'login' });
+      activePaths.add(path);
+    }
+    // Merge back remembered-disabled apps that aren't currently active.
+    const disabled = await getDisabled();
+    for (const d of disabled) {
+      if (activePaths.has(d.path) || !isUserLoginItem(d.name, d.path)) continue;
+      items.push({ name: d.name, path: d.path, hidden: false, enabled: false, kind: 'login' });
+    }
+    // Prune any remembered-disabled that are active again (re-enabled elsewhere).
+    const stillDisabled = disabled.filter((d) => !activePaths.has(d.path));
+    if (stillDisabled.length !== disabled.length) await setDisabled(stillDisabled);
   }
-  // Merge back remembered-disabled apps that aren't currently active.
-  const disabled = await getDisabled();
-  for (const d of disabled) {
-    if (activePaths.has(d.path) || !isUserLoginItem(d.name, d.path)) continue;
-    items.push({ name: d.name, path: d.path, hidden: false, enabled: false, kind: 'login' });
-  }
-  // Prune any remembered-disabled that are active again (re-enabled elsewhere).
-  const stillDisabled = disabled.filter((d) => !activePaths.has(d.path));
-  if (stillDisabled.length !== disabled.length) await setDisabled(stillDisabled);
 
   // Modern background items (SMAppService / BTM — Adobe Creative Cloud & co.)
-  // don't appear in System Events at all; merge them in read-only.
+  // don't appear in System Events at all; merge them in read-only. sfltool
+  // needs no Automation consent, so this runs on every load.
   for (const b of await listBackgroundItems()) {
     if (activePaths.has(b.path)) continue;
     if (items.some((i) => i.name === b.name && i.path === b.path)) continue;
@@ -280,6 +306,7 @@ export async function listLoginItems(): Promise<LoginItem[]> {
   }
 
   items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  loginItemsCache = { at: Date.now(), classic: includeClassic, items };
   return items;
 }
 
@@ -409,6 +436,7 @@ export async function setLoginItemEnabled(name: string, path: string, enabled: b
       await setDisabled(disabled);
     }
   }
+  invalidateLoginItemsCache();
 }
 
 /* ---------- User LaunchAgents (~/Library/LaunchAgents) ---------- */

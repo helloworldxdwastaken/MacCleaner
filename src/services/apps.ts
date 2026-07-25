@@ -159,7 +159,7 @@ export async function listInstalledApps(): Promise<AppSummary[]> {
 }
 
 /** True when a process whose name exactly equals `executable` is running. */
-async function isAppRunning(executable: string | null): Promise<boolean> {
+export async function isAppRunning(executable: string | null): Promise<boolean> {
   if (!executable) return false;
   try {
     // pgrep -x matches the process name exactly (no false positives from

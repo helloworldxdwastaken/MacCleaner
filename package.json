@@ -82,7 +82,8 @@
             "LSItemContentTypes": ["public.folder"],
             "LSHandlerRank": "Alternate"
           }
-        ]
+        ],
+        "NSAppleEventsUsageDescription": "MacCleaner lists and manages your “Open at Login” apps via System Events, and moves files to the Trash via Finder."
       }
     },
     "win": {

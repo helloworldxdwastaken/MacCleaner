@@ -183,12 +183,18 @@ export function buildTreemap(root: FileNode, options: TreemapOptions): TreemapNo
 
 /** Locate the node with exactly this path inside a scanned tree, or null. */
 export function findNodeByPath(root: FileNode, targetPath: string): FileNode | null {
-  if (root.path === targetPath) return root;
+  // Normalize trailing separators before lookup: callers may pass a path
+  // like "…/folder/" (hand-built URLs, copy-paste), while stored node paths
+  // never carry one — without this, the exact-match test silently fails.
+  // A bare "/" is left alone (no scanned node has path "/", and stripping
+  // it would turn the target into an empty string).
+  const target = targetPath.length > 1 ? targetPath.replace(/[/\\]+$/, '') : targetPath;
+  if (root.path === target) return root;
   if (root.type !== 'dir' || !root.children) return null;
   // The target must live under a child whose path prefixes it.
   for (const child of root.children) {
-    if (targetPath === child.path || targetPath.startsWith(child.path + sep(child.path))) {
-      const found = findNodeByPath(child, targetPath);
+    if (target === child.path || target.startsWith(child.path + sep(child.path))) {
+      const found = findNodeByPath(child, target);
       if (found) return found;
     }
   }

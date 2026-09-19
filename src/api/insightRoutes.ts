@@ -4,7 +4,12 @@ import {
   collectLargestFolders,
   collectEmptyFolders,
 } from '../services/diskScanner';
-import { getDuplicateJob } from '../services/duplicateFinder';
+import {
+  getDuplicateJob,
+  getDuplicateJobRecord,
+  getDuplicateTreeTruncated,
+  groupIdsFullyTrashed,
+} from '../services/duplicateFinder';
 import {
   listSnapshots,
   listSnapshotRoots,
@@ -24,6 +29,13 @@ import { ScanResult } from '../models/types';
 
 export const insightRouter = Router();
 
+/**
+ * Upper bound on the paths accepted by POST /duplicates/validate-delete. The
+ * global 1 MB JSON body limit already caps request size; a count cap keeps
+ * the Set build and the per-group membership scan trivially cheap.
+ */
+const MAX_VALIDATE_PATHS = 10_000;
+
 function requireCompleteScan(req: Request, idSource: unknown): ScanResult & { root: NonNullable<ScanResult['root']> } {
   const scan = requireScan(req, idSource);
   if (scan.status === 'running') {
@@ -38,11 +50,19 @@ function requireCompleteScan(req: Request, idSource: unknown): ScanResult & { ro
 /**
  * GET /api/duplicates?scanId=&minSize=
  * First call starts the hashing job; poll until status === 'complete'.
- * 202 + progress while hashing, 200 + groups when done.
+ * 202 + progress while hashing, 200 + groups when done, 500 when the job
+ * failed (jobs are error-sticky in the service — no silent restart).
+ * Groups list EVERY path (list-all-paths / count-by-distinct-inode design)
+ * and carry an additive `sharedInode: boolean` (≥2 paths share one inode —
+ * trashing all paths of that inode frees nothing until the group's other
+ * inodes go). Additive fields only: existing keys keep their meaning
+ * (`count` is the distinct-inode count), so older clients stay compatible.
  */
 insightRouter.get('/duplicates', (req: Request, res: Response) => {
   const scan = requireCompleteScan(req, req.query.scanId);
-  const minSize = clampInt(req.query.minSize, 1024, 1, Number.MAX_SAFE_INTEGER);
+  // Floor of 256 bytes: below that, "duplicates" are noise (symlink stubs,
+  // linker crumbs) and the staging overhead per file dwarfs any win.
+  const minSize = clampInt(req.query.minSize, 1024, 256, Number.MAX_SAFE_INTEGER);
 
   const job = getDuplicateJob(scan, minSize);
   if (job.status === 'running') {
@@ -52,15 +72,53 @@ insightRouter.get('/duplicates', (req: Request, res: Response) => {
   if (job.status === 'error') {
     throw new AppError(500, 'DUPLICATES_FAILED', job.error ?? 'Duplicate detection failed');
   }
+  // The service keeps the FULL group list on the job (validate-delete must
+  // check every group, not just the visible ones); the response-size guard
+  // (top 500 by reclaimable) applies here, at the serialization boundary.
   res.json({
     status: 'complete',
     scanId: scan.scanId,
     minSize: job.minSize,
-    groups: job.groups ?? [],
+    treeTruncated: getDuplicateTreeTruncated(scan.scanId),
+    groups: (job.groups ?? []).slice(0, 500),
     groupCount: job.groupCount ?? 0,
     totalReclaimable: job.totalReclaimable ?? 0,
     tookMs: (job.finishedAt ?? job.startedAt) - job.startedAt,
   });
+});
+
+/**
+ * POST /api/duplicates/validate-delete?scanId=   body: { paths: string[] }
+ * Server-side keep-one guard WITHOUT touching the delete route: given the
+ * paths the frontend is about to trash, returns the ids of duplicate groups
+ * whose EVERY member is in that set. A non-empty `groupsFullyTrashed` means
+ * the last reachable copy of that content would land in the Trash — the
+ * frontend must refuse to proceed. Read-only: never starts a hashing job.
+ */
+insightRouter.post('/duplicates/validate-delete', (req: Request, res: Response) => {
+  const scan = requireCompleteScan(req, req.query.scanId);
+  const raw = (req.body as { paths?: unknown } | undefined)?.paths;
+  if (
+    !Array.isArray(raw) ||
+    raw.length === 0 ||
+    raw.length > MAX_VALIDATE_PATHS ||
+    raw.some((p) => typeof p !== 'string' || p.length === 0)
+  ) {
+    throw new AppError(
+      400,
+      'BAD_PATHS',
+      `body must be { paths: string[] } with 1–${MAX_VALIDATE_PATHS} non-empty entries`
+    );
+  }
+  const job = getDuplicateJobRecord(scan.scanId);
+  if (!job || job.status !== 'complete') {
+    throw new AppError(
+      409,
+      'DUPLICATES_NOT_READY',
+      'Duplicate results are not ready — poll GET /api/duplicates until status is complete'
+    );
+  }
+  res.json({ groupsFullyTrashed: groupIdsFullyTrashed(job.groups, raw as string[]) });
 });
 
 /** GET /api/large-folders?scanId=&limit=20&minSize=1048576 */

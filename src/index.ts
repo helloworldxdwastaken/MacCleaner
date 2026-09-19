@@ -11,6 +11,28 @@ const PORT = Number(process.env.PORT) || 4280;
 const HOST = process.env.HOST || '127.0.0.1';
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
+/** True for addresses only this machine can reach. */
+function isLoopbackHost(host: string): boolean {
+  const h = host.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  return (
+    h === 'localhost' || h.endsWith('.localhost') || h === '::1' || /^127(\.\d{1,3}){3}$/.test(h)
+  );
+}
+
+// An explicit non-loopback HOST override widens the blast radius: hostGuard
+// only filters browser-style Host headers (DNS-rebinding defense) — it is NOT
+// an authorization boundary for non-browser clients. The per-launch token is
+// the only boundary. Start anyway, but say it loudly.
+if (process.env.HOST && !isLoopbackHost(HOST)) {
+  console.warn(`[treemap] WARNING: HOST=${HOST} is NOT a loopback address.`);
+  console.warn(
+    '[treemap] hostGuard is NOT an authorization boundary for non-browser clients (it only blocks browser-style Host headers to stop DNS rebinding).',
+  );
+  console.warn(
+    '[treemap] The per-launch API token is the ONLY auth boundary — anything that can reach this port can attempt API calls.',
+  );
+}
+
 let running: RunningServer | null = null;
 
 startServer({ port: PORT, host: HOST, publicDir: PUBLIC_DIR })
@@ -48,6 +70,9 @@ function shutdown(signal: string): void {
   // Hard deadline in case a keep-alive socket refuses to die.
   setTimeout(() => {
     console.log('[treemap] forcing exit after timeout');
+    // Force-destroy sockets that ignored the graceful close, so no straggler
+    // handle outlives this exit path.
+    running?.server.closeAllConnections();
     process.exit(0);
   }, 5000).unref();
 }

@@ -79,8 +79,33 @@ export async function appIconDataUri(appPath: string): Promise<string | null> {
   }
 }
 
+/**
+ * readAppMeta results cached for the process lifetime, keyed by path and
+ * invalidated by the bundle's mtime. Each uncached read spawns plutil PLUS the
+ * .icns→PNG extractor — a 100-app listing costs ~200 child processes, and
+ * installed bundles change rarely, so caching takes most listings and panel
+ * refreshes from memory. Mtime (not TTL) keys invalidation: a changed bundle
+ * is picked up immediately, and process lifetime bounds the map.
+ */
+const appMetaCache = new Map<string, { mtimeMs: number; meta: AppSummary }>();
+
 /** Read an app bundle's Info.plist into an AppSummary (best-effort, with icon). */
 async function readAppMeta(appPath: string): Promise<AppSummary> {
+  let mtimeMs = -1;
+  try {
+    mtimeMs = (await fsp.stat(appPath)).mtimeMs;
+  } catch {
+    /* vanished since listing — fall through; the uncached read degrades anyway */
+  }
+  const hit = appMetaCache.get(appPath);
+  if (hit && hit.mtimeMs === mtimeMs) return hit.meta;
+  const meta = await readAppMetaUncached(appPath);
+  appMetaCache.set(appPath, { mtimeMs, meta });
+  return meta;
+}
+
+/** Uncached readAppMeta body — plutil parse + MAS receipt probe + icon. */
+async function readAppMetaUncached(appPath: string): Promise<AppSummary> {
   const base = path.basename(appPath).replace(/\.app$/i, '');
   let info: Record<string, unknown> = {};
   try {
@@ -174,6 +199,32 @@ export async function isAppRunning(executable: string | null): Promise<boolean> 
 interface Candidate {
   path: string;
   category: string;
+  /**
+   * true = matched by app NAME only (not by bundle id), so the path could
+   * belong to an unrelated app that shares the name. Surfaced to the UI as an
+   * `uncertain` flag on the returned leftover object (the flag is added at the
+   * object level — AppLeftover in models/types.ts is shared, so the field is
+   * documented here instead of declared in the interface).
+   */
+  nameOnly?: boolean;
+}
+
+/**
+ * Vendor name hints for vendor-named support directories: Homebrew-style
+ * nesting like `~/Library/Application Support/Google/Chrome` puts the vendor
+ * ("Google") one level above the app's own folder. Derived from the bundle
+ * id's second reverse-DNS segment (com.google.Chrome → "google") and the first
+ * word of the display name ("Google Chrome" → "google"), lowercased.
+ */
+function vendorHints(bundleId: string | null, displayName: string): string[] {
+  const hints = new Set<string>();
+  if (bundleId) {
+    const seg = bundleId.split('.')[1];
+    if (seg) hints.add(seg.toLowerCase());
+  }
+  const first = displayName.split(/[\s.]+/)[0];
+  if (first) hints.add(first.toLowerCase());
+  return [...hints];
 }
 
 /**
@@ -205,7 +256,8 @@ async function collectLeftovers(
   const matchInDir = async (
     dir: string,
     category: string,
-    pred: (name: string) => boolean
+    pred: (name: string) => boolean,
+    extra?: Partial<Candidate>
   ): Promise<void> => {
     let entries: string[];
     try {
@@ -214,7 +266,7 @@ async function collectLeftovers(
       return;
     }
     for (const name of entries) {
-      if (pred(name)) out.push({ path: path.join(dir, name), category });
+      if (pred(name)) out.push({ path: path.join(dir, name), category, ...extra });
     }
   };
 
@@ -266,8 +318,37 @@ async function collectLeftovers(
   await matchInDir(L('Group Containers'), 'Group Containers', (n) => idBoundaryMatch(n));
 
   // Name-matched folders (some apps name support dirs by their human name).
+  // Name-only matching can't tell two vendors' same-named apps apart, so every
+  // top-level name hit is flagged `nameOnly` → surfaced as `uncertain` to the
+  // UI. One exception (vendor-prefix confirmation): a hit one level BELOW a
+  // directory named after the app's vendor (`…/Application Support/Google/Chrome`
+  // for Google Chrome) is confirmed by the vendor path prefix and reported as
+  // a certain match. KNOWN MISS (documented in the result's `notes`): nesting
+  // deeper than one vendor level, or a renamed child (e.g. `…/Google/Drive`
+  // for "Google Drive"), is not matched.
+  const hints = vendorHints(bundleId, displayName);
   for (const dir of ['Application Support', 'Caches', 'Logs']) {
-    await matchInDir(L(dir), dir, (n) => names.has(n.toLowerCase()));
+    await matchInDir(L(dir), dir, (n) => names.has(n.toLowerCase()), { nameOnly: true });
+    // Vendor-named dir: confirm matches one level inside it.
+    let vendorEntries: string[];
+    try {
+      vendorEntries = await fsp.readdir(L(dir));
+    } catch {
+      continue;
+    }
+    for (const entry of vendorEntries) {
+      if (!hints.includes(entry.toLowerCase()) || entry.startsWith('.')) continue;
+      const nested = path.join(L(dir), entry);
+      let inner: string[];
+      try {
+        inner = await fsp.readdir(nested);
+      } catch {
+        continue; // file, or unreadable dir — nothing to match inside
+      }
+      for (const n of inner) {
+        if (names.has(n.toLowerCase())) out.push({ path: path.join(nested, n), category: dir });
+      }
+    }
   }
 
   // Dedupe — a path can match more than one rule.
@@ -279,7 +360,11 @@ async function collectLeftovers(
 async function registerAndSize(target: string): Promise<number> {
   let scan;
   try {
-    scan = await startScan(target);
+    // Internal utility scans (sizing + delete authorization for the uninstall
+    // flow) must NOT write Trends snapshots — they probe arbitrary support
+    // directories the user never asked to track, which would pollute Trends
+    // history with noise.
+    scan = await startScan(target, { snapshot: false });
   } catch {
     return 0; // vanished between discovery and scan — not offered for delete
   }
@@ -308,15 +393,23 @@ export async function findLeftovers(appPath: string): Promise<AppLeftoversResult
   const sizes = await Promise.all(targets.map(registerAndSize));
 
   const appSize = sizes[0];
-  const leftovers: AppLeftover[] = candidates.map((c, i) => ({
-    name: path.basename(c.path),
-    path: c.path,
-    category: c.category,
-    size: sizes[i + 1],
-  }));
+  // `uncertain` is added at the object level (AppLeftover in models/types.ts is
+  // shared): name-only matches could belong to an unrelated same-named app, so
+  // the UI must ask before treating them as this app's data. Bundle-id and
+  // vendor-prefix-confirmed matches stay flag-free = certain.
+  const leftovers: AppLeftover[] = candidates.map((c, i) => {
+    const item: AppLeftover & { uncertain?: boolean } = {
+      name: path.basename(c.path),
+      path: c.path,
+      category: c.category,
+      size: sizes[i + 1],
+    };
+    if (c.nameOnly) item.uncertain = true;
+    return item;
+  });
   const totalSize = sizes.reduce((s, v) => s + v, 0);
 
-  return {
+  const result: AppLeftoversResult = {
     app: {
       name: meta.name,
       path: appPath,
@@ -332,4 +425,18 @@ export async function findLeftovers(appPath: string): Promise<AppLeftoversResult
       ? `${meta.name} is running. Quit it before uninstalling — trashing a live app's files can corrupt its state.`
       : undefined,
   };
+
+  // `notes` is likewise added at the object level (not declared on
+  // AppLeftoversResult). It documents the matcher's coverage caveats so the UI
+  // can show exactly what this analysis can and cannot see.
+  const notes = [
+    candidates.some((c) => c.nameOnly)
+      ? 'Items marked "uncertain" were matched by app name only — verify each path belongs to this app before deleting.'
+      : null,
+    'Matching covers top-level ~/Library folders plus one level inside a directory named after the app\'s vendor (e.g. "Google" for Google Chrome); deeper or renamed nesting (e.g. "Google/Drive" for "Google Drive") can be missed.',
+  ]
+    .filter((s): s is string => s !== null)
+    .join(' ');
+  const withNotes = { ...result, notes };
+  return withNotes;
 }

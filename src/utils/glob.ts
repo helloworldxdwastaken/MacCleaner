@@ -53,7 +53,20 @@ export function compileIgnore(pattern: string): CompiledIgnore {
     const trimmed = p.replace(/[/\\]+$/, '');
     const self = globToRegExp(trimmed, ci);
     const beneath = globToRegExp(trimmed + '/**', ci);
-    return { raw: pattern, test: (fullPath) => self.test(fullPath) || beneath.test(fullPath) };
+    const testers: RegExp[] = [self, beneath];
+    // gitignore semantics: a `**` path segment matches ZERO or more
+    // directories, so "prefix/**/name" must also match "prefix/name".
+    // Build one extra pair of regexes with the interior `**` segments
+    // collapsed out. Only when something precedes the globstar — a leading
+    // "**/name" must keep matching full paths, not degrade to a bare-name
+    // pattern that would test the whole path against "name".
+    const segments = trimmed.split(/[/\\]+/);
+    if (segments.length > 1 && segments.findIndex((s, idx) => idx > 0 && s === '**') !== -1) {
+      const collapsed = segments.filter((s, idx) => idx === 0 || s !== '**').join('/');
+      testers.push(globToRegExp(collapsed, ci));
+      testers.push(globToRegExp(collapsed + '/**', ci));
+    }
+    return { raw: pattern, test: (fullPath) => testers.some((re) => re.test(fullPath)) };
   }
 
   const nameRe = globToRegExp(p, ci);

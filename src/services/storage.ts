@@ -87,14 +87,59 @@ export async function migrateLegacyDataDir(): Promise<void> {
 /** Serialize writes per file so two near-simultaneous saves can't interleave. */
 const writeQueues = new Map<string, Promise<void>>();
 
-/** Read a JSON file from the app-data dir; returns `fallback` when missing/corrupt. */
-export async function readJsonFile<T>(name: string, fallback: T): Promise<T> {
+/** Outcome of reading one app-data JSON file. */
+type ReadStatus = 'ok' | 'missing' | 'quarantined';
+
+/**
+ * Move an unreadable data file aside instead of destroying it: the bytes are
+ * preserved as `<name>.corrupt-<ts>` so nothing is silently lost, and the next
+ * read sees ENOENT (a legitimate fresh start) instead of the same failure.
+ * Best-effort — a failed quarantine (e.g. EBUSY on Windows) must never break
+ * the caller; the file simply stays in place and we retry next cycle.
+ */
+async function quarantineFile(file: string): Promise<void> {
   try {
-    const raw = await fsp.readFile(path.join(appDataDir(), name), 'utf8');
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback; // ENOENT on first run, or unreadable JSON — start fresh
+    const dest = `${file}.corrupt-${Date.now()}`;
+    await fsp.rename(file, dest);
+    console.error(`[storage] quarantined unreadable data file → ${path.basename(dest)}`);
+  } catch (err: unknown) {
+    console.error('[storage] could not quarantine unreadable data file:', err);
   }
+}
+
+/**
+ * Read a JSON file and report HOW the value was obtained. Only ENOENT counts
+ * as "missing" (a plain first run). A corrupt parse or an unreadable file
+ * (EACCES/EBUSY/…) is quarantined and reported as such, so callers can avoid
+ * writing fallback-derived data over content they never actually read.
+ */
+async function readJsonStatus<T>(name: string, fallback: T): Promise<{ status: ReadStatus; value: T }> {
+  const file = path.join(appDataDir(), name);
+  let raw: string;
+  try {
+    raw = await fsp.readFile(file, 'utf8');
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing', value: fallback };
+    await quarantineFile(file); // unreadable for another reason — preserve the bytes
+    return { status: 'quarantined', value: fallback };
+  }
+  try {
+    return { status: 'ok', value: JSON.parse(raw) as T };
+  } catch {
+    await quarantineFile(file); // corrupt JSON — preserve the bytes for recovery
+    return { status: 'quarantined', value: fallback };
+  }
+}
+
+/**
+ * Read a JSON file from the app-data dir; returns `fallback` when the file is
+ * missing (ENOENT). Any other read failure (corrupt JSON, EACCES, EBUSY…)
+ * quarantines the file as `<name>.corrupt-<ts>` and returns `fallback` WITHOUT
+ * writing anything back — the original bytes stay recoverable on disk.
+ */
+export async function readJsonFile<T>(name: string, fallback: T): Promise<T> {
+  const { value } = await readJsonStatus(name, fallback);
+  return value;
 }
 
 /** The write itself (tmp + rename) — only ever called through the per-file queue. */
@@ -119,24 +164,42 @@ export function writeJsonFile(name: string, data: unknown): Promise<void> {
   return next;
 }
 
+/** Context handed to withFileLock callbacks; `skipWrite` suppresses persisting. */
+export interface FileLockContext {
+  /**
+   * Set by the lock when this cycle must NOT persist: the read failed for a
+   * non-ENOENT reason (the file was quarantined or is unreadable), and writing
+   * fallback-derived data would clobber content we never actually read — a
+   * permanent-loss footgun on transient errors like EACCES/EBUSY. Callbacks
+   * may also set it themselves to opt out of the write for this cycle.
+   */
+  skipWrite: boolean;
+}
+
 /**
  * Run a whole read→mutate→write cycle for one file under the same per-path
  * promise chain, so concurrent callers can't lose each other's changes.
- * `fn` receives the current content (or `fallback` when missing/corrupt) and
- * returns the value to persist; that value is written and also resolves the
- * returned promise. Do NOT call writeJsonFile inside `fn` — it would queue
- * behind the lock itself and deadlock.
+ * `fn` receives the current content (or `fallback` when missing) plus a lock
+ * context whose `skipWrite` flag suppresses the write for this cycle; either
+ * way the value `fn` returns resolves the returned promise. Do NOT call
+ * writeJsonFile inside `fn` — it would queue behind the lock itself and
+ * deadlock.
  */
-export function withFileLock<T>(name: string, fallback: T, fn: (current: T) => T | Promise<T>): Promise<T> {
+export function withFileLock<T>(
+  name: string,
+  fallback: T,
+  fn: (current: T, ctx: FileLockContext) => T | Promise<T>
+): Promise<T> {
   const prev = writeQueues.get(name) ?? Promise.resolve();
   const next = prev
     .catch(() => {
       /* an earlier failed write must not poison the queue */
     })
     .then(async () => {
-      const current = await readJsonFile<T>(name, fallback);
-      const updated = await fn(current);
-      await writeNow(name, updated);
+      const { status, value } = await readJsonStatus<T>(name, fallback);
+      const ctx: FileLockContext = { skipWrite: status === 'quarantined' };
+      const updated = await fn(value, ctx);
+      if (!ctx.skipWrite) await writeNow(name, updated);
       return updated;
     });
   // The queue tracks completion only; a failure must not poison later writes.

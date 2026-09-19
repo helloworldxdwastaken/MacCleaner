@@ -60,24 +60,41 @@ line).
 
 | Request | Effect |
 |---------|--------|
-| `{"op":"status"}` | Returns `{ok,fans,temps}` (same shape as the CLI). |
-| `{"op":"boost","fan":0,"rpm":4000}` | Forces fan `0` to manual and targets `rpm` (clamped to `[F0Mn, F0Mx]`). Resets the watchdog. Reply includes `appliedRpm`. |
-| `{"op":"heartbeat"}` | Resets the failsafe watchdog; re-asserts a diverged manual target. |
-| `{"op":"auto"}` | Restores automatic control for all fans and clears active boosts. |
+| `{"op":"status"}` | Returns `{ok,fans,temps,active}` (same fan/temp shape as the CLI, plus the active-boost set). |
+| `{"op":"boost","fan":0,"rpm":4000}` | Forces fan `0` to manual and targets `rpm` (clamped to `[F0Mn, F0Mx]`). Resets the watchdog. Reply includes `appliedRpm` and the updated `active` set. |
+| `{"op":"heartbeat"}` | Resets the failsafe watchdog; re-asserts a diverged manual target (unless the firmware thermal manager owns the fan — then the boost is yielded). Reply: `{ok,active}`. |
+| `{"op":"auto"}` | Restores automatic control for all fans and clears active boosts. Reply: `{ok,mode:"auto",active:[]}`. |
 
 ### Replies
 
 All replies are objects with `"ok": true|false`. On error:
-`{"ok":false,"error":"..."}`. `status`/`boost` replies also carry `fans` and
-`temps`.
+`{"ok":false,"error":"..."}`. `status` and `heartbeat` replies also carry `fans`,
+`temps`, and `active`.
+
+`active` is the daemon-side set of fans currently pinned by a boost, as
+`[{"fan":0,"rpm":4000},...]`. It is the ground truth for whether a boost is
+really applied: the 10-second watchdog can silently restore auto (suspend,
+a missed heartbeat, a daemon restart) while a client still *believes* it is
+boosting. Clients MUST reconcile against this field — re-send the boost when
+their own demand exists but `active` comes back empty (the MacCleaner backend
+does exactly this on every heartbeat), and never report an active boost to the
+UI that the daemon does not confirm.
+
+The MacCleaner backend (`src/services/fans.ts`) additionally enforces a
+**percent floor** on the UI's 0–100 demand: percent 0 is a no-op that releases
+the fan to auto, and the effective RPM request is floored at the fan's
+*current* automatic target (`F(i)Tg` while in auto mode), so percent is
+relative-to-`[min,max]` but never commands below what the firmware is already
+doing.
 
 ### Client lifecycle (for `src/services/fans.ts`)
 
 1. Connect to the socket. The daemon verifies your uid with `getpeereid()` and
    accepts only **root** or the uid recorded at install time.
-2. Send `{"op":"boost",...}` to start a boost.
+2. Send `{"op":"boost",...}` to start a boost. Use the reply's `appliedRpm` as
+   the actually-applied value.
 3. While boosting, send `{"op":"heartbeat"}` at least every few seconds
-   (watchdog window is **10 s**).
+   (watchdog window is **10 s**) and check `active` in the reply.
 4. Send `{"op":"auto"}` (or just disconnect) to stop.
 
 ---
@@ -89,16 +106,39 @@ the firmware's automatic target.
 
 - **Range clamp.** Every requested RPM is clamped to `[F(i)Mn, F(i)Mx]`. A value
   below the auto minimum is **rejected** outright (boost-only).
+- **Current-auto floor (backend).** On top of the hardware clamp, the backend
+  never commands below the fan's *current* automatic target, and percent 0
+  releases to auto — see the protocol section above.
 - **10-second failsafe watchdog.** The daemon owns a timer. Any `boost` or
   `heartbeat` resets it. On expiry it restores auto by itself — so a boost can
-  never outlive an app crash, hang, or quit.
-- **Restore auto on every exit path.** Socket disconnect, `SIGTERM`/`SIGINT`/
-  `SIGHUP`, and `atexit` all restore automatic control.
-- **Re-assert after wake.** On `NSWorkspace.didWakeNotification` (and on each
-  heartbeat) the daemon checks whether a boosted fan's mode diverged back to
-  auto/thermal; if so it re-applies the recorded target.
-- **Peer verification.** The socket is `root:<user>` mode `0660`; the real gate
+  never outlive an app crash, hang, or quit. Clients detect the expiry via the
+  empty `active` set and re-assert if their demand still exists.
+- **Restore auto on every exit path.** Daemon *startup* also restores auto
+  before the socket is served, so a pin left behind by a SIGKILLed predecessor
+  (whose atexit/signal restores never ran) cannot outlive it — the KeepAlive
+  restart covers it. Socket disconnect, `SIGTERM`/`SIGINT`/`SIGHUP`, and
+  `atexit` all restore automatic control.
+- **Re-assert after wake — with a thermal yield.** On
+  `NSWorkspace.didWakeNotification` (and on each heartbeat) the daemon checks
+  each boosted fan's mode. A revert to plain `auto` (the normal post-wake
+  case) is re-pinned to the recorded target. If the firmware **thermal
+  manager** took the fan over (`F(i)Md = 3`), the daemon yields: it drops the
+  boost entry and never writes to that fan again until the thermal event ends
+  — overriding the thermal manager is forbidden.
+- **Serial hardware access.** All `FanController`/SMC calls (including reads)
+  funnel through the daemon's serial state queue; only socket I/O is
+  concurrent. The SMC user client and its key-info cache are not thread-safe.
+- **Bounded buffering.** Per-connection request buffers are capped at 64 KB;
+  a peer sending a larger line is dropped.
+- **Peer verification.** The socket is mode `0660`, owned by the allowed uid
+  with group `wheel` (the owner bit alone grants the app access, so no other
+  local account reaches it via group membership — the user's primary group on
+  macOS is typically `staff`, which every local account shares). The real gate
   is `getpeereid()`, which admits only root or the installed uid.
+- **Log rotation.** `install.sh` drops
+  `/etc/newsyslog.d/com.dronx.maccleaner.fanhelper.conf`: the daemon's stderr
+  log rotates at 1 MB, keeping 3 files. Peer-rejection logs are rate-limited
+  (max one line per second) daemon-side.
 
 Restore sequence is `F(i)Md = 0` for every fan plus `FS! = 0` (clear the legacy
 forced bitmask). Boost sequence is `F(i)Md = 1` then `F(i)Tg = <rpm>`; on an
@@ -170,10 +210,12 @@ sudo ./uninstall.sh
 ```
 
 `install.sh` writes the authorized client uid to
-`/Library/Application Support/com.dronx.maccleaner.fanhelper/allowed-uid` and
-loads `/Library/LaunchDaemons/com.dronx.maccleaner.fanhelper.plist`
+`/Library/Application Support/com.dronx.maccleaner.fanhelper/allowed-uid`,
+installs the newsyslog drop-in described above, and loads
+`/Library/LaunchDaemons/com.dronx.maccleaner.fanhelper.plist`
 (`RunAtLoad`, `KeepAlive`). `uninstall.sh` restores automatic fan control first,
-then boots out the daemon and removes everything.
+then boots out the daemon and removes everything (including the newsyslog
+drop-in).
 
 ---
 

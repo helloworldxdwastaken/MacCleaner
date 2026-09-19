@@ -7,7 +7,7 @@
 #                 with administrator privileges'
 #
 # Order: restore auto fan control (so no boost outlives the daemon) -> bootout
-# -> remove binary, plist, support dir, socket.
+# -> remove binary, plist, support dir, socket, newsyslog drop-in.
 set -uo pipefail
 
 LABEL="com.dronx.maccleaner.fanhelper"
@@ -40,6 +40,7 @@ launchctl bootout system "$PLIST_DST" 2>/dev/null || true
 rm -f "$HELPER_DST" 2>/dev/null || true
 rm -f "$PLIST_DST" 2>/dev/null || true
 rm -f "$SOCKET" 2>/dev/null || true
+rm -f "/etc/newsyslog.d/${LABEL}.conf" 2>/dev/null || true
 rm -rf "$SUPPORT_DIR" 2>/dev/null || true
 
 echo "Uninstalled ${LABEL} and restored automatic fan control."

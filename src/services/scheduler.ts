@@ -88,7 +88,9 @@ async function runScheduled(sched: ScheduleConfig): Promise<void> {
   if (!prev) return; // first record of this folder — nothing to compare against
 
   const delta = done.root.size - prev.totalSize;
-  const pct = prev.totalSize > 0 ? (delta / prev.totalSize) * 100 : 0;
+  // From-empty (prev 0) counts as maximal growth — a pct-only threshold would
+  // otherwise never fire on the first real data landing in an empty folder.
+  const pct = prev.totalSize > 0 ? (delta / prev.totalSize) * 100 : (delta > 0 ? 100 : 0);
   const overBytes = sched.thresholdBytes !== undefined && delta >= sched.thresholdBytes;
   const overPct = sched.thresholdPct !== undefined && pct >= sched.thresholdPct;
   if (!overBytes && !overPct) return;

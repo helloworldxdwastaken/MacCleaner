@@ -32,7 +32,11 @@ function requireMac(): void {
 /**
  * GET /api/fans/status
  * Live fans + temps + helper state + persisted rules config, in one call so
- * the UI can poll a single endpoint.
+ * the UI can poll a single endpoint. helperState and boostSource are derived
+ * from what the daemon itself reports — in particular, 'active-boost' is only
+ * ever reported when the daemon confirms an active boost, and a manual-pinned
+ * fan owned by a third-party tool surfaces as boostSource 'external' rather
+ * than being claimed as a user boost.
  */
 fanRouter.get('/fans/status', async (_req: Request, res: Response) => {
   requireMac();
@@ -46,14 +50,22 @@ fanRouter.get('/fans/status', async (_req: Request, res: Response) => {
       err instanceof Error ? err.message : 'fan helper binary failed'
     );
   }
-  const [state, rulesConfig] = await Promise.all([helperState(), getRules()]);
-  res.json({ fans: status.fans, temps: status.temps, helperState: state, boostSource: boostSource(status.fans), rulesConfig });
+  const [state, src, rulesConfig] = await Promise.all([
+    helperState(),
+    boostSource(status.fans),
+    getRules(),
+  ]);
+  res.json({ fans: status.fans, temps: status.temps, helperState: state, boostSource: src, rulesConfig });
 });
 
 /**
  * POST /api/fans/boost  { fan: number | "all", percent: 0–100 }
- * Starts (or retargets) a boost. Percent maps to each fan's [min,max] span;
- * the daemon additionally clamps and rejects anything below the auto floor.
+ * Starts (or retargets) a boost. Percent is relative to each fan's [min,max]
+ * span, with backend-side corrections: percent 0 is a no-op that releases the
+ * fan(s) to auto, and the effective request is floored at the fan's CURRENT
+ * automatic target (additive-only — never below what the firmware is doing
+ * now). The daemon additionally clamps to [F(i)Mn, F(i)Mx] and rejects
+ * anything below the hardware minimum.
  */
 fanRouter.post('/fans/boost', async (req: Request, res: Response) => {
   requireMac();

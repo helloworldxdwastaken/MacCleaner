@@ -2,24 +2,28 @@ import { execFile } from 'child_process';
 import { promises as fsp, constants as fsConstants } from 'fs';
 import path from 'path';
 import { appRoots, appIconDataUri, listInstalledApps, isAppRunning } from './apps';
-import {
-  OutdatedCask, BrewUpgradeResult, UpdaterOtherApp, MasUpdate, SparkleUpdate, AppUpdate, AppUpdateInfo,
-  AppSummary,
-} from '../models/types';
+import { BrewUpgradeResult, MasUpdate, AppUpdate, AppUpdateInfo, AppSummary } from '../models/types';
 import { AppError } from '../middleware/errorHandler';
 
 /**
  * updater — the macOS "Updater". A deliberately small, honest panel built on
- * Homebrew (the one update mechanism we can query without bundling per-vendor
- * network catalogs). If `brew` isn't installed the whole feature reports
- * unavailable; we never fabricate update data.
+ * Homebrew + the App Store (the two update mechanisms we can query without
+ * bundling per-vendor network catalogs). If `brew`/`mas` isn't installed the
+ * corresponding part of the feature reports unavailable; we never fabricate
+ * update data.
  *
- * Read path:  `brew outdated --cask --json=v2`  (NOT `--greedy`: greedy also
- *             lists casks marked `auto_updates`/`version :latest`, which the app
- *             can't meaningfully action — the vendor updates them itself — so
- *             offering them is noise/false "updates". We only surface casks
- *             Homebrew itself considers outdated).
- * Write path: `brew upgrade --cask <token>` per app, explicitly user-triggered.
+ * Read path:  the Homebrew cask catalog (formulae.brew.sh, fetched + cached
+ *             24h) matched against installed apps, `mas outdated` for App
+ *             Store apps, and each app's own Sparkle appcast. `brew outdated`
+ *             is NOT used: it only sees casks Homebrew already owns, while the
+ *             catalog also detects updates for manually-installed apps. Casks
+ *             marked `version :latest` (vendor self-updates) are skipped —
+ *             offering them is noise/false "updates" we can't action.
+ * Write path: `brew install --cask --force <token>` / `mas upgrade <id>`,
+ *             each explicitly user-triggered and guarded (see
+ *             upgradeCaskAdopt / upgradeMas). The /api/updater response
+ *             carries `degraded` + `degradedReasons` so "no updates" is
+ *             distinguishable from "couldn't check" (see appUpdates).
  *
  * No new dependency: `brew` is the user's own tool, invoked via execFile (argv
  * array, no shell) so a token can never be interpreted as shell syntax.
@@ -55,15 +59,23 @@ const BREW_CANDIDATES = ['/opt/homebrew/bin/brew', '/usr/local/bin/brew'];
  * brew holds one global lock; two concurrent installs/upgrades race it and one
  * fails (or interleaves stage dirs). Chain every brew WRITE through this
  * promise queue so they run one at a time, in request order — concurrent
- * requests simply wait their turn. */
+ * requests simply wait their turn. `brewWritesInFlight` counts queued + running
+ * writes so the Terminal handoff (which runs brew OUTSIDE this process, where
+ * the queue has no reach) can refuse instead of starting over a live write. */
 let brewChain: Promise<unknown> = Promise.resolve();
+let brewWritesInFlight = 0;
 
 function withBrewLock<T>(fn: () => Promise<T>): Promise<T> {
+  brewWritesInFlight++;
   const run = brewChain.then(fn);
   // Never let a failure poison the queue — the next caller still runs.
   brewChain = run.then(
-    () => undefined,
-    () => undefined
+    () => {
+      brewWritesInFlight--;
+    },
+    () => {
+      brewWritesInFlight--;
+    }
   );
   return run;
 }
@@ -138,82 +150,6 @@ function lastLine(text: string): string {
   return lines.length ? lines[lines.length - 1] : '';
 }
 
-export async function outdatedCasks(): Promise<OutdatedCask[]> {
-  const brew = await brewPath();
-  if (!brew) return [];
-  try {
-    // No `--greedy`: it lists auto-updating casks (auto_updates / :latest) that
-    // this app can't meaningfully update — the vendor's own updater handles them.
-    // Offering those would be false/actionless "updates" (audit #7).
-    const { stdout } = await execFileP(
-      brew,
-      ['outdated', '--cask', '--json=v2'],
-      90000
-    );
-    const data = JSON.parse(stdout) as {
-      casks?: Array<{
-        name?: unknown;
-        installed_versions?: unknown;
-        current_version?: unknown;
-      }>;
-    };
-    const casks = Array.isArray(data.casks) ? data.casks : [];
-    const mapped = casks
-      .map((c) => {
-        const token = typeof c.name === 'string' ? c.name : '';
-        const installed =
-          Array.isArray(c.installed_versions) && c.installed_versions.length > 0
-            ? String(c.installed_versions[0])
-            : null;
-        const latest = c.current_version != null ? String(c.current_version) : null;
-        return { token, name: token, installedVersion: installed, latestVersion: latest };
-      })
-      .filter((c) => c.token.length > 0);
-    return Promise.all(
-      mapped.map(async (c) => ({ ...c, icon: await caskIcon(c.token) }))
-    );
-  } catch {
-    // Network hiccup, brew error, or timeout — surface "no updates" rather than
-    // a hard failure; the UI stays usable.
-    return [];
-  }
-}
-
-/**
- * Installed apps that aren't Homebrew casks, tagged with how they update
- * (Mac App Store vs self-updating). brew handles the actionable updates; this
- * list lets the UI offer an App Store / website link for everything else, since
- * most self-updating apps expose no externally-invokable update handler.
- */
-export async function otherApps(casks: OutdatedCask[]): Promise<UpdaterOtherApp[]> {
-  const apps = await listInstalledApps();
-  const caskNames = new Set(casks.map((c) => normalizeToken(c.token)));
-  return apps
-    .filter((a) => !caskNames.has(normalizeToken(a.name)))
-    .map((a) => ({
-      name: a.name,
-      path: a.path,
-      icon: a.icon,
-      source: a.updateSource,
-      website: a.website,
-    }));
-}
-
-export async function upgradeCask(token: string): Promise<BrewUpgradeResult> {
-  const brew = await brewPath();
-  if (!brew) return { ok: false, token, message: 'Homebrew is not installed' };
-  try {
-    const { stdout } = await withBrewLock(() =>
-      execFileP(brew, ['upgrade', '--cask', token], 5 * 60 * 1000)
-    );
-    return { ok: true, token, message: lastLine(stdout) || 'Updated' };
-  } catch (err) {
-    const e = err as NodeJS.ErrnoException & ExecResult;
-    const detail = lastLine(e.stderr || '') || (e.message || 'upgrade failed').trim();
-    return { ok: false, token, message: detail };
-  }
-}
-
 /* ---------- Mac App Store (optional, via the `mas` CLI) ---------- */
 
 const MAS_CANDIDATES = ['/opt/homebrew/bin/mas', '/usr/local/bin/mas'];
@@ -252,20 +188,38 @@ export async function masAvailable(): Promise<boolean> {
   return (await masPath()) !== null;
 }
 
-/** `mas outdated` → one MasUpdate per line `<id> <name> (<cur> -> <latest>)`. */
-export async function outdatedMasApps(): Promise<MasUpdate[]> {
+/** Read-honesty result of `mas outdated`: `failed` = the mas command itself
+ *  errored; `unparsed` = non-empty output lines that didn't match the expected
+ *  "<id> <name> (<cur> -> <latest>)" shape. Both let appUpdates() distinguish
+ *  "no App Store updates" from "couldn't check the App Store". */
+interface MasOutdatedResult {
+  updates: MasUpdate[];
+  unparsed: number;
+  failed: boolean;
+}
+
+/** `mas outdated` → one MasUpdate per line `<id> <name> (<cur> -> <latest>)`,
+ *  with parse/command failures reported instead of silently swallowed. */
+export async function outdatedMasApps(): Promise<MasOutdatedResult> {
   const mas = await masPath();
-  if (!mas) return [];
+  if (!mas) return { updates: [], unparsed: 0, failed: false };
   let stdout = '';
+  let failed = false;
   try {
     ({ stdout } = await execFileP(mas, ['outdated'], 60000));
   } catch (err) {
+    failed = true;
     stdout = (err as ExecResult).stdout || '';
   }
   const out: MasUpdate[] = [];
+  let unparsed = 0;
   for (const line of stdout.split('\n')) {
+    if (!line.trim()) continue;
     const m = line.match(/^\s*(\d+)\s+(.+?)\s+\((.+?)\s*->\s*(.+?)\)\s*$/);
-    if (!m) continue;
+    if (!m) {
+      unparsed++; // counted, not dropped — a format change must not read as "no updates"
+      continue;
+    }
     const name = m[2].trim();
     out.push({
       id: m[1],
@@ -275,7 +229,21 @@ export async function outdatedMasApps(): Promise<MasUpdate[]> {
       icon: await caskIcon(name), // matches the installed .app by name
     });
   }
-  return out;
+  return { updates: out, unparsed, failed };
+}
+
+/** `mas info <id>` → the app's bundle id when mas exposes one. The `mas
+ *  outdated` listing doesn't carry it, and output formats vary across mas
+ *  versions, so parse leniently. Null when unavailable — callers fall back to
+ *  name matching (see upgradeMas's guard). */
+async function masBundleId(mas: string, id: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileP(mas, ['info', id], 10000);
+    const m = stdout.match(/^\s*Bundle\s*Id:\s*(\S+)\s*$/im);
+    return m ? m[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function upgradeMas(id: string): Promise<BrewUpgradeResult> {
@@ -284,12 +252,25 @@ export async function upgradeMas(id: string): Promise<BrewUpgradeResult> {
   if (!/^\d+$/.test(id)) return { ok: false, token: id, message: 'Invalid App Store id' };
   // Same running-app guard as the cask path: `mas upgrade` swaps the .app in
   // place, which breaks (or silently corrupts state of) a running app.
-  const hit = (await outdatedMasApps()).find((m) => m.id === id);
+  const hit = (await outdatedMasApps()).updates.find((m) => m.id === id);
   if (hit) {
-    const app = (await listInstalledApps()).find(
-      (a) => normalizeToken(a.name) === normalizeToken(hit.name)
-    );
-    if (app && (await isAppRunning(app.executable))) {
+    // Locate the installed app behind the outdated id — by bundle id when mas
+    // exposes one (`mas info`), else by name. If it can't be located at all we
+    // can't run the running-app guard, so fail closed instead of upgrading
+    // blind (an unidentified target may be mid-run).
+    const apps = await listInstalledApps();
+    const bundleId = await masBundleId(mas, id);
+    const app =
+      (bundleId && apps.find((a) => (a.bundleId ?? '').toLowerCase() === bundleId)) ||
+      apps.find((a) => normalizeToken(a.name) === normalizeToken(hit.name));
+    if (!app) {
+      throw new AppError(
+        409,
+        'UNKNOWN_TARGET',
+        `Installed app for App Store id ${id} could not be located — update it from the App Store app instead.`
+      );
+    }
+    if (await isAppRunning(app.executable)) {
       throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
     }
   }
@@ -429,63 +410,46 @@ function parseAppcastLatest(xml: string, osVersion: string | null): { build: str
   return best;
 }
 
+// Appcast fetches are cached 5 min — BOTH successes and failures (a dead feed
+// shouldn't be re-polled on every panel refresh either). Each uncached panel
+// refresh would otherwise fire an outbound HTTPS request to every Sparkle
+// app's vendor server; vendor feeds are third-party, keep the traffic rare.
+const APPCAST_TTL = 5 * 60 * 1000;
+const APPCAST_CACHE_MAX = 512;
+const appcastCache = new Map<string, { at: number; xml: string | null }>();
+
 async function fetchAppcast(url: string): Promise<string | null> {
+  const hit = appcastCache.get(url);
+  if (hit && Date.now() - hit.at < APPCAST_TTL) return hit.xml;
+  let xml: string | null = null;
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(8000),
       headers: { 'User-Agent': 'MacCleaner-Updater', Accept: 'application/rss+xml, application/xml, text/xml' },
     });
-    if (!res.ok) return null;
-    return await res.text();
+    if (res.ok) xml = await res.text();
   } catch {
-    return null;
+    /* network hiccup — cached as null so a dead feed isn't re-polled either */
   }
-}
-
-// Short-lived cache so re-opening the Updater doesn't re-poll every feed.
-let sparkleCache: { at: number; data: SparkleUpdate[] } | null = null;
-const SPARKLE_TTL = 5 * 60 * 1000;
-
-export async function sparkleUpdates(): Promise<SparkleUpdate[]> {
-  if (process.platform !== 'darwin') return [];
-  if (sparkleCache && Date.now() - sparkleCache.at < SPARKLE_TTL) return sparkleCache.data;
-
-  const apps = (await otherApps([])).filter((a) => a.source === 'self');
-  const osVersion = await currentOsVersion();
-  const out: SparkleUpdate[] = [];
-  const CONCURRENCY = 8;
-  for (let i = 0; i < apps.length; i += CONCURRENCY) {
-    const batch = apps.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(
-      batch.map(async (a): Promise<SparkleUpdate | null> => {
-        const info = await readPlistInfo(a.path);
-        if (!info.feedURL || !info.build) return null;
-        const xml = await fetchAppcast(info.feedURL);
-        if (!xml) return null;
-        const latest = parseAppcastLatest(xml, osVersion);
-        if (!latest || cmpVersion(latest.build, info.build) <= 0) return null; // up to date
-        return {
-          name: a.name,
-          path: a.path,
-          icon: a.icon,
-          currentVersion: info.shortVersion || info.build,
-          latestVersion: latest.short || latest.build,
-        };
-      })
-    );
-    for (const r of results) if (r) out.push(r);
+  if (appcastCache.size >= APPCAST_CACHE_MAX) {
+    // Bound memory: drop expired entries first; if an install somehow exceeds
+    // 512 live feeds, a wholesale clear is fine (they just refetch).
+    const now = Date.now();
+    for (const [k, v] of appcastCache) if (now - v.at >= APPCAST_TTL) appcastCache.delete(k);
+    if (appcastCache.size >= APPCAST_CACHE_MAX) appcastCache.clear();
   }
-  out.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  sparkleCache = { at: Date.now(), data: out };
-  return out;
+  appcastCache.set(url, { at: Date.now(), xml });
+  return xml;
 }
 
 /* ---------- Homebrew cask catalog (real updates for most apps) ----------
  * Homebrew's cask database (~7.7k apps) is a curated app → latest-version map.
  * We fetch it (cached 24h), match installed apps by name, and update via
- * `brew install --cask --adopt --force <token>` — which adopts a manually-
- * installed app into Homebrew and installs the latest build. Real one-click
- * updates for most mainstream apps, no per-vendor logic.                       */
+ * `brew install --cask --force <token>` — which installs the latest build over
+ * the existing app (`--adopt` is deliberately not used — see
+ * upgradeCaskAdopt). Real one-click updates for most mainstream apps, no
+ * per-vendor logic. Failures are NOT cached for the full day — see
+ * CASK_CATALOG_FAILURE_TTL.                                     */
 
 interface CaskInfo {
   token: string;
@@ -497,8 +461,21 @@ interface CaskInfo {
    */
   bundleIds: string[];
 }
-let caskCatalogCache: { at: number; map: Map<string, CaskInfo> } | null = null;
+
+/** Cask catalog read result. `failed` = the fetch didn't succeed this cycle —
+ *  callers surface it as `degraded` so "no cask updates" isn't mistaken for
+ *  "couldn't check the catalog". */
+interface CaskCatalogResult {
+  map: Map<string, CaskInfo>;
+  failed: boolean;
+}
+
+let caskCatalogCache: { at: number; result: CaskCatalogResult } | null = null;
 const CASK_CATALOG_TTL = 24 * 60 * 60 * 1000;
+/** A FAILED fetch is remembered only briefly — the old code cached the empty
+ *  map for a full day, so one transient network error suppressed every cask
+ *  update for 24 hours without any signal. */
+const CASK_CATALOG_FAILURE_TTL = 5 * 60 * 1000;
 
 /** A plausible reverse-DNS bundle id (com.vendor.App, at least 3 segments). */
 function looksLikeBundleId(s: string): boolean {
@@ -537,9 +514,13 @@ function bundleIdsFromArtifacts(artifacts: Array<Record<string, unknown>>): stri
   return [...ids];
 }
 
-async function caskCatalog(): Promise<Map<string, CaskInfo>> {
-  if (caskCatalogCache && Date.now() - caskCatalogCache.at < CASK_CATALOG_TTL) return caskCatalogCache.map;
+async function caskCatalog(): Promise<CaskCatalogResult> {
+  if (caskCatalogCache) {
+    const ttl = caskCatalogCache.result.failed ? CASK_CATALOG_FAILURE_TTL : CASK_CATALOG_TTL;
+    if (Date.now() - caskCatalogCache.at < ttl) return caskCatalogCache.result;
+  }
   const map = new Map<string, CaskInfo>();
+  let failed = true;
   try {
     const res = await fetch('https://formulae.brew.sh/api/cask.json', {
       signal: AbortSignal.timeout(20000),
@@ -574,12 +555,14 @@ async function caskCatalog(): Promise<Map<string, CaskInfo>> {
           }
         }
       }
+      failed = false;
     }
   } catch {
-    /* offline / blocked — no cask matches this run */
+    /* offline / blocked — no cask matches this run, reported as degraded */
   }
-  caskCatalogCache = { at: Date.now(), map };
-  return map;
+  const result: CaskCatalogResult = { map, failed };
+  caskCatalogCache = { at: Date.now(), result };
+  return result;
 }
 
 /**
@@ -590,39 +573,101 @@ async function caskCatalog(): Promise<Map<string, CaskInfo>> {
 async function installedAppForCask(token: string): Promise<AppSummary | null> {
   const [apps, catalog] = await Promise.all([listInstalledApps(), caskCatalog()]);
   const names = new Set<string>();
-  for (const [key, info] of catalog) if (info.token === token) names.add(key);
+  for (const [key, info] of catalog.map) if (info.token === token) names.add(key);
   if (names.size === 0) return null;
   return apps.find((a) => names.has(normalizeToken(a.name))) ?? null;
+}
+
+/** Fail-closed resolution of the installed app behind a cask token. A null
+ *  match used to silently skip every downstream guard and let an unchecked
+ *  `brew install --cask --force` run — that command overwrites whatever
+ *  Homebrew thinks the token maps to, so no target = no write. */
+async function resolveCaskApp(token: string): Promise<AppSummary> {
+  const app = await installedAppForCask(token);
+  if (!app) {
+    // Distinguish "nothing matches" from "we couldn't check": a failed catalog
+    // fetch caches empty for 5 min, and the honest error points at that.
+    const catalog = caskCatalogCache?.result;
+    const degraded = catalog?.failed;
+    throw new AppError(
+      409,
+      'UNKNOWN_TARGET',
+      degraded
+        ? `The cask catalog is unavailable right now, so "${token}" can't be verified against an installed app — refusing to run an unchecked force-install. Try again in a few minutes.`
+        : `No installed app matches the cask "${token}" — refusing to run an unchecked force-install. Update it via brew directly instead.`
+    );
+  }
+  return app;
+}
+
+/** The guards that make a cask force-install safe. Re-run immediately before
+ *  exec (inside the brew lock) so they hold at exec time, not just request time. */
+async function guardCaskTarget(app: AppSummary): Promise<void> {
+  if (!app.path.startsWith('/Applications/')) {
+    throw new AppError(
+      409,
+      'APP_OUTSIDE_APPLICATIONS',
+      `${app.name} is in ${path.dirname(app.path)}, but Homebrew installs into /Applications — a cask update would install a duplicate next to the old copy. Move the app to /Applications first.`
+    );
+  }
+  if (await isAppRunning(app.executable)) {
+    throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
+  }
 }
 
 /**
  * Post-update verification. brew exiting 0 is not proof the app was actually
  * replaced (permission-locked bundles can survive a "successful" install), so
- * re-read the bundle afterwards. Hard-fail when the .app is missing from
- * /Applications or its version didn't move to the cask's version; codesign
- * failures only log a warning — several mainstream casks ship known signature
- * quirks and still run fine, so we don't fail the update over them.
+ * the bundle at `app.path` is re-read after the install. Hard-fail when the
+ * .app is missing from /Applications or its version didn't move to the cask's
+ * version; codesign failures only log a warning — several mainstream casks
+ * ship known signature quirks and still run fine, so we don't fail the update
+ * over them.
+ *
+ * The already-resolved `app` is passed in by the caller (it was resolved and
+ * guarded before exec) instead of re-running the installed-app discovery here.
  */
-async function verifyCaskInstall(token: string, previousVersion: string | null): Promise<string | null> {
-  const app = await installedAppForCask(token);
-  if (!app || !app.path.startsWith('/Applications/')) {
+async function verifyCaskInstall(
+  token: string,
+  app: AppSummary,
+  previousVersion: string | null
+): Promise<string | null> {
+  // The bundle must still exist at the guarded path after brew's run.
+  const stillThere = await fsp.stat(app.path).catch(() => null);
+  if (!stillThere || !app.path.startsWith('/Applications/')) {
     return 'The update reported success, but the app could not be found in /Applications afterwards — the install may not have completed.';
   }
   const info = await readPlistInfo(app.path);
   const installed = info.shortVersion || info.build;
   let expected: string | null = null;
-  for (const c of (await caskCatalog()).values()) {
+  for (const c of (await caskCatalog()).map.values()) {
     if (c.token === token) {
       expected = c.version;
       break;
     }
   }
   if (installed) {
-    if (previousVersion && installed === previousVersion) {
+    // An unchanged version used to hard-fail unconditionally — wrong for
+    // build-suffixed cask versions (cask "19.0.0-54779", bundle short version
+    // "19.0.0": the build number moves, the short version doesn't, and the
+    // install DID succeed). So "still the same version" is a failure only when
+    // the catalog gives no expected version to compare against; otherwise the
+    // cmpVersion check below decides.
+    if (previousVersion && installed === previousVersion && !expected) {
       return `Update incomplete: ${app.name} is still version ${installed}. Try updating again, or finish in Terminal.`;
     }
-    if (expected && cmpVersion(installed, expected) < 0) {
-      return `Update incomplete: ${app.name} is version ${installed}, expected ${expected}. Try updating again, or finish in Terminal.`;
+    if (expected) {
+      // The bundle only exposes the marketing version, so strip a trailing
+      // numeric build suffix from the cask's version before the "older than
+      // expected" comparison — otherwise an installed "19.0.0" reads as older
+      // than cask "19.0.0-54779" and a successful install is misreported as
+      // incomplete. Word suffixes (beta/rc/…) are NOT stripped: cmpVersion
+      // already ranks those below the plain release, which is the right
+      // direction for "is the installed build behind?".
+      const expectedCore = expected.replace(/-v?\d+$/, '');
+      if (cmpVersion(installed, expectedCore) < 0) {
+        return `Update incomplete: ${app.name} is version ${installed}, expected ${expected}. Try updating again, or finish in Terminal.`;
+      }
     }
   } else {
     console.warn(`[updater] could not read a version from ${app.path} after update — skipping the version check`);
@@ -651,34 +696,39 @@ export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult
   const brew = await brewPath();
   if (!brew) return { ok: false, token, message: 'Homebrew is not installed' };
 
-  const app = await installedAppForCask(token);
-  if (app) {
-    if (!app.path.startsWith('/Applications/')) {
-      throw new AppError(
-        409,
-        'APP_OUTSIDE_APPLICATIONS',
-        `${app.name} is in ${path.dirname(app.path)}, but Homebrew installs into /Applications — a cask update would install a duplicate next to the old copy. Move the app to /Applications first.`
-      );
-    }
-    if (await isAppRunning(app.executable)) {
-      throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
-    }
-  }
+  // Resolve + guard BEFORE taking the lock, so a bad request fails fast
+  // without queueing behind other brew writes...
+  const app = await resolveCaskApp(token);
+  await guardCaskTarget(app);
 
   try {
-    const { stdout } = await withBrewLock(() =>
-      execFileP(brew, ['install', '--cask', '--force', token], 10 * 60 * 1000)
-    );
-    const problem = await verifyCaskInstall(token, app ? app.version : null);
+    let fresh: AppSummary = app;
+    const { stdout } = await withBrewLock(async () => {
+      // ...then re-resolve + re-guard INSIDE the lock, immediately before
+      // exec: another request can quit/move/uninstall the app while we waited
+      // on the brew chain, and the guards must hold at exec time, not just
+      // request time.
+      fresh = await resolveCaskApp(token);
+      await guardCaskTarget(fresh);
+      return execFileP(brew, ['install', '--cask', '--force', token], 10 * 60 * 1000);
+    });
+    const problem = await verifyCaskInstall(token, fresh, fresh.version);
     if (problem) return { ok: false, token, message: problem };
     return { ok: true, token, message: lastLine(stdout) || 'Updated' };
   } catch (err) {
+    // Our guards throw AppError — those are deliberate 409 responses, not
+    // "upgrade failed" results; let them surface untouched.
+    if (err instanceof AppError) throw err;
     const e = err as NodeJS.ErrnoException & ExecResult;
     const detail = (e.stderr || '') + (e.stdout || '');
     // pkg/system casks need an admin password, and replacing a permission-locked
     // or root-owned bundle needs elevated rights — neither is possible from the
     // background server. Both are finished interactively in Terminal instead.
-    if (/password is required|sudo:|requires? a password|administrator|permission denied|apply2files|EACCES|not writable|Operation not permitted/i.test(detail)) {
+    // Deliberately narrow: only password/sudo phrasing routes here — generic
+    // permission errors (EACCES, "not writable", …) often mean a locked bundle
+    // that even a sudo Terminal session won't fix, and mislabeling those
+    // "needs admin" sends users down a dead end.
+    if (/password is required|requires? a password|sudo[: ]/i.test(detail)) {
       return { ok: false, token, message: 'Needs admin permission — finishing in Terminal.', needsTerminal: true };
     }
     return { ok: false, token, message: lastLine(e.stderr || '') || (e.message || 'upgrade failed').trim() };
@@ -688,15 +738,30 @@ export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult
 /** Open Terminal and run the cask update there, so the user can enter their
  *  admin password interactively. Token is validated by the caller. */
 export async function upgradeCaskInTerminal(token: string): Promise<void> {
-  const brew = (await brewPath()) || 'brew';
-  const cmd = `${brew} install --cask --force ${token}`;
-  const esc = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  await execFileP('/usr/bin/osascript', [
-    '-e', 'tell application "Terminal"',
-    '-e', 'activate',
-    '-e', `do script "${esc}"`,
-    '-e', 'end tell',
-  ], 10000);
+  // The Terminal session runs brew OUTSIDE this process, where our write queue
+  // has no reach — so refuse to open it while any brew write is running or
+  // queued (two concurrent writers race brew's global lock and corrupt the
+  // staging dirs), and take the write lock around the handoff itself so a
+  // queued in-process write can't start mid-handoff and race the Terminal's
+  // brew.
+  if (brewWritesInFlight > 0) {
+    throw new AppError(
+      409,
+      'BREW_BUSY',
+      'A Homebrew operation is already running — wait for it to finish, then try again.'
+    );
+  }
+  await withBrewLock(async () => {
+    const brew = (await brewPath()) || 'brew';
+    const cmd = `${brew} install --cask --force ${token}`;
+    const esc = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    await execFileP('/usr/bin/osascript', [
+      '-e', 'tell application "Terminal"',
+      '-e', 'activate',
+      '-e', `do script "${esc}"`,
+      '-e', 'end tell',
+    ], 10000);
+  });
 }
 
 /**
@@ -743,14 +808,42 @@ function gateCaskMatch(
   };
 }
 
-/** Every installed app, each tagged with an update if one is detectable. */
-export async function appUpdates(): Promise<AppUpdate[]> {
-  if (process.platform !== 'darwin') return [];
+/**
+ * Every installed app, each tagged with an update if one is detectable.
+ * Returns `degraded` + `degradedReasons` alongside the list: a source that
+ * could not be CHECKED this pass (cask catalog fetch failed, mas errored or
+ * printed unparseable output) makes those sources' updates invisible, so the
+ * panel must be able to distinguish "no updates" from "couldn't check" —
+ * silently swallowing a failed read path used to look exactly like "up to
+ * date".
+ */
+export async function appUpdates(): Promise<{
+  apps: AppUpdate[];
+  degraded: boolean;
+  degradedReasons: string[];
+}> {
+  if (process.platform !== 'darwin') {
+    return { apps: [], degraded: false, degradedReasons: [] };
+  }
   const [apps, catalog, hasMas, osVersion] = await Promise.all([
     listInstalledApps(), caskCatalog(), masAvailable(), currentOsVersion(),
   ]);
+  const reasons: string[] = [];
+  if (catalog.failed) {
+    reasons.push('Could not fetch the Homebrew cask catalog (formulae.brew.sh) — cask updates may be missing.');
+  }
   const masMap = new Map<string, MasUpdate>();
-  if (hasMas) for (const m of await outdatedMasApps()) masMap.set(normalizeToken(m.name), m);
+  if (hasMas) {
+    const masOut = await outdatedMasApps();
+    if (masOut.failed) {
+      reasons.push('The mas CLI could not list App Store updates (not signed in, or it errored).');
+    } else if (masOut.unparsed > 0) {
+      reasons.push(
+        `App Store update listing had ${masOut.unparsed} unparseable line${masOut.unparsed === 1 ? '' : 's'} — App Store updates may be missing.`
+      );
+    }
+    for (const m of masOut.updates) masMap.set(normalizeToken(m.name), m);
+  }
 
   const out: AppUpdate[] = [];
   const CONCURRENCY = 8;
@@ -769,7 +862,7 @@ export async function appUpdates(): Promise<AppUpdate[]> {
         const cask =
           a.updateSource === 'mas' || !a.path.startsWith('/Applications/')
             ? undefined
-            : catalog.get(normalizeToken(a.name));
+            : catalog.map.get(normalizeToken(a.name));
         if (cask && a.version && cmpVersion(cask.version, a.version) > 0) {
           update = gateCaskMatch(cask, a.bundleId, a.version);
         }
@@ -793,5 +886,5 @@ export async function appUpdates(): Promise<AppUpdate[]> {
     out.push(...results);
   }
   out.sort((x, y) => Number(!!y.update) - Number(!!x.update) || x.name.localeCompare(y.name, undefined, { sensitivity: 'base' }));
-  return out;
+  return { apps: out, degraded: reasons.length > 0, degradedReasons: reasons };
 }

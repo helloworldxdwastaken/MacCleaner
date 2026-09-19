@@ -17,10 +17,15 @@
  * README explains how to clear. (Proper notarization would remove the prompt
  * altogether, but needs the paid Developer ID.)
  *
+ * When the packager DID sign with a real identity (Developer ID), that
+ * signature is precious — re-signing ad-hoc would destroy it — so we detect
+ * and preserve it, only stepping in when signing was skipped or stayed
+ * ad-hoc.
+ *
  * Nested helpers/frameworks must be signed before the outer app, so we sign
  * inside-out rather than relying on the deprecated `--deep` flag.
  */
-const { execFileSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -30,6 +35,20 @@ function sign(target) {
   execFileSync('codesign', ['--force', '--sign', '-', '--timestamp=none', target], {
     stdio: 'inherit',
   });
+}
+
+/** True when `appPath` already carries a REAL (identity-backed) signature.
+ *  The CodeResources seal proves a signature exists at all; `codesign -dv`
+ *  (whose report goes to stderr even on success) separates real from ad-hoc:
+ *  ad-hoc shows `Signature=adhoc` and no TeamIdentifier, a real signature
+ *  carries `TeamIdentifier=<id>`. Unsigned/unreadable → false (sign as today). */
+function hasRealSignature(appPath) {
+  const seal = path.join(appPath, 'Contents', '_CodeSignature', 'CodeResources');
+  if (!fs.existsSync(seal)) return false; // signing was skipped entirely
+  const probe = spawnSync('codesign', ['-dv', appPath], { encoding: 'utf8' });
+  if (probe.status !== 0) return false;
+  const report = `${probe.stdout || ''}${probe.stderr || ''}`;
+  return !/Signature=adhoc/.test(report) && /TeamIdentifier=\S+/.test(report);
 }
 
 function signInsideOut(appPath) {
@@ -52,10 +71,14 @@ function signInsideOut(appPath) {
 
 exports.default = async function afterPack(context) {
   if (context.electronPlatformName !== 'darwin') return;
-  // electron-builder still ad-hoc signs when a real identity is configured;
-  // only step in when signing was skipped (no _CodeSignature was written).
   const appName = context.packager.appInfo.productFilename; // "MacCleaner"
   const appPath = path.join(context.appOutDir, `${appName}.app`);
+  // A real (Developer ID) signature survives packaging — never clobber it
+  // with ad-hoc. Only unsigned or ad-hoc bundles get the treatment below.
+  if (hasRealSignature(appPath)) {
+    console.log('[afterPack] real (identity) signature present — skipping ad-hoc re-sign');
+    return;
+  }
   console.log(`[afterPack] ad-hoc signing ${appPath}`);
   try {
     signInsideOut(appPath);

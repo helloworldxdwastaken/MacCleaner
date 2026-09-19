@@ -16,7 +16,11 @@ import { readJsonFile, writeJsonFile } from './storage';
  *     LaunchDaemon — `{"op":"boost",fan,rpm}` + `{"op":"heartbeat"}` every 3s.
  *     The daemon enforces boost-only clamping to [F(i)Mn, F(i)Mx] and owns a
  *     10-second watchdog that restores auto if our heartbeats stop, so a boost
- *     can never outlive an app crash.
+ *     can never outlive an app crash. Every heartbeat/status reply carries the
+ *     daemon's `active` boost set: when the watchdog has silently restored auto
+ *     (suspend, hiccup) but our demand still exists, we re-assert instead of
+ *     phantom-boosting, and the UI's helper state is derived from the daemon's
+ *     answer, never from local belief.
  *  3. RULES (auto-boost engine): user-defined temperature rules persisted in
  *     the app-data dir; while enabled + daemon installed, poll temps and boost
  *     when a rule's domain exceeds its threshold, releasing with 5°C
@@ -25,7 +29,11 @@ import { readJsonFile, writeJsonFile } from './storage';
  *
  * The UI speaks percent (0–100); this module maps percent → RPM as
  *   rpm = minRpm + (maxRpm − minRpm) × percent/100
- * per fan, using the live min/max read from the hardware.
+ * per fan, using the live min/max read from the hardware — BUT percent is a
+ * demand, not a hardware value: percent 0 releases the fan to auto (a no-op),
+ * and the effective request is floored at the fan's CURRENT automatic target
+ * (boost is additive-only relative to what the firmware is doing now, never
+ * merely relative to the hardware minimum).
  *
  * Test overrides (dev only, see native/fanhelper/README.md):
  *   MACCLEANER_FANHELPER_BIN     path to the helper binary
@@ -106,6 +114,8 @@ export interface BoostRequest {
 
 export interface BoostResult {
   ok: boolean;
+  /** Per-fan outcome; `rpm` echoes the daemon's actually-applied value
+   *  (appliedRpm), which may clamp further than the backend did. */
   applied: Array<{ fan: number; rpm: number; ok: boolean; error?: string }>;
 }
 
@@ -114,9 +124,14 @@ export interface BoostResult {
 const HELPER_LABEL = 'com.dronx.maccleaner.fanhelper';
 const SOCKET_PATH =
   process.env.MACCLEANER_FANHELPER_SOCKET || `/var/run/${HELPER_LABEL}.sock`;
+/** Installed-daemon marker: present iff install.sh has run (its own file). */
+const PLIST_PATH = `/Library/LaunchDaemons/${HELPER_LABEL}.plist`;
 const RULES_FILE = 'fans.json';
 const HEARTBEAT_MS = 3_000;
-const RECONNECT_MS = 2_000;
+/** First re-assert after a socket loss is immediate; failures back off from here. */
+const RECONNECT_BASE_MS = 2_000;
+/** Backoff ceiling for applyDesired retry loops. */
+const RECONNECT_MAX_MS = 30_000;
 const STATUS_CACHE_MS = 2_000;
 const HYSTERESIS_C = 5;
 /** After an explicit user "auto", the rules engine holds off this long. */
@@ -221,6 +236,14 @@ interface DaemonReply {
   temps?: FanTemps;
   appliedRpm?: number;
   mode?: string;
+  /**
+   * Daemon-side active boosts ([{fan,rpm},...]) on status/heartbeat/auto
+   * replies. The daemon's watchdog can silently restore auto (suspend,
+   * heartbeat hiccup) while our local demand still says "boosting" — this
+   * field is the ground truth that lets us detect and repair that desync
+   * instead of phantom-boosting.
+   */
+  active?: Array<{ fan: number; rpm: number }>;
 }
 
 interface PendingReq {
@@ -239,6 +262,8 @@ class DaemonSession {
   private buffer = '';
   private pending: PendingReq[] = [];
   private connecting: Promise<void> | null = null;
+  /** Aborts an in-flight connect(); set while `connecting` is non-null. */
+  private cancelConnect: (() => void) | null = null;
 
   get connected(): boolean {
     return this.socket !== null && !this.socket.destroyed;
@@ -255,14 +280,32 @@ class DaemonSession {
       const sock = net.createConnection(SOCKET_PATH);
       sock.setEncoding('utf8');
 
-      const onConnectError = (err: Error) => {
+      // A daemon that is installed but wedged (or a socket path owned by
+      // something else) must not leave a request hanging forever — bound the
+      // connect phase like requests are bounded.
+      const connectTimer = setTimeout(() => {
+        fail(new Error('daemon connect timed out'));
+      }, 5_000);
+      connectTimer.unref();
+
+      const fail = (err: Error) => {
+        clearTimeout(connectTimer);
+        this.cancelConnect = null;
         this.connecting = null;
+        sock.removeAllListeners();
+        sock.on('error', () => {});
+        sock.destroy();
         reject(err);
       };
+      this.cancelConnect = () => fail(new Error('connect cancelled'));
+
+      const onConnectError = (err: Error) => fail(err);
       sock.once('error', onConnectError);
       sock.once('connect', () => {
+        clearTimeout(connectTimer);
         sock.removeListener('error', onConnectError);
         this.socket = sock;
+        this.cancelConnect = null;
         this.connecting = null;
 
         sock.on('data', (chunk: string) => this.onData(chunk));
@@ -328,6 +371,10 @@ class DaemonSession {
   }
 
   close(): void {
+    // Cancel a pending connect first: close() must leave NOTHING in flight,
+    // or a rejected request could resurrect a socket after teardown.
+    this.cancelConnect?.();
+    this.cancelConnect = null;
     const sock = this.socket;
     this.socket = null;
     for (const req of this.pending.splice(0)) {
@@ -354,10 +401,24 @@ let userBoost: BoostRequest | null = null;
 let engineBoostPercent: number | null = null;
 /** Fans we most recently commanded, to detect shrinking sets. */
 let lastCommandedFans = new Set<number>();
+/** Last known fan snapshot — lets reconnect re-asserts skip the status spawn. */
+let lastFans: FanInfo[] | null = null;
+/** Failed re-assert attempts since the last successful apply (backoff exponent). */
+let reconnectAttempts = 0;
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let reconnectTimer: NodeJS.Timeout | null = null;
 let engineSuppressedUntil = 0;
 
+/**
+ * Percent is RELATIVE TO EACH FAN'S [min,max] SPAN — it is not an absolute
+ * RPM. Two extra rules keep it honest (see applyDesired for the enforcement):
+ *   * percent 0 means "no boost": it maps to minRpm, which can only ever hold
+ *     a fan at (or below) what the firmware already does, so it releases the
+ *     fan to auto instead of pinning it.
+ *   * the effective RPM is clamped to never fall below the fan's CURRENT
+ *     automatic target — boost is additive-only relative to what the firmware
+ *     is doing right now, not merely relative to the hardware minimum.
+ */
 function percentToRpm(fan: FanInfo, percent: number): number {
   const p = Math.min(100, Math.max(0, percent));
   const span = Math.max(0, fan.maxRpm - fan.minRpm);
@@ -373,7 +434,9 @@ function desiredPercents(fans: FanInfo[]): Map<number, number> {
       p = Math.max(p, userBoost.percent);
     }
     if (engineBoostPercent !== null) p = Math.max(p, engineBoostPercent);
-    if (p >= 0) desired.set(f.id, p);
+    // Percent 0 is a no-op by contract: drop it so the fan is released to
+    // auto rather than pinned at its hardware floor.
+    if (p > 0) desired.set(f.id, p);
   }
   return desired;
 }
@@ -387,11 +450,24 @@ function anyBoostDesired(): boolean {
  * restore auto when nothing is desired. Also (re)arms the heartbeat.
  */
 async function applyDesired(): Promise<BoostResult> {
-  const status = await readStatus();
-  const desired = desiredPercents(status.fans);
+  let fans: FanInfo[];
+  try {
+    const status = await readStatus();
+    fans = status.fans;
+  } catch (err) {
+    // Transient status-read failure: while a boost is in demand, fall back to
+    // the last known min/max table instead of leaving the daemon unpinned —
+    // otherwise a reconnect flap with a failing helper spawn would repeatedly
+    // drop the boost between attempts.
+    if (!lastFans || !anyBoostDesired()) throw err;
+    fans = lastFans;
+  }
+  lastFans = fans;
+  const desired = desiredPercents(fans);
 
   if (desired.size === 0) {
     stopHeartbeat();
+    reconnectAttempts = 0;
     lastCommandedFans = new Set();
     if (session.connected) {
       try {
@@ -417,13 +493,32 @@ async function applyDesired(): Promise<BoostResult> {
 
   const applied: BoostResult['applied'] = [];
   let allOk = true;
-  for (const fan of status.fans) {
+  for (const fan of fans) {
     const percent = desired.get(fan.id);
     if (percent === undefined) continue;
-    const rpm = percentToRpm(fan, percent);
+    // SAFETY: never seize a fan the firmware thermal manager has taken over —
+    // forcing manual mode over an active thermal response is exactly what the
+    // additive-only model forbids. Skip it; the moment macOS hands the fan
+    // back (mode → auto), the heartbeat desync guard re-establishes the pin.
+    if (fan.mode === 'thermal') continue;
+    const requested = percentToRpm(fan, percent);
+    // Additive-only floor: never command below the fan's CURRENT automatic
+    // target (readStatus provides the live auto target as targetRpm while the
+    // fan is in auto mode). A manual pin below it would SLOW the fan down —
+    // the opposite of a boost. The daemon's [min,max] clamp still applies.
+    const floorRpm =
+      fan.mode === 'auto' && fan.targetRpm > 0 ? Math.round(fan.targetRpm) : 0;
+    const rpm = Math.max(requested, floorRpm);
     try {
       const reply = await session.send({ op: 'boost', fan: fan.id, rpm });
-      applied.push({ fan: fan.id, rpm, ok: reply.ok, error: reply.error });
+      // Echo the daemon's actually-applied value when it reports one (it may
+      // have clamped further than we did).
+      applied.push({
+        fan: fan.id,
+        rpm: typeof reply.appliedRpm === 'number' ? reply.appliedRpm : rpm,
+        ok: reply.ok,
+        error: reply.error,
+      });
       if (!reply.ok) allOk = false;
     } catch (err) {
       applied.push({ fan: fan.id, rpm, ok: false, error: err instanceof Error ? err.message : String(err) });
@@ -431,8 +526,32 @@ async function applyDesired(): Promise<BoostResult> {
     }
   }
   lastCommandedFans = new Set(applied.filter((a) => a.ok).map((a) => a.fan));
-  if (applied.some((a) => a.ok)) startHeartbeat();
+  if (applied.some((a) => a.ok)) {
+    reconnectAttempts = 0; // flap healed — restart the backoff ladder next time
+    startHeartbeat();
+  }
   return { ok: allOk, applied };
+}
+
+let applyQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Serialize state pushes. applyDesired is not re-entrant (it computes desired
+ * state, then sends per-fan boosts): the heartbeat desync guard, the reconnect
+ * loop, the rules engine, and user actions can all trigger one, and
+ * interleaved runs on one socket could land an 'auto' from a stale run after
+ * a fresh run's boosts. Every caller gets its own run's result.
+ */
+function enqueueApply(): Promise<BoostResult> {
+  const run = applyQueue.then(
+    () => applyDesired(),
+    () => applyDesired()
+  );
+  applyQueue = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
 }
 
 function startHeartbeat(): void {
@@ -440,6 +559,21 @@ function startHeartbeat(): void {
   heartbeatTimer = setInterval(() => {
     void session
       .send({ op: 'heartbeat' }, 4_000)
+      .then((reply) => {
+        // Watchdog-desync repair: the daemon's failsafe restores auto by
+        // itself (suspend, hiccup >10s, daemon restart) while our demand
+        // still says "boosting". When its heartbeat reply reports NO active
+        // boosts, re-run applyDesired so the pin is re-established (or the
+        // stale local demand is at least reconciled with reality) instead of
+        // letting the UI report a phantom boost.
+        if (
+          anyBoostDesired() &&
+          Array.isArray(reply.active) &&
+          reply.active.length === 0
+        ) {
+          enqueueApply().catch(() => {});
+        }
+      })
       .catch(() => {
         /* onSessionLost handles reconnect */
       });
@@ -452,47 +586,84 @@ function stopHeartbeat(): void {
   heartbeatTimer = null;
 }
 
-/** Socket dropped: if a boost should be active, reconnect and re-assert. */
+/**
+ * Socket dropped: if a boost should be active, reconnect and re-assert.
+ * The first retry is IMMEDIATE — the daemon has lost the pin either way and
+ * cached percents make the re-assert cheap. Further failures back off
+ * exponentially (capped at 30s) so an unreachable daemon can't busy-loop the
+ * server while demand is pending.
+ */
 function onSessionLost(): void {
   stopHeartbeat();
   if (!anyBoostDesired() || reconnectTimer) return;
+  const delay =
+    reconnectAttempts === 0
+      ? 0
+      : Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** reconnectAttempts);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
-    if (!anyBoostDesired()) return;
-    applyDesired().catch(() => onSessionLost()); // keep retrying while desired
-  }, RECONNECT_MS);
+    if (!anyBoostDesired()) {
+      reconnectAttempts = 0;
+      return;
+    }
+    reconnectAttempts += 1;
+    enqueueApply()
+      .then((result) => {
+        // applyDesired resolves (not rejects) on per-fan send failures — a
+        // failed attempt must schedule the next backoff run or the retry
+        // loop dies silently after one unreachable daemon.
+        if (!result.ok) onSessionLost();
+      })
+      .catch(() => onSessionLost()); // keep retrying with backoff while desired
+  }, delay);
   reconnectTimer.unref();
 }
 
 /* ───────────────────────── Public boost API ───────────────────────── */
 
-export type BoostSource = 'user' | 'rules' | 'both' | null;
+export type BoostSource = 'user' | 'rules' | 'both' | 'external' | null;
 
 /**
  * Who is currently demanding a boost: the explicit user boost, the auto-rules
- * engine, both, or neither. The UI uses this to keep "Auto" selected when the
- * boost came from rules — rules-driven boosting is part of Auto mode, not a
- * switch to manual Boost.
+ * engine, both, an external tool, or nobody. The UI uses this to keep "Auto"
+ * selected when the boost came from rules — rules-driven boosting is part of
+ * Auto mode, not a switch to manual Boost.
+ *
+ * 'external' marks fans pinned to manual by something OTHER than MacCleaner
+ * (third-party fan tools): manual mode with no local demand AND no
+ * daemon-confirmed active boost. The daemon pins fans exclusively on
+ * MacCleaner's behalf, so a daemon-confirmed `active` set still means "ours"
+ * (e.g. re-asserted across a server restart) — anything else is foreign and
+ * must not be claimed as a 'user' boost.
  */
-export function boostSource(fans?: FanInfo[]): BoostSource {
+export async function boostSource(fans?: FanInfo[]): Promise<BoostSource> {
   const user = userBoost !== null;
   const rules = engineBoostPercent !== null;
   if (user && rules) return 'both';
   if (user) return 'user';
   if (rules) return 'rules';
-  // A manual-pinned fan with no local demand is a stale boost from a previous
-  // app run (the daemon re-asserted it) — treat it as a user boost.
-  if (fans && fans.some((f) => f.mode === 'manual')) return 'user';
+  if (fans && fans.some((f) => f.mode === 'manual')) {
+    const reply = session.connected
+      ? await session.send({ op: 'status' }, 2_500).catch(() => null)
+      : await daemonProbe({ op: 'status' });
+    const active = reply && reply.ok === true ? reply.active : undefined;
+    return Array.isArray(active) && active.length > 0 ? 'user' : 'external';
+  }
   return null;
 }
 
-/** Start (or retarget) a user boost. Percent 0–100 maps into [min,max]. */
+/**
+ * Start (or retarget) a user boost. Percent 0–100 maps into [min,max], with
+ * two corrections applied at apply time (see percentToRpm / applyDesired):
+ * percent 0 is a no-op that releases the affected fan(s) to auto, and the
+ * effective RPM is floored at the fan's CURRENT automatic target.
+ */
 export async function startBoost(req: BoostRequest): Promise<BoostResult> {
   if (typeof req.percent !== 'number' || !Number.isFinite(req.percent)) {
     throw new Error('percent must be a number');
   }
   userBoost = { fan: req.fan, percent: Math.min(100, Math.max(0, req.percent)) };
-  return applyDesired();
+  return enqueueApply();
 }
 
 /**
@@ -505,61 +676,128 @@ export async function stopBoost(): Promise<void> {
   engineBoostPercent = null;
   engineLatched.clear();
   engineSuppressedUntil = Date.now() + ENGINE_SUPPRESS_MS;
-  await applyDesired();
+  await enqueueApply();
 }
 
 /* ─────────────────────── Helper state detection ─────────────────────── */
 
 let probeCache: { at: number; value: Promise<boolean> } | null = null;
 
-/** Can we reach a live daemon on the socket right now? Cached ~2s. */
-function probeDaemon(): Promise<boolean> {
-  const now = Date.now();
-  if (probeCache && now - probeCache.at < STATUS_CACHE_MS) return probeCache.value;
-  const value = new Promise<boolean>((resolve) => {
+/**
+ * One-shot request/reply on a throwaway connection. Resolves null when the
+ * socket doesn't answer within timeoutMs (connect error, timeout, malformed
+ * reply) — never rejects. The first reply line is accumulated across chunks
+ * before parsing: `data` events can split a reply, and parsing a partial
+ * line would misreport a healthy daemon as absent.
+ */
+function daemonProbe(
+  op: Record<string, unknown>,
+  timeoutMs = 1_500
+): Promise<DaemonReply | null> {
+  return new Promise((resolve) => {
     const sock = net.createConnection(SOCKET_PATH);
     sock.setEncoding('utf8');
-    const done = (result: boolean) => {
+    let buf = '';
+    let settled = false;
+    const done = (result: DaemonReply | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       sock.removeAllListeners();
       sock.on('error', () => {});
       sock.destroy();
       resolve(result);
     };
-    const timer = setTimeout(() => done(false), 1_000);
+    const timer = setTimeout(() => done(null), timeoutMs);
     timer.unref();
-    sock.once('error', () => {
-      clearTimeout(timer);
-      done(false);
-    });
+    sock.once('error', () => done(null));
     sock.once('connect', () => {
-      sock.write('{"op":"status"}\n');
-      sock.once('data', (chunk: string) => {
-        clearTimeout(timer);
-        try {
-          done((JSON.parse(chunk.split('\n')[0]) as DaemonReply).ok === true);
-        } catch {
-          done(false);
-        }
-      });
+      sock.write(JSON.stringify(op) + '\n');
+    });
+    sock.on('data', (chunk: string) => {
+      buf += chunk;
+      const idx = buf.indexOf('\n');
+      if (idx < 0) return; // keep accumulating — reply may span chunks
+      try {
+        done(JSON.parse(buf.slice(0, idx)) as DaemonReply);
+      } catch {
+        done(null);
+      }
     });
   });
+}
+
+/** Can we reach a live daemon on the socket right now? Cached ~2s. */
+function probeDaemon(): Promise<boolean> {
+  const now = Date.now();
+  if (probeCache && now - probeCache.at < STATUS_CACHE_MS) return probeCache.value;
+  const value = daemonProbe({ op: 'status' }).then((r) => r?.ok === true);
   probeCache = { at: now, value };
+  value.catch(() => {
+    if (probeCache?.value === value) probeCache = null;
+  });
   return value;
 }
 
-export async function helperState(): Promise<HelperState> {
-  if (anyBoostDesired() && session.connected) return 'active-boost';
-  const installed = await probeDaemon();
-  if (!installed) return 'not-installed';
-  // A fan in true manual mode means a boost is active (possibly asserted by
-  // the daemon on our behalf before a restart of this server).
-  try {
-    const status = await readStatus();
-    if (status.fans.some((f) => f.mode === 'manual')) return 'active-boost';
-  } catch {
-    /* status read failure shouldn't mask "installed" */
+/**
+ * Poll the daemon socket until it answers or `windowMs` elapses. launchctl
+ * bootstrap returns BEFORE the daemon has bound its socket, so a single probe
+ * right after install can false-negative and misreport a successful install
+ * as failed.
+ */
+async function probeDaemonUntil(windowMs: number): Promise<boolean> {
+  const deadline = Date.now() + windowMs;
+  for (;;) {
+    probeCache = null; // force a live probe every round
+    if (await probeDaemon()) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 500));
   }
-  return 'installed';
+}
+
+/**
+ * Helper capability state, derived from what the DAEMON confirms:
+ *  - 'active-boost' only when the daemon itself reports active boosts. Local
+ *    demand plus a watchdog expiry must never surface as a phantom
+ *    'active-boost' (the backend's belief is not the hardware's state).
+ *  - 'installed' when the socket answers, or when the LaunchDaemon plist is
+ *    present and the socket merely isn't answering (daemon restarting) —
+ *    "socket answers" and "installed" are different facts.
+ *  - 'not-installed' otherwise.
+ */
+export async function helperState(): Promise<HelperState> {
+  // Prefer the persistent session when we hold one (it's the connection our
+  // heartbeats ride on); otherwise probe on a throwaway connection.
+  let reply: DaemonReply | null = null;
+  if (session.connected) {
+    try {
+      reply = await session.send({ op: 'status' }, 2_500);
+    } catch {
+      reply = null;
+    }
+  }
+  if (!reply || reply.ok !== true) {
+    probeCache = null; // don't let a stale reachability probe mask state
+    reply = await daemonProbe({ op: 'status' });
+  }
+  if (reply && reply.ok === true) {
+    if (Array.isArray(reply.active)) {
+      return reply.active.length > 0 ? 'active-boost' : 'installed';
+    }
+    // Legacy daemon (pre-`active` protocol): fall back to the manual-mode
+    // heuristic — a fan in true manual mode means some boost is pinned.
+    try {
+      const status = await readStatus();
+      if (status.fans.some((f) => f.mode === 'manual')) return 'active-boost';
+    } catch {
+      /* status read failure shouldn't mask "installed" */
+    }
+    return 'installed';
+  }
+  // Socket not answering: the plist is install.sh's own artifact, so its
+  // presence means installed-but-not-running (KeepAlive restart, bootout
+  // pending) rather than not installed.
+  return fs.existsSync(PLIST_PATH) ? 'installed' : 'not-installed';
 }
 
 /* ───────────────────────── Rules persistence ───────────────────────── */
@@ -638,7 +876,10 @@ async function engineTick(cfg: FanRulesConfig): Promise<void> {
 
   if (demand !== engineBoostPercent) {
     engineBoostPercent = demand;
-    await applyDesired();
+    // The apply-time clamp (never below the current auto target; 0% = no-op)
+    // is enforced inside applyDesired, so the engine path gets the same
+    // additive-only guarantees the manual path does.
+    await enqueueApply();
   }
 }
 
@@ -651,7 +892,7 @@ function restartEngine(cfg: FanRulesConfig): void {
     engineLatched.clear();
     if (engineBoostPercent !== null) {
       engineBoostPercent = null;
-      applyDesired().catch(() => {});
+      enqueueApply().catch(() => {});
     }
     return;
   }
@@ -742,8 +983,9 @@ export async function installHelper(opts: { dryRun?: boolean } = {}): Promise<He
     if (result.cancelled) return { status: 'user-cancelled', message: 'Admin prompt was cancelled' };
     if (result.error) return { status: 'failed', message: result.error };
 
-    probeCache = null; // force a fresh state probe
-    const live = await probeDaemon();
+    // The daemon needs a moment to bind its socket after launchctl bootstrap
+    // returns — retry the probe over ~8s before declaring failure.
+    const live = await probeDaemonUntil(8_000);
     return live
       ? { status: 'installed' }
       : { status: 'failed', message: 'installer ran but the daemon socket is not answering' };
@@ -759,13 +1001,6 @@ export async function uninstallHelper(opts: { dryRun?: boolean } = {}): Promise<
   if (process.platform !== 'darwin') return { status: 'failed', message: 'macOS only' };
   let stagedDir: string | null = null;
   try {
-    // Local session state is void once the daemon goes away.
-    userBoost = null;
-    engineBoostPercent = null;
-    engineLatched.clear();
-    stopHeartbeat();
-    session.close();
-
     const { stagedDir: dir, staged } = await stageKit(['uninstall.sh']);
     stagedDir = dir;
     const command = shellQuote(staged.get('uninstall.sh')!);
@@ -776,6 +1011,15 @@ export async function uninstallHelper(opts: { dryRun?: boolean } = {}): Promise<
     if (result.cancelled) return { status: 'user-cancelled', message: 'Admin prompt was cancelled' };
     if (result.error) return { status: 'failed', message: result.error };
 
+    // The user CONFIRMED (admin prompt accepted) and the uninstall ran: only
+    // now void the local boost state. Clearing before the prompt would leave
+    // the app believing nothing is boosted while a cancelled prompt lets the
+    // boosts keep running.
+    userBoost = null;
+    engineBoostPercent = null;
+    engineLatched.clear();
+    stopHeartbeat();
+    session.close();
     probeCache = null;
     return { status: 'uninstalled' };
   } catch (err) {

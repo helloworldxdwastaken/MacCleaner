@@ -29,4 +29,11 @@ contextBridge.exposeInMainWorld('treemapDesktop', {
   onNavigateView(callback) {
     ipcRenderer.on('treemap:navigate-view', (_event, view) => callback(view));
   },
+  /** Auto-fetch-updates preference (Preferences → General). */
+  getAutoUpdates() {
+    return ipcRenderer.invoke('updates:get');
+  },
+  setAutoUpdates(on) {
+    ipcRenderer.send('updates:set', on === true);
+  },
 });

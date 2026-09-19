@@ -3,7 +3,9 @@ import { promises as fsp } from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
-import { readJsonFile, writeJsonFile } from './storage';
+import { withFileLock } from './storage';
+import { sanitizePath } from '../utils/pathSanitizer';
+import { AppError } from '../middleware/errorHandler';
 import { LaunchAgent } from '../models/types';
 
 /**
@@ -14,11 +16,36 @@ import { LaunchAgent } from '../models/types';
  * Commands run through execFile (argv arrays, no shell), mirroring cleaner.ts.
  */
 
+/**
+ * A command hit its execFile timeout (Node killed the child with SIGTERM).
+ * A distinct type so the API layer can answer with an honest code
+ * (e.g. AUTOMATION_TIMEOUT) instead of a lying generic 500.
+ */
+export class CommandTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CommandTimeoutError';
+  }
+}
+
+/**
+ * Run a command via execFile (argv arrays, no shell). Rejects with
+ * CommandTimeoutError when the `timeout` option fired (Node reports the kill
+ * as killed+SIGTERM, or code ETIMEDOUT on some platforms) so callers can map
+ * timeouts distinctly from ordinary command failures.
+ */
 function run(cmd: string, args: string[], timeoutMs = 20000): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout, stderr) => {
-      if (err) reject(new Error((stderr || err.message || 'command failed').trim()));
-      else resolve(stdout);
+      if (err) {
+        if ((err.killed && err.signal === 'SIGTERM') || err.code === 'ETIMEDOUT') {
+          reject(new CommandTimeoutError(`${cmd} did not finish within ${timeoutMs}ms`));
+        } else {
+          reject(new Error((stderr || err.message || 'command failed').trim()));
+        }
+      } else {
+        resolve(stdout);
+      }
     });
   });
 }
@@ -161,6 +188,12 @@ export interface LoginItem {
   kind: 'login' | 'background';
   /** Short provenance line, e.g. the developer name or item type. */
   detail?: string;
+  /**
+   * Raw BTM Disposition string (e.g. "[enabled, disallowed]") — background
+   * items only. Surfaced so the UI (and humans) can see WHY an item is
+   * considered blocked without re-deriving it from `enabled`.
+   */
+  dispositionRaw?: string;
 }
 
 /** Render a macOS .app bundle's icon as a small PNG buffer (for the UI). */
@@ -207,16 +240,13 @@ async function pathExists(p: string): Promise<boolean> {
 
 /** Apple/system items we never show or touch — only user apps are managed. */
 function isUserLoginItem(name: string, path: string): boolean {
-  if (path.startsWith('/System/')) return false;
+  // Case-insensitive on purpose: default APFS is case-insensitive, so a
+  // "/SYSTEM/…" spelling would slip past an exact-match check.
+  if (path.toLowerCase().startsWith('/system/')) return false;
   if (/^com\.apple\./i.test(name)) return false;
   return true;
 }
 
-/**
- * List the user's "Open at Login" items via System Events. These are user apps
- * (Dropbox, Rectangle, …), not Apple system daemons. Requires Automation
- * permission for System Events the first time (macOS will prompt / -1743 if denied).
- */
 /**
  * macOS "Open at Login" items have no native disabled state — an item is either
  * in the list or not. To keep a turned-off app *visible as disabled* (instead of
@@ -227,12 +257,64 @@ const MAINT_FILE = 'maintenance.json';
 interface MaintStore {
   disabledLoginItems: { name: string; path: string }[];
 }
-async function getDisabled(): Promise<{ name: string; path: string }[]> {
-  const s = await readJsonFile<MaintStore>(MAINT_FILE, { disabledLoginItems: [] });
-  return Array.isArray(s.disabledLoginItems) ? s.disabledLoginItems : [];
+type DisabledEntry = MaintStore['disabledLoginItems'][number];
+const EMPTY_MAINT_STORE: MaintStore = { disabledLoginItems: [] };
+
+/**
+ * Read→mutate→write the disabled-login-items store under the per-file lock
+ * (storage.ts `withFileLock` convention) so concurrent toggles/listings can't
+ * lose each other's changes. withFileLock performs the write itself — never
+ * call writeJsonFile inside the callback (it would queue behind this very
+ * lock and deadlock). When the on-disk file is unreadable the lock
+ * quarantines it (bytes preserved) and flags `skipWrite`; like
+ * settings.persistLocked we retry once — the file is gone after quarantine,
+ * so the retry legitimately starts fresh — and throw only if the data dir is
+ * truly unwritable. Corrupt-file content is never "read" as a fallback and
+ * then overwritten.
+ */
+async function mutateDisabled(mutate: (list: DisabledEntry[]) => DisabledEntry[]): Promise<MaintStore> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let quarantined = false;
+    const next = await withFileLock<MaintStore>(MAINT_FILE, EMPTY_MAINT_STORE, (store, ctx) => {
+      // Snapshot the lock-set flag BEFORE mutating (mirrors settings.ts).
+      quarantined = ctx.skipWrite;
+      if (quarantined) return store; // unreadable — change nothing this cycle
+      // Corrupt/legacy shapes may hold a non-array value — start from []
+      // rather than crashing every login-item call.
+      const list = Array.isArray(store.disabledLoginItems) ? store.disabledLoginItems : [];
+      return { disabledLoginItems: mutate(list) };
+    });
+    if (!quarantined) return next;
+  }
+  throw new Error('maintenance.json was unreadable and could not be rewritten');
 }
-async function setDisabled(list: { name: string; path: string }[]): Promise<void> {
-  await writeJsonFile(MAINT_FILE, { disabledLoginItems: list });
+
+/**
+ * System Events osascripts get a long leash: the FIRST call after install can
+ * sit behind the macOS TCC Automation consent dialog until the user clicks
+ * "Allow" (or "Don't Allow"), and a busy System Events can take seconds per
+ * item. 120s covers both; a hit is surfaced as CommandTimeoutError, not a
+ * generic failure.
+ */
+const SYSTEM_EVENTS_TIMEOUT_MS = 120_000;
+
+/**
+ * Login-items listing result. `classicError` is null when the classic
+ * (System Events) source succeeded or wasn't requested; a message string
+ * means the classic query failed (TCC denial, timeout, …) while the
+ * consent-free BTM items were still delivered.
+ */
+export interface LoginItemsResult {
+  items: LoginItem[];
+  classicError: string | null;
+}
+
+const LOGIN_ITEMS_TTL_MS = 60_000;
+let loginItemsCache: { at: number; classic: boolean; items: LoginItem[]; classicError: string | null } | null = null;
+
+/** Drop the cached list (called after any enable/disable change). */
+export function invalidateLoginItemsCache(): void {
+  loginItemsCache = null;
 }
 
 /**
@@ -242,58 +324,68 @@ async function setDisabled(list: { name: string; path: string }[]): Promise<void
  *    OPT-IN (includeClassic) and only fetched when the user asks for it;
  *  - modern BTM background items via `sfltool dumpbtm` — needs NO consent,
  *    always included.
- * Results are cached for 60s so tab-hopping doesn't re-run the osascript
- * prompt; the cache is invalidated by setLoginItemEnabled.
+ * A classic-source failure does NOT fail the listing: the BTM items are
+ * returned regardless and the reason is reported as `classicError`. Results
+ * are cached for 60s so tab-hopping doesn't re-run the osascript prompt
+ * (classic failures are never cached, so a retry right after the user grants
+ * Automation consent takes effect immediately); the cache is invalidated by
+ * setLoginItemEnabled.
  */
-const LOGIN_ITEMS_TTL_MS = 60_000;
-let loginItemsCache: { at: number; classic: boolean; items: LoginItem[] } | null = null;
-
-/** Drop the cached list (called after any enable/disable change). */
-export function invalidateLoginItemsCache(): void {
-  loginItemsCache = null;
-}
-
-export async function listLoginItems(opts: { includeClassic?: boolean } = {}): Promise<LoginItem[]> {
+export async function listLoginItems(opts: { includeClassic?: boolean } = {}): Promise<LoginItemsResult> {
   const includeClassic = opts.includeClassic !== false;
-  if (process.platform !== 'darwin') return [];
+  if (process.platform !== 'darwin') return { items: [], classicError: null };
   if (
     loginItemsCache &&
     loginItemsCache.classic === includeClassic &&
     Date.now() - loginItemsCache.at < LOGIN_ITEMS_TTL_MS
   ) {
-    return loginItemsCache.items;
+    return { items: loginItemsCache.items, classicError: loginItemsCache.classicError };
   }
 
   const items: LoginItem[] = [];
   const activePaths = new Set<string>();
+  let classicError: string | null = null;
 
   if (includeClassic) {
-    const out = await run('osascript', [
-      '-e', 'tell application "System Events"',
-      '-e', 'set acc to ""',
-      '-e', 'repeat with li in login items',
-      '-e', 'set acc to acc & (name of li) & tab & (path of li) & tab & (hidden of li) & linefeed',
-      '-e', 'end repeat',
-      '-e', 'return acc',
-      '-e', 'end tell',
-    ]);
-    for (const line of out.split('\n')) {
-      if (!line.trim()) continue;
-      const [name, path, hidden] = line.split('\t');
-      if (!name || !path) continue;
-      if (!isUserLoginItem(name, path)) continue;
-      items.push({ name, path, hidden: hidden === 'true', enabled: true, kind: 'login' });
-      activePaths.add(path);
+    try {
+      const out = await run('osascript', [
+        '-e', 'tell application "System Events"',
+        '-e', 'set acc to ""',
+        '-e', 'repeat with li in login items',
+        '-e', 'set acc to acc & (name of li) & tab & (path of li) & tab & (hidden of li) & linefeed',
+        '-e', 'end repeat',
+        '-e', 'return acc',
+        '-e', 'end tell',
+      ], SYSTEM_EVENTS_TIMEOUT_MS);
+      for (const line of out.split('\n')) {
+        if (!line.trim()) continue;
+        const [name, path, hidden] = line.split('\t');
+        if (!name || !path) continue;
+        if (!isUserLoginItem(name, path)) continue;
+        items.push({ name, path, hidden: hidden === 'true', enabled: true, kind: 'login' });
+        activePaths.add(path);
+      }
+    } catch (e) {
+      // The classic list is best-effort: a System Events failure (missing
+      // Automation consent, timeout) must not sink the whole response — the
+      // BTM items below are still valid. Report the reason instead.
+      classicError = e instanceof Error ? e.message : String(e);
     }
-    // Merge back remembered-disabled apps that aren't currently active.
-    const disabled = await getDisabled();
-    for (const d of disabled) {
-      if (activePaths.has(d.path) || !isUserLoginItem(d.name, d.path)) continue;
-      items.push({ name: d.name, path: d.path, hidden: false, enabled: false, kind: 'login' });
-    }
-    // Prune any remembered-disabled that are active again (re-enabled elsewhere).
-    const stillDisabled = disabled.filter((d) => !activePaths.has(d.path));
-    if (stillDisabled.length !== disabled.length) await setDisabled(stillDisabled);
+  }
+
+  if (includeClassic && classicError === null) {
+    // Merge the remembered-disabled apps back in and prune the ones that came
+    // back active — one locked read→mutate→write cycle so a concurrent toggle
+    // can't be lost. (Only on classic success: without the live active list a
+    // prune could wrongly delete remembered entries.)
+    await mutateDisabled((disabled) => {
+      const stillDisabled = disabled.filter((d) => !activePaths.has(d.path));
+      for (const d of stillDisabled) {
+        if (!isUserLoginItem(d.name, d.path)) continue;
+        items.push({ name: d.name, path: d.path, hidden: false, enabled: false, kind: 'login' });
+      }
+      return stillDisabled;
+    });
   }
 
   // Modern background items (SMAppService / BTM — Adobe Creative Cloud & co.)
@@ -306,8 +398,10 @@ export async function listLoginItems(opts: { includeClassic?: boolean } = {}): P
   }
 
   items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  loginItemsCache = { at: Date.now(), classic: includeClassic, items };
-  return items;
+  if (classicError === null) {
+    loginItemsCache = { at: Date.now(), classic: includeClassic, items, classicError };
+  }
+  return { items, classicError };
 }
 
 /* ---------- Background Task Management items (sfltool dumpbtm) ---------- */
@@ -320,42 +414,129 @@ interface BtmRecord {
   identifier: string;
   url: string;
   executablePath: string;
+  /** "Generation" field — bumped each time an app re-registers the item. */
+  generation: number;
+  /** UID section the record was printed under (null when the dump has none). */
+  uid: number | null;
 }
 
 /**
- * Parse `sfltool dumpbtm` output. Records look like:
- *   " #3:\n    UUID: …\n    Name: DisplayLink Manager\n    Type: app (0x2)\n
- *      Disposition: [enabled, allowed, notified] (0xb)\n    URL: file:///…"
- * Split on the record markers, then pull the fields we care about.
+ * Parse `sfltool dumpbtm` output. The dump is organized in per-user sections
+ * and numbered records (real header shape: " Records for UID -2 : <uuid>",
+ * UIDs may be negative):
+ *    Records for UID 501 : …
+ *     #3:
+ *         UUID: …
+ *         Name: DisplayLink Manager
+ *         Type: app (0x2)
+ *         Disposition: [enabled, allowed, notified] (0xb)
+ *         URL: file:///Applications/DisplayLink%20Manager.app/
+ * Each record remembers its section UID (so duplicates can be resolved in
+ * favor of the current user) and its Generation (bumped on re-registration —
+ * tie-breaker for duplicates). The literal "(null)" that dumps emit for
+ * absent values is treated as an empty string for the text fields.
  */
 function parseBtmDump(out: string): BtmRecord[] {
   const records: BtmRecord[] = [];
-  for (const chunk of out.split(/^ #\d+:\s*$/m).slice(1)) {
-    const get = (key: string): string => {
-      const m = chunk.match(new RegExp(`^\\s+${key}:\\s*(.*)$`, 'm'));
-      return m ? m[1].trim() : '';
-    };
-    records.push({
-      name: get('Name'),
-      developer: get('Developer Name'),
-      type: get('Type'),
-      disposition: get('Disposition'),
-      identifier: get('Identifier'),
-      url: get('URL'),
-      executablePath: get('Executable Path'),
-    });
+  let sectionUid: number | null = null;
+  let current: BtmRecord | null = null;
+  const flush = (): void => {
+    if (current) records.push(current);
+    current = null;
+  };
+  const clean = (v: string): string => (v === '(null)' ? '' : v);
+
+  for (const line of out.split('\n')) {
+    // Section headers look like " Records for UID -2 : <UUID>" — UIDs can be
+    // negative (e.g. -2 = shared/system records) and the line carries a
+    // leading space and a trailing dump UUID, so match only the prefix.
+    const uidHeader = line.match(/^\s*Records for UID (-?\d+)/);
+    if (uidHeader) {
+      flush();
+      sectionUid = Number(uidHeader[1]);
+      continue;
+    }
+    const recordHeader = line.match(/^\s*#\d+:\s*$/);
+    if (recordHeader) {
+      flush();
+      current = {
+        name: '', developer: '', type: '', disposition: '', identifier: '',
+        url: '', executablePath: '', generation: -1, uid: sectionUid,
+      };
+      continue;
+    }
+    if (!current) continue;
+    const field = line.match(/^\s+([A-Za-z][A-Za-z0-9 ]*):\s*(.*)$/);
+    if (!field) continue;
+    const value = field[2].trim();
+    switch (field[1]) {
+      case 'Name': current.name = clean(value); break;
+      case 'Developer Name': current.developer = clean(value); break;
+      case 'Type': current.type = value; break;
+      case 'Disposition': current.disposition = value; break;
+      case 'Identifier': current.identifier = clean(value); break;
+      case 'URL': current.url = clean(value); break;
+      case 'Executable Path': current.executablePath = clean(value); break;
+      case 'Generation': {
+        const n = parseInt(value, 10);
+        current.generation = Number.isFinite(n) ? n : -1;
+        break;
+      }
+      default:
+        break; // fields we don't use (UUID, …)
+    }
   }
+  flush();
   return records;
 }
 
-/** Human label for the BTM "Type:" field. */
-function btmTypeLabel(type: string): string {
-  if (type.startsWith('app')) return 'App background item';
-  if (type.includes('daemon')) return 'Background daemon';
-  if (type.includes('agent')) return 'Background agent';
-  if (type.startsWith('developer')) return 'Background item';
-  if (type.startsWith('login')) return 'Login item';
-  return 'Background item';
+/**
+ * Derive the on-disk path from a BTM record: the payload URL when it is a
+ * proper file:// URL (percent-decoded; an optional localhost host is
+ * stripped), else the record's Executable Path. Bundle-relative or
+ * foreign-scheme URLs are not usable paths, so they fall back too. A trailing
+ * slash is stripped so e.g. the BTM bundle URL "/Applications/Foo.app/"
+ * matches the classic System Events path "/Applications/Foo.app" and the two
+ * sources dedupe into one entry (DisplayLink case).
+ */
+function btmRecordPath(r: BtmRecord): string {
+  let p = '';
+  if (/^file:\/\//i.test(r.url)) {
+    try {
+      let rest = r.url.slice('file://'.length);
+      if (/^localhost(?=\/)/i.test(rest)) rest = rest.slice('localhost'.length);
+      p = decodeURIComponent(rest);
+    } catch {
+      p = ''; // malformed percent-encoding — fall through to the executable path
+    }
+  }
+  if (!p) p = r.executablePath;
+  if (p.length > 1 && p.endsWith('/')) p = p.replace(/\/+$/, '');
+  return p;
+}
+
+/**
+ * Whether a BTM record actually runs. Its disposition must say "enabled" AND
+ * NOT "disallowed" — live dumps contain "[enabled, disallowed]" to mean the
+ * app registered itself but the item is blocked, so a naive enabled-substring
+ * check would misreport it as on.
+ */
+function btmEnabled(disposition: string): boolean {
+  const d = disposition.toLowerCase();
+  return d.includes('enabled') && !d.includes('disallowed');
+}
+
+/**
+ * Whether record `a` beats incumbent `b` when a dump contains duplicate BTM
+ * records (same identifier): records from the CURRENT user's UID section beat
+ * other users'; a higher Generation (bumped on re-registration) beats older
+ * ones; still tied → the incumbent (first seen) wins.
+ */
+function preferBtmRecord(a: BtmRecord, b: BtmRecord, myUid: number): boolean {
+  const aMine = a.uid === myUid;
+  const bMine = b.uid === myUid;
+  if (aMine !== bMine) return aMine;
+  return a.generation > b.generation;
 }
 
 /**
@@ -373,68 +554,127 @@ export async function listBackgroundItems(): Promise<LoginItem[]> {
   } catch {
     return []; // older macOS without sfltool, or BTM unavailable — not fatal
   }
-  const items: LoginItem[] = [];
-  const seen = new Set<string>();
+  // dumpbtm repeats records per UID section (console user + other local
+  // users). Dedupe preferring THIS process's uid, then the highest
+  // Generation, then first-seen — see preferBtmRecord.
+  const myUid = typeof process.getuid === 'function' ? process.getuid() : -1;
+  const best = new Map<string, { r: BtmRecord; p: string }>();
+
   for (const r of parseBtmDump(out)) {
     if (!r.name) continue;
     if (/apple/i.test(r.developer) || /^com\.apple\./i.test(r.identifier)) continue;
     // Records without a payload URL/executable are containers — skip them.
-    const rawUrl = r.url && r.url !== '(null)' ? r.url : '';
-    let p = '';
-    try {
-      p = rawUrl ? decodeURIComponent(rawUrl.replace(/^file:\/\//, '')) : r.executablePath;
-    } catch {
-      p = r.executablePath; // malformed percent-encoding — fall back
-    }
+    const p = btmRecordPath(r);
     if (!p) continue;
     const key = r.identifier || `${r.name}|${p}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const dev = r.developer && r.developer !== '(null)' && r.developer !== r.name ? r.developer : '';
+    const prev = best.get(key);
+    if (!prev || preferBtmRecord(r, prev.r, myUid)) best.set(key, { r, p });
+  }
+
+  const items: LoginItem[] = [];
+  for (const { r, p } of best.values()) {
+    // developer was already "(null)"-cleaned by the parser.
+    const dev = r.developer && r.developer !== r.name ? r.developer : '';
     items.push({
       name: r.name,
       path: p,
       hidden: false,
-      enabled: r.disposition.startsWith('[enabled'),
+      enabled: btmEnabled(r.disposition),
       kind: 'background',
       detail: dev ? `${dev} — ${btmTypeLabel(r.type)}` : btmTypeLabel(r.type),
+      dispositionRaw: r.disposition || undefined,
     });
   }
   return items;
 }
 
+/** Human label for the BTM "Type:" field. */
+function btmTypeLabel(type: string): string {
+  if (type.startsWith('app')) return 'App background item';
+  if (type.includes('daemon')) return 'Background daemon';
+  if (type.includes('agent')) return 'Background agent';
+  if (type.startsWith('developer')) return 'Background item';
+  if (type.startsWith('login')) return 'Login item';
+  return 'Background item';
+}
+
 /**
  * Enable or disable a login item. Disabling removes it from System Events but
  * *remembers* it so it stays listed as off; enabling re-adds it by path and
- * forgets it. macOS only; refuses Apple/system paths.
+ * forgets it. macOS only; refuses Apple/system paths and macOS-owned BTM
+ * items with typed errors (409) so the route never has to guess.
  */
 export async function setLoginItemEnabled(name: string, path: string, enabled: boolean): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('Login items are managed on macOS only');
-  if (!isUserLoginItem(name, path)) throw new Error('Refusing to modify a system login item');
+  // The route's guardBodyPath already sanitized, but this service is exported
+  // and callable directly — apply the shared sanitizer here too so traversal
+  // and blocklist rules always hold (PathRejectedError → 400 upstream), and
+  // work on the resolved absolute path (also expands a leading ~).
+  const cleanPath = sanitizePath(path);
+  if (!isUserLoginItem(name, cleanPath)) {
+    throw new AppError(409, 'LOGIN_ITEM_SYSTEM', 'Refusing to modify a system login item');
+  }
   // Only classic .app login items are toggleable through System Events.
   // Background (BTM) items point at executables/plists and are owned by macOS.
-  if (!path.endsWith('.app')) {
-    throw new Error('Background items are managed by macOS — toggle them in System Settings → General → Login Items & Extensions');
+  if (!cleanPath.endsWith('.app')) {
+    throw new AppError(
+      409,
+      'LOGIN_ITEM_BTM',
+      'Background items are managed by macOS — toggle them in System Settings → General → Login Items & Extensions'
+    );
   }
-  const disabled = await getDisabled();
 
   if (enabled) {
     await run('osascript', [
       '-e',
       `tell application "System Events" to make new login item at end with properties {path:"${appleScriptString(
-        path
+        cleanPath
       )}", hidden:false}`,
-    ]);
-    await setDisabled(disabled.filter((d) => d.path !== path));
+    ], SYSTEM_EVENTS_TIMEOUT_MS);
+    // Re-enabled → forget the remembered entry (one locked cycle).
+    await mutateDisabled((disabled) => disabled.filter((d) => d.path !== cleanPath));
   } else {
-    await run('osascript', [
-      '-e',
-      `tell application "System Events" to delete (every login item whose name is "${appleScriptString(name)}")`,
-    ]);
-    if (!disabled.some((d) => d.path === path)) {
-      disabled.push({ name, path });
-      await setDisabled(disabled);
+    // Delete by EXACT path, not by name: `whose name is X` removed EVERY
+    // same-named item (different apps can share a display name) while only
+    // the toggled path was remembered afterwards. Enumerate the matches
+    // first so EVERY deleted entry lands in the disabled store, then delete
+    // them all.
+    const esc = appleScriptString(cleanPath);
+    const out = await run('osascript', [
+      '-e', 'tell application "System Events"',
+      '-e', 'set acc to ""',
+      '-e', `repeat with li in (every login item whose path is "${esc}")`,
+      '-e', 'set acc to acc & (name of li) & tab & (path of li) & linefeed',
+      '-e', 'end repeat',
+      '-e', `delete (every login item whose path is "${esc}")`,
+      '-e', 'return acc',
+      '-e', 'end tell',
+    ], SYSTEM_EVENTS_TIMEOUT_MS);
+
+    const removed: DisabledEntry[] = [];
+    for (const line of out.split('\n')) {
+      if (!line.trim()) continue;
+      const [n, p] = line.split('\t');
+      if (!p) continue;
+      removed.push({ name: n || name, path: p });
     }
+    // Guarantee the toggled entry is remembered even when the enumeration
+    // came back empty (System Events may return nothing for the specifier).
+    if (!removed.some((r) => r.path === cleanPath)) removed.push({ name, path: cleanPath });
+    await mutateDisabled((disabled) => {
+      // Drop any remembered entries for the deleted paths, then append —
+      // deduped by path so deleting duplicates of one app can't double-book
+      // the store.
+      const keep = disabled.filter((d) => !removed.some((r) => r.path === d.path));
+      const merged: DisabledEntry[] = [];
+      const seen = new Set<string>();
+      for (const e of [...keep, ...removed]) {
+        if (seen.has(e.path)) continue;
+        seen.add(e.path);
+        merged.push(e);
+      }
+      return merged;
+    });
   }
   invalidateLoginItemsCache();
 }
@@ -523,8 +763,10 @@ export async function listLaunchAgents(): Promise<LaunchAgent[]> {
 /**
  * Enable or disable a user LaunchAgent via launchctl bootstrap/bootout in the
  * GUI domain (gui/<uid>). Read/modify is confined to ~/Library/LaunchAgents —
- * the caller passes a path already pinned there. macOS only, no sudo (user
- * agents live in the user's own domain).
+ * the caller passes a path already pinned there. Disabling records a
+ * `launchctl disable` override (so the agent stays off across logins) before
+ * unloading it. macOS only, no sudo (user agents live in the user's own
+ * domain).
  */
 export async function setLaunchAgentEnabled(agentPath: string, enabled: boolean): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('LaunchAgents are managed on macOS only');
@@ -543,6 +785,15 @@ export async function setLaunchAgentEnabled(agentPath: string, enabled: boolean)
     await run('launchctl', ['enable', `gui/${uid}/${label}`], 8000).catch(() => {});
     await run('launchctl', ['bootstrap', `gui/${uid}`, agentPath], 8000);
   } else {
+    // Read the Label the same way the enable branch does, then record the
+    // disable BEFORE booting out: `bootout` only unloads the agent for the
+    // current session, while `launchctl disable` writes the override that
+    // keeps it off across logouts/reboots. After bootout the label is gone
+    // from the domain, so the order matters. A failed disable step (e.g.
+    // already-disabled) must not block the unload.
+    const j = await readPlistJson(agentPath);
+    const label = typeof j.Label === 'string' && j.Label.trim() ? j.Label.trim() : path.basename(agentPath, '.plist');
+    await run('launchctl', ['disable', `gui/${uid}/${label}`], 8000).catch(() => {});
     await run('launchctl', ['bootout', `gui/${uid}`, agentPath], 8000);
   }
 }

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import {
   runMaintenance, runMaintenanceInTerminal, listLoginItems, setLoginItemEnabled, getAppIconPng,
-  listLaunchAgents, setLaunchAgentEnabled,
+  listLaunchAgents, setLaunchAgentEnabled, CommandTimeoutError,
 } from '../services/maintenance';
 import { guardQueryPath, guardBodyPath } from '../middleware/pathGuard';
 import { AppError } from '../middleware/errorHandler';
@@ -67,33 +67,32 @@ maintenanceRouter.get('/maintenance/app-icon', guardQueryPath('path'), async (re
 });
 
 /**
- * GET /api/maintenance/login-items → { items, classic }
+ * GET /api/maintenance/login-items → { items, classic, classicError }
  * Default (`classic` absent) returns only consent-free sources (BTM via
  * sfltool + nothing from System Events) so simply opening the tab never
  * triggers an Automation prompt. `?classic=1` additionally queries System
- * Events "Open at Login" apps — the only call that can prompt for
- * Automation consent (or fail with -1743).
+ * Events "Open at Login" apps — the only call that can prompt for Automation
+ * consent (or fail with -1743). A classic-source failure does NOT fail the
+ * request: the consent-free BTM items are returned regardless and the reason
+ * is reported in `classicError` (null = classic succeeded or wasn't
+ * requested), so a denied/hung System Events can no longer hide the whole list.
  */
 maintenanceRouter.get('/maintenance/login-items', async (req: Request, res: Response) => {
   requireMac();
   const includeClassic = req.query.classic === '1' || req.query.classic === 'true';
-  try {
-    res.json({ items: await listLoginItems({ includeClassic }), classic: includeClassic });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (isAutomationDenied(msg)) {
-      throw new AppError(
-        403,
-        'AUTOMATION_DENIED',
-        'MacCleaner needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
-      );
-    }
-    throw new AppError(500, 'LOGIN_ITEMS_FAILED', msg);
-  }
+  const { items, classicError } = await listLoginItems({ includeClassic });
+  res.json({ items, classic: includeClassic, classicError });
 });
 
-/** POST /api/maintenance/login-items { name, path, enabled } → { ok } */
-maintenanceRouter.post('/maintenance/login-items', async (req: Request, res: Response) => {
+/**
+ * POST /api/maintenance/login-items { name, path, enabled } → { ok }
+ * guardBodyPath sanitizes the path before anything else (traversal/blocklist
+ * → 400 via the shared error handler). The service raises typed refusals the
+ * route passes through unchanged: 409 for Apple/system and macOS-owned BTM
+ * items, plus 403 AUTOMATION_DENIED (missing Automation consent) and 504
+ * AUTOMATION_TIMEOUT (System Events hung) instead of a generic 500.
+ */
+maintenanceRouter.post('/maintenance/login-items', guardBodyPath, async (req: Request, res: Response) => {
   requireMac();
   const { name, path, enabled } = (req.body ?? {}) as { name?: string; path?: string; enabled?: boolean };
   if (!name || !path) {
@@ -103,6 +102,8 @@ maintenanceRouter.post('/maintenance/login-items', async (req: Request, res: Res
     await setLoginItemEnabled(name, path, enabled !== false);
     res.json({ ok: true });
   } catch (err) {
+    // The service already classified its refusals (400/409) — pass them on.
+    if (err instanceof AppError) throw err;
     const msg = err instanceof Error ? err.message : String(err);
     if (isAutomationDenied(msg)) {
       throw new AppError(
@@ -110,6 +111,9 @@ maintenanceRouter.post('/maintenance/login-items', async (req: Request, res: Res
         'AUTOMATION_DENIED',
         'MacCleaner needs permission to control System Events. Allow it in System Settings → Privacy & Security → Automation.'
       );
+    }
+    if (err instanceof CommandTimeoutError) {
+      throw new AppError(504, 'AUTOMATION_TIMEOUT', 'System Events did not respond in time — try again when the Mac is idle.');
     }
     throw new AppError(500, 'LOGIN_ITEM_FAILED', msg);
   }

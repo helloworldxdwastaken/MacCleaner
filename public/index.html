@@ -5,23 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>MacCleaner — macOS Cleaner Suite</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236A5BFF'/%3E%3Cstop offset='.55' stop-color='%233E7BFA'/%3E%3Cstop offset='1' stop-color='%2300C6FB'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='96' height='96' rx='22' fill='url(%23f)'/%3E%3Cg fill='%23fff'%3E%3Crect x='21' y='23' width='30' height='50' rx='8'/%3E%3Crect x='55' y='23' width='20' height='23' rx='6' opacity='.72'/%3E%3Crect x='55' y='50' width='9' height='23' rx='4' opacity='.52'/%3E%3Crect x='67' y='50' width='8' height='23' rx='3' opacity='.9'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="/assets/favicon-32.png">
 <script>
-/* Apply saved theme before first paint to avoid a flash. 'system' (or unset)
-   follows the OS; 'light'/'dark' are explicit. */
+/* Theme is locked to light (CleanMyMac-style chrome) before first paint.
+   Liquid-Glass path: only the macOS Electron build gets translucency —
+   window.treemapDesktop is exposed exclusively by the Electron preload, so its
+   presence means "desktop build"; we additionally require macOS so win/linux
+   desktop builds keep the solid look. Everything under .vibrant in the
+   stylesheet is gated on this class. */
 (function () {
-  var pref = localStorage.getItem('tm-theme') || 'system';
-  var sysLight = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches;
-  document.documentElement.dataset.theme =
-    pref === 'light' || pref === 'dark' ? pref : (sysLight ? 'light' : 'dark');
+  document.documentElement.dataset.theme = 'light';
 
-  /* Liquid-Glass path. Only the macOS Electron build gets translucency: it's
-     the one place a native "under-window" vibrancy material sits behind the
-     web contents. window.treemapDesktop is exposed exclusively by the Electron
-     preload, so its presence means "desktop build"; we additionally require
-     macOS so win/linux desktop builds keep today's solid look. Everything under
-     .vibrant in the stylesheet is gated on this class — without it (browser
-     preview, win/linux) the UI renders exactly as before. */
   var ua = navigator.userAgentData;
   var isMac =
     (ua && ua.platform && /mac/i.test(ua.platform)) ||
@@ -102,13 +96,13 @@
   --blur-2: 30px;   /* rail + overlays */
 }
 :root[data-theme="light"] {
-  --bg-0:          #eef0f4;
-  --bg-1:          #f6f7f9;
+  --bg-0:          #f5f6f8;
+  --bg-1:          #fbfbfd;
   --surface-1:     rgba(10,15,30,0.04);
   --surface-2:     rgba(10,15,30,0.07);
   --surface-3:     rgba(10,15,30,0.11);
-  --glass:         rgba(255,255,255,0.66);
-  --glass-strong:  rgba(252,252,254,0.95);
+  --glass:         rgba(255,255,255,0.80);
+  --glass-strong:  rgba(252,252,254,0.96);
   --hairline:      rgba(10,15,30,0.10);
   --hairline-2:    rgba(10,15,30,0.18);
   --shine:         rgba(255,255,255,0.65);
@@ -125,28 +119,28 @@
   --shadow-1: 0 1px 2px rgba(20,24,40,0.08);
   --shadow-2: 0 8px 28px rgba(20,24,40,0.12);
   --shadow-3: 0 24px 70px rgba(20,24,40,0.18);
-  --blob-opacity: 0.4;
+  --blob-opacity: 0.35;
 
-  /* ── Branded painted backdrop (light) ──
-     A soft light counterpart: very light blue/lavender wash with faint
-     brand-color blobs, so glass surfaces still read against it. */
-  --canvas-base: #eef1f9;                                   /* light lavender-blue base */
-  --blob-a: rgba(106,91,255,0.16);                          /* indigo, top-left */
-  --blob-b: rgba(0,198,251,0.14);                           /* cyan, bottom-right */
-  --blob-c: rgba(62,123,250,0.12);                          /* blue, mid-right */
+  /* ── Branded painted backdrop (light, whole-app soft gradient) ──
+     Soft mint-white base with gentle green/teal + violet accent blobs —
+     ambient, never hard (CMM-style wash behind every screen). */
+  --canvas-base: #f0f5f2;                                   /* soft mint-white */
+  --blob-a: rgba(106,91,255,0.22);                          /* violet accent, top-left */
+  --blob-b: rgba(38,208,133,0.30);                          /* green, bottom-right */
+  --blob-c: rgba(46,196,182,0.22);                          /* teal, mid-right */
 
   /* ── Liquid-Glass tokens (light) ──
      Whiter, higher-alpha surfaces so dark text stays readable over bright
      wallpapers; borders are dark hairlines. */
-  --glass-bg:        rgba(255,255,255,0.66);
-  --glass-bg-strong: rgba(255,255,255,0.82);
+  --glass-bg:        rgba(255,255,255,0.80);
+  --glass-bg-strong: rgba(255,255,255,0.94);
   --glass-border:    rgba(255,255,255,0.60);
   --glass-border-2:  rgba(10,15,30,0.16);
   --glass-shadow:    0 10px 34px rgba(20,24,40,0.14);
   --glass-shadow-lg: 0 26px 74px rgba(20,24,40,0.20);
-  --glass-wash:      rgba(255,255,255,0.34);
-  --glass-rail:      rgba(255,255,255,0.62);
-  --glass-fill:      rgba(255,255,255,0.55);
+  --glass-wash:      rgba(255,255,255,0.50);
+  --glass-rail:      rgba(255,255,255,0.78);
+  --glass-fill:      rgba(255,255,255,0.60);
   --glass-fill-2:    rgba(255,255,255,0.72);
   --blur-1: 16px;
   --blur-2: 30px;
@@ -160,6 +154,18 @@ html, body { height: 100%; }
    the bright-white scrollbar that showed in dark mode. */
 :root[data-theme="dark"]  { color-scheme: dark; }
 :root[data-theme="light"] { color-scheme: light; }
+
+/* Hidden-inset title bar: drag regions (Electron .vibrant builds only).
+   The brand row in the sidebar and a thin fixed strip across the main content
+   top act as the title bar. The strip sits below modals (z 100+) and toasts so
+   it never blocks them; it only overlays the main area's top padding. */
+.titlebar-drag { display: none; }
+html.vibrant .titlebar-drag {
+  display: block; position: fixed; top: 0; left: 242px; right: 0; height: 16px;
+  -webkit-app-region: drag; z-index: 90; pointer-events: auto;
+}
+html.vibrant .side-logo { -webkit-app-region: drag; }
+html.vibrant .side-logo button { -webkit-app-region: no-drag; }
 
 /* Thin, macOS-style translucent scrollbars for every scroll container: no solid
    track (transparent), a rounded thumb tinted from the theme's text color,
@@ -178,10 +184,6 @@ html, body { height: 100%; }
 :root[data-theme="light"] {
   --scrollbar-thumb: rgba(10,15,30,0.24);
   --scrollbar-thumb-hover: rgba(10,15,30,0.40);
-}
-:root[data-theme="dark"] {
-  --scrollbar-thumb: rgba(255,255,255,0.22);
-  --scrollbar-thumb-hover: rgba(255,255,255,0.38);
 }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -213,8 +215,94 @@ body::before {
     radial-gradient(55% 55% at 92% 34%,  var(--blob-c), transparent 58%),
     var(--canvas-base);
 }
-/* Legacy ambient blobs are superseded by the painted backdrop above. */
-.blob { display: none; }
+
+/* ════════════════════════ Per-page tinted views ════════════════════════
+   Each page picks a wallpaper (body[data-pagebg]) matching that section's
+   logo color, FULL-APP (body::before paints it edge to edge). Text goes white
+   and cards become frosted glass (10% white + blur). Scoped CSS-var overrides
+   do most of the work. */
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) {
+  color: #fff;
+  --text-1: rgba(255,255,255,0.96);
+  --text-2: rgba(255,255,255,0.74);
+  --text-3: rgba(255,255,255,0.52);
+  --hairline: rgba(255,255,255,0.16);
+  --hairline-2: rgba(255,255,255,0.30);
+  --shine: rgba(255,255,255,0.14);
+  --surface-1: rgba(255,255,255,0.10);
+  --surface-2: rgba(255,255,255,0.14);
+  --surface-3: rgba(255,255,255,0.22);
+  --accent-soft: rgba(255,255,255,0.14);
+  --tm-canvas-bg: rgba(0,0,0,0.22);
+  --skeleton-a: rgba(255,255,255,0.08);
+  --skeleton-b: rgba(255,255,255,0.16);
+}
+/* Full-app wallpaper: body::before swaps to the active page's gradient.
+   Softened: desaturate + lift so colors read as a gentle wash, not a neon
+   block — white text still has contrast via the dark overlay. */
+body[data-pagebg]::before { filter: saturate(0.58) brightness(1.18); }
+body[data-pagebg="dashboard"]::before   { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-dashboard.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="fastclean"]::before   { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-fastclean.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="treemap"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-treemap.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="duplicates"]::before  { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-duplicates.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="maintenance"]::before { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-maintenance.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="fans"]::before        { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-fans.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="apps"]::before        { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-apps.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="updater"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-updater.jpg'); background-size: cover; background-position: center; }
+body[data-pagebg="privacy"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-privacy.jpg'); background-size: cover; background-position: center; }
+
+/* Sidebar over the wallpaper: dark frosted glass, white text (CMM style). */
+body[data-pagebg] .sidebar {
+  color: var(--text-1); /* re-resolve inherited color inside the scoped vars */
+  background: rgba(12,14,34,0.34);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 8px 28px rgba(8,12,30,0.30);
+  --text-1: rgba(255,255,255,0.94);
+  --text-2: rgba(255,255,255,0.66);
+  --text-3: rgba(255,255,255,0.42);
+  --hairline: rgba(255,255,255,0.12);
+  --hairline-2: rgba(255,255,255,0.24);
+  --shine: rgba(255,255,255,0.10);
+  --surface-1: rgba(255,255,255,0.07);
+  --surface-2: rgba(255,255,255,0.10);
+  --surface-3: rgba(255,255,255,0.16);
+}
+
+/* Frosted-glass cards: 10% white + backdrop blur over the page gradient. */
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .card.glass {
+  background: rgba(255,255,255,0.10);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-color: rgba(255,255,255,0.16);
+  box-shadow: 0 10px 30px rgba(8,12,30,0.25), inset 0 1px 0 rgba(255,255,255,0.16);
+}
+/* Inputs/selects on tinted pages (browser default would be solid white). */
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy)
+  input[type="text"], :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy)
+  input[type="number"], :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) select {
+  background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.24); color: #fff;
+}
+/* Native dropdown lists (<option>) render outside this page's white-text var
+   scope — pin a solid dark fill or they'd be white-on-white on tinted pages. */
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) select option {
+  background: #1c1c24; color: #fff;
+}
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger {
+  color: #ff8d85; border-color: rgba(255,107,74,0.45); background: rgba(255,69,58,0.20);
+}
+:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger:hover {
+  background: rgba(255,69,58,0.32);
+}
 
 /* ════════════════════════════ Primitives ════════════════════════════ */
 .glass {
@@ -289,21 +377,6 @@ select option { background: var(--glass-strong); color: var(--text-1); }
 
 .logo { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
 .logo .sub { font-weight: 400; color: var(--text-3); font-size: 12px; margin-left: 2px; }
-.tabbar {
-  display: flex; background: var(--surface-1); border: 1px solid var(--hairline);
-  border-radius: 11px; padding: 3px; gap: 2px; margin: 0 auto;
-}
-.tabbar button {
-  display: inline-flex; align-items: center; gap: 7px;
-  border: none; background: transparent; color: var(--text-2);
-  font-size: 13px; font-weight: 500; padding: 7px 18px; border-radius: 8px; cursor: pointer;
-  transition: color var(--dur-1) var(--ease), background var(--dur-2) var(--ease);
-}
-.tabbar button:hover { color: var(--text-1); }
-.tabbar button[aria-selected="true"] {
-  background: var(--surface-3); color: var(--text-1);
-  box-shadow: inset 0 1px 0 var(--shine), var(--shadow-1);
-}
 
 /* ════════════════════════════ Sidebar (CleanMyMac-style) ════════════════════════════ */
 .sidebar {
@@ -331,6 +404,9 @@ select option { background: var(--glass-strong); color: var(--text-1); }
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 .side-item .ic { color: var(--text-3); flex: none; transition: color var(--dur-1) var(--ease); }
+/* 3D section icons (CleanMyMac-style sidebar) */
+.s3d { flex: none; display: block; filter: drop-shadow(0 1px 2px rgba(20,24,40,0.18)); }
+.s3d-logo { flex: none; display: block; filter: drop-shadow(0 1px 3px rgba(20,24,40,0.22)); }
 .side-item:hover:not(:disabled) { background: var(--surface-3); color: var(--text-1); }
 .side-item:hover:not(:disabled) .ic { color: var(--text-2); }
 .side-item[aria-current="true"] {
@@ -406,19 +482,17 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 @keyframes viewIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ── Dashboard ── */
-.dash-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 16px; align-items: start; }
+  .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
 .dash-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-/* Dashboard hero: gauge on the left, stat tiles + CTA on the right */
-.dash-hero { margin-bottom: 16px; }
-.hero-sys { margin-left: auto; font-size: 12px; font-weight: 400; }
-.hero-sys b { font-weight: 500; color: var(--text-2); }
+/* Dashboard hero: gauge + stat tiles (now a grid card) */
+
 .hero-body { display: flex; align-items: center; gap: 28px; }
 .hero-ring { width: 132px; height: 132px; }
 .hero-ring svg { width: 100%; height: 100%; }
 .hero-ring .ring-label b { font-size: 26px; }
 .hero-right { flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.hero-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.hero-tiles { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .hero-tile { background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-md);
   padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
   box-shadow: inset 0 1px 0 var(--shine); }
@@ -426,12 +500,30 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   text-transform: uppercase; color: var(--text-2); white-space: nowrap; }
 .hero-tile b { font-size: 17px; font-weight: 600; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
+/* Uniform page hero — every tinted page opens with its section icon at the
+   exact same place: centered at the top, same size, same spacing. */
+.page-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; margin: 14px 0 26px; color: #fff; }
+.page-hero .hi { width: 170px; height: 170px; filter: drop-shadow(0 16px 34px rgba(8,12,30,0.35)); }
+.page-hero h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+.page-hero .ph-sub { font-size: 13.5px; color: var(--text-2); max-width: 560px; }
+.page-hero .ph-meta { font-size: 12px; color: var(--text-2); }
+.page-hero .ph-meta b { font-weight: 500; }
+/* Uniform content width + stretch on every page */
+.page-wrap { max-width: 1180px; margin: 0 auto; }
+
 .hero-cta { min-height: 46px; padding: 0 26px; font-size: 14px; font-weight: 600; border-radius: 12px;
   justify-content: center; align-self: stretch;
+  /* CleanMyMac-green primary CTA */
+  background: linear-gradient(180deg, #26D085, #0EAE8C); border-color: transparent; color: #fff;
+  box-shadow: 0 4px 18px rgba(14,174,140,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
   transition: background var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease),
               transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease); }
-.hero-cta:hover { transform: translateY(-1px); }
+.hero-cta:hover { background: linear-gradient(180deg, #2BDA8E, #10BD97); transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(14,174,140,0.42), inset 0 1px 0 rgba(255,255,255,0.3); }
 .hero-cta:active { transform: translateY(0); }
+/* 3D hero/empty-state mark done-state glow (the mark is #fcMark3d — it swaps
+   to the dashboard icon while the Mac is clean; base shadow comes from .hi). */
+#fcMark3d.fc-done { filter: drop-shadow(0 10px 26px rgba(14,174,140,0.45)); }
 @media (max-width: 1280px) {
   .hero-body { flex-wrap: wrap; justify-content: center; }
   .hero-right { flex-basis: 100%; }
@@ -439,6 +531,20 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 
 /* Dashboard live temps + fans mini-panel */
 .dash-sensors { display: flex; flex-direction: column; gap: 12px; }
+/* Live CPU/RAM/battery gauges (Dashboard + Performance view) */
+.perf-live { display: flex; flex-direction: column; gap: 11px; }
+.pl-row { display: flex; align-items: center; gap: 10px; }
+.pl-k { flex: none; width: 52px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; color: var(--text-2); text-transform: uppercase; }
+.pl-track { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.pl-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, #6A5BFF, #3E7BFA); transition: width var(--dur-2) var(--ease); }
+.pl-fill.cpu { background: linear-gradient(90deg, #F472B6, #D946EF); }
+.pl-fill.ram { background: linear-gradient(90deg, #6A7BFF, #4C5BD4); }
+.pl-fill.bat { background: linear-gradient(90deg, #26D085, #0EAE8C); }
+.pl-fill.low { background: linear-gradient(90deg, #FF6B4A, #E8452C); }
+.pl-fill.chg { background: linear-gradient(90deg, #26D085, #0FB57A); }
+.pl-v { flex: none; width: 58px; text-align: right; font-size: 12.5px; font-weight: 600; color: var(--text-1); }
+.pl-v.chg { color: #0EAE8C; }
+.pl-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
 .ds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ds-tile { padding: 11px 13px; border-radius: var(--r-md); background: var(--surface-1);
   border: 1px solid var(--hairline); box-shadow: inset 0 1px 0 var(--shine); min-width: 0; }
@@ -459,30 +565,12 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .ds-fanrow .ds-fanval { font-size: 13px; font-weight: 600; }
 .ds-fanrow .ds-chev { display: inline-flex; color: var(--text-3); flex: none; }
 
-/* Dashboard quick actions */
-.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.qa-tile { display: flex; align-items: center; gap: 13px; padding: 14px 16px; border-radius: 14px;
-  background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-1); font: inherit; cursor: pointer; text-align: left;
-  box-shadow: inset 0 1px 0 var(--shine);
-  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
-              transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease); }
-.qa-tile:hover { background: var(--surface-2); border-color: var(--hairline-2); transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 var(--shine), var(--shadow-2); }
-.qa-tile:active { transform: translateY(0); box-shadow: inset 0 1px 0 var(--shine); }
-.qa-tile .chip { width: 40px; height: 40px; border-radius: 11px; flex: none; }
-.qa-tile .qa-lab { font-size: 13.5px; font-weight: 600; }
-
-/* Dashboard storage-trend card */
-.dash-trend-sel { max-width: 240px; font-size: 12px; }
-#trendChart { display: block; width: 100%; border-radius: 10px; }
-
 /* ── Disk Map (merged Treemap ⇄ Grid) ── */
 .dm-empty { display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 62vh; text-align: center; gap: 12px; }
 /* A class-level `display` beats the UA `[hidden]` rule — pin hidden explicitly. */
 .dm-empty[hidden] { display: none; }
 .dm-inline-empty[hidden] { display: none; }
-.dm-empty .mark { filter: drop-shadow(0 16px 50px var(--accent-glow)); }
 .dm-empty h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-top: 6px; }
 .dm-empty p { color: var(--text-2); font-size: 13.5px; max-width: 480px; line-height: 1.6; }
 .dm-empty .dm-scan-row { width: 100%; max-width: 560px; margin-top: 6px; }
@@ -496,12 +584,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .dm-inline-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
   min-height: 46vh; color: var(--text-3); text-align: center; }
 .dm-inline-empty .ic { color: var(--text-3); }
-.act-log { display: flex; flex-direction: column; gap: 1px; max-height: 360px; overflow-y: auto; }
-.act-item { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--hairline); }
-.act-item:last-child { border-bottom: none; }
-.act-item .meta { min-width: 0; flex: 1; }
-.act-item .nm { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.act-item .sub { font-size: 11px; color: var(--text-3); }
 .card { padding: 22px; }
 .card h2 { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600;
   letter-spacing: 0.02em; color: var(--text-1); margin-bottom: 16px; }
@@ -645,22 +727,19 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
   text-align: center; min-height: 66vh; gap: 2px; padding: 12px 0; }
 .fc-panel { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .fc-off { display: none !important; }
-.fc-mark { width: 74px; height: 74px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
-  background: var(--surface-1); border: 1px solid var(--hairline); color: var(--accent); }
-.fc-mark .ic { width: 38px; height: 38px; }
-.fc-mark.fc-done { color: #30D158; }
 .fc-title { font-size: 30px; font-weight: 700; letter-spacing: -0.6px; margin: 12px 0 4px; }
 .fc-sub { color: var(--text-3); font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
 .fc-opts { width: 100%; max-width: 720px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
 .fc-rlist { width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 8px; text-align: left; }
 .fc-status { font-size: 12px; color: var(--text-3); min-height: 16px; margin: 2px 0 0; }
-.fc-cta { position: relative; margin-top: 18px; width: 112px; height: 112px; border-radius: 50%; cursor: pointer;
-  border: 2px solid var(--accent); color: var(--text-1);
-  background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 70%);
+.fc-cta { --fc-green: #0EAE8C;
+  position: relative; margin-top: 18px; width: 112px; height: 112px; border-radius: 50%; cursor: pointer;
+  border: 2px solid var(--fc-green); color: var(--text-1);
+  background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--fc-green) 24%, transparent), transparent 70%);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--fc-green) 8%, transparent);
   transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease), opacity var(--dur-1) var(--ease); }
-.fc-cta:hover:not(:disabled) { transform: scale(1.04); box-shadow: 0 0 0 11px color-mix(in srgb, var(--accent) 13%, transparent); }
+.fc-cta:hover:not(:disabled) { transform: scale(1.04); box-shadow: 0 0 0 11px color-mix(in srgb, var(--fc-green) 13%, transparent); }
 .fc-cta:disabled { opacity: 0.45; cursor: default; }
 .fc-cta-main { font-size: 18px; font-weight: 600; }
 .fc-cta-sub { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
@@ -669,7 +748,7 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .fc-cta.cleaning .fc-cta-main, .fc-cta.cleaning .fc-cta-sub { opacity: 0; }
 .fc-cta.cleaning::after {
   content: ''; position: absolute; inset: -3px; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0deg, var(--accent) 90deg, transparent 210deg);
+  background: conic-gradient(from 0deg, transparent 0deg, var(--fc-green) 90deg, transparent 210deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
   mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
   animation: fcSpin 0.9s linear infinite;
@@ -903,9 +982,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 
 /* ════════════════════════════ Fans view (TG Pro-style) ════════════════════════════ */
 .fans-wrap { max-width: 1180px; }
-.fans-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-.fans-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 11px; }
-.fans-head h1 .ic { color: var(--accent); }
 .status-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 99px;
   font-size: 12px; font-weight: 600; border: 1px solid var(--hairline);
   background: var(--surface-1); color: var(--text-2); }
@@ -913,6 +989,9 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .status-pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent);
   background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .status-pill.ok .dot { background: var(--ok); }
+.status-pill.warn { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.status-pill.warn .dot { background: var(--danger); }
 .status-pill.boost { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   background: var(--accent-soft); }
 .status-pill.boost .dot { background: var(--accent); animation: pulse 1.6s var(--ease) infinite; }
@@ -1030,6 +1109,10 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   line-height: 1.5; margin-top: 14px; }
 .safety-line .ic { color: var(--text-3); flex: none; margin-top: 1px; }
 .fans-foot { margin-top: 18px; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); }
+.fan-lite { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 6px; flex-wrap: wrap; }
+.fan-lite span { font-size: 12px; color: var(--text-2); }
+.ob-dismiss { border: none; background: none; color: var(--text-3); font: inherit; font-size: 12.5px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+.ob-dismiss:hover { color: var(--text-1); background: var(--surface-2); }
 .fans-foot .link-btn { border: none; background: none; color: var(--text-3); font: inherit; font-size: 11.5px;
   text-decoration: underline; cursor: pointer; padding: 0; }
 .fans-foot .link-btn:hover { color: var(--text-2); }
@@ -1113,7 +1196,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   border-color: var(--glass-border);
 }
 .vibrant .seg,
-.vibrant .tabbar,
 .vibrant input[type="text"],
 .vibrant input[type="number"],
 .vibrant select {
@@ -1121,7 +1203,6 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   border-color: var(--glass-border);
 }
 .vibrant .seg button[aria-selected="true"],
-.vibrant .tabbar button[aria-selected="true"],
 .vibrant .side-item[aria-current="true"],
 .vibrant .prefs-tab[aria-selected="true"] {
   background: var(--glass-fill-2);
@@ -1149,166 +1230,127 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   .vibrant .tile, .vibrant .ds-tile, .vibrant .qa-tile, .vibrant .ds-fanrow, .vibrant .sensor,
   .vibrant .gcell, .vibrant .fc-item, .vibrant .lang-opt,
   .vibrant .apps-search, .vibrant .status-pill, .vibrant .mode-chip,
-  .vibrant .seg, .vibrant .tabbar, .vibrant .btn,
+  .vibrant .seg, .vibrant .btn,
   .vibrant input[type="text"], .vibrant input[type="number"], .vibrant select {
     background: var(--surface-1); border-color: var(--hairline); }
 }
 </style>
 </head>
 <body>
-<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<div class="titlebar-drag" aria-hidden="true"></div>
 
 <aside class="sidebar" role="navigation" aria-label="Sections">
   <div class="logo side-logo">
-    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-      <defs>
-        <linearGradient id="sideMark" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#6A5BFF"/>
-          <stop offset="0.55" stop-color="#3E7BFA"/>
-          <stop offset="1" stop-color="#00C6FB"/>
-        </linearGradient>
-      </defs>
-      <g fill="url(#sideMark)">
-        <rect x="4" y="3" width="12" height="26" rx="4"/>
-        <rect x="19" y="3" width="10" height="12" rx="3"/>
-        <rect x="19" y="18" width="10" height="11" rx="3"/>
-      </g>
-    </svg>
+    <img class="s3d-logo" src="/assets/icon-logo-64.png" alt="" width="30" height="30">
     <span>MacCleaner</span>
   </div>
-  <button class="side-item" data-view="dashboard"><span data-icon="dashboard"></span>Dashboard</button>
-  <button class="side-item" data-view="fastclean"><span data-icon="sparkles"></span>Smart Scan</button>
+  <button class="side-item" data-view="dashboard"><img class="s3d" src="/assets/icon-dashboard-64.png" alt="" width="22" height="22">Dashboard</button>
+  <button class="side-item" data-view="fastclean"><img class="s3d" src="/assets/icon-smartscan-64.png" alt="" width="22" height="22">Smart Scan</button>
 
   <div class="side-group">
     <div class="side-head">Speed</div>
-    <button class="side-item" data-view="maintenance"><span data-icon="settings"></span>Performance</button>
-    <button class="side-item" data-view="fans"><span data-icon="fan"></span>Fans</button>
+    <button class="side-item" data-view="maintenance"><img class="s3d" src="/assets/icon-performance-64.png" alt="" width="22" height="22">Performance</button>
+    <button class="side-item" data-view="fans"><img class="s3d" src="/assets/icon-fans-64.png" alt="" width="22" height="22">Fans</button>
   </div>
 
   <div class="side-group">
     <div class="side-head">Applications</div>
-    <button class="side-item" data-view="apps"><span data-icon="box"></span>Uninstaller</button>
-    <button class="side-item" data-view="updater"><span data-icon="refresh"></span>Updater</button>
+    <button class="side-item" data-view="apps"><img class="s3d" src="/assets/icon-uninstaller-64.png" alt="" width="22" height="22">Uninstaller</button>
+    <button class="side-item" data-view="updater"><img class="s3d" src="/assets/icon-updater-64.png" alt="" width="22" height="22">Updater</button>
   </div>
 
   <div class="side-group">
     <div class="side-head">Files</div>
-    <button class="side-item" data-view="treemap"><span data-icon="treemap"></span>Disk Map</button>
-    <button class="side-item" data-view="duplicates"><span data-icon="copy"></span>Duplicates</button>
+    <button class="side-item" data-view="treemap"><img class="s3d" src="/assets/icon-diskmap-64.png" alt="" width="22" height="22">Disk Map</button>
+    <button class="side-item" data-view="duplicates"><img class="s3d" src="/assets/icon-duplicates-64.png" alt="" width="22" height="22">Duplicates</button>
+  </div>
+
+  <div class="side-group">
+    <div class="side-head">Security</div>
+    <button class="side-item" data-view="privacy"><img class="s3d" src="/assets/icon-privacy-64.png" alt="" width="22" height="22">Privacy</button>
   </div>
 
   <div class="side-footer">
-    <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><span data-icon="cog"></span><span data-i18n="prefs">Preferences</span></button>
+    <button class="side-item side-settings" id="settingsBtn" aria-label="Preferences"><img class="s3d" src="/assets/icon-settings-64.png" alt="" width="20" height="20"><span data-i18n="prefs">Preferences</span></button>
     <span id="headerSpin" aria-hidden="true"></span>
-    <button class="icon-btn" id="themeToggle" aria-label="Toggle light or dark theme" title="Toggle theme"><span data-icon="moon"></span></button>
   </div>
 </aside>
 
 <main>
   <!-- ═══════════ Dashboard ═══════════ -->
   <section class="view" id="view-dashboard" role="tabpanel" aria-label="Dashboard" hidden>
-    <!-- Hero: disk usage at a glance + the primary Smart Scan entry point -->
-    <div class="card glass dash-hero">
-      <h2><span data-icon="hardDrive"></span><span data-i18n="diskUsage">Disk usage</span>
-        <span class="hero-sys muted"><b id="sysHost">–</b> · <b id="sysPlatform">–</b></span></h2>
-      <div class="hero-body">
-        <div class="ring-wrap hero-ring">
-          <svg width="160" height="160" viewBox="0 0 160 160">
-            <defs>
-              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#0A84FF"/><stop offset="100%" stop-color="#5E5CE6"/>
-              </linearGradient>
-            </defs>
-            <circle class="ring-bg" cx="80" cy="80" r="60"/>
-            <circle class="ring-fg" id="ringFg" cx="80" cy="80" r="60" stroke-dasharray="377" stroke-dashoffset="377"/>
-          </svg>
-          <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
-        </div>
-        <div class="hero-right">
-          <div class="hero-tiles">
-            <div class="hero-tile"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
-            <div class="hero-tile"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
-            <div class="hero-tile"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
-          </div>
-          <button class="btn btn-primary hero-cta" data-qa="fastclean"><span data-icon="sparkles" data-size="17"></span><span data-i18n="smartScan">Smart Scan</span></button>
-        </div>
-      </div>
+    <!-- Uniform page hero: section icon centered top (same place on every page) -->
+    <div class="page-hero">
+      <img class="hi" src="/assets/icon-dashboard-256.png" alt="Dashboard" width="170" height="170">
+      <h1 data-i18n="dashboard">Dashboard</h1>
+      <p class="ph-sub" data-i18n="dashTagline">Everything your Mac needs, in one place.</p>
+      <div class="ph-meta num"><b id="sysHost">–</b> · <b id="sysPlatform">–</b></div>
+      <button class="btn hero-cta" data-qa="fastclean" style="margin-top:8px;"><img src="/assets/icon-smartscan-64.png" alt="" width="20" height="20" style="filter:none;"><span data-i18n="smartScan">Smart Scan</span></button>
     </div>
 
+    <div class="page-wrap">
     <div class="dash-grid">
+      <div class="dash-col">
+        <!-- Disk usage at a glance -->
+        <div class="card glass">
+          <h2><img class="s3d" src="/assets/icon-white-disk-64.png" alt="" width="20" height="20"><span data-i18n="diskUsage">Disk usage</span></h2>
+          <div class="hero-body">
+            <div class="ring-wrap hero-ring">
+              <svg width="132" height="132" viewBox="0 0 160 160">
+                <defs>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+              </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="80" cy="80" r="60"/>
+                <circle class="ring-fg" id="ringFg" cx="80" cy="80" r="60" stroke-dasharray="377" stroke-dashoffset="377"/>
+              </svg>
+              <div class="ring-label"><b id="ringPct" class="num">–</b><span data-i18n="used">used</span></div>
+            </div>
+            <div class="hero-right">
+              <div class="hero-tiles">
+                <div class="hero-tile"><span data-i18n="totalDisk">Total disk</span><b id="sysTotal" class="num">–</b></div>
+                <div class="hero-tile"><span data-i18n="freeSpace">Free</span><b id="sysFree" class="num">–</b></div>
+                <div class="hero-tile"><span data-i18n="usedSpace">Used</span><b id="sysUsed" class="num">–</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="dash-col">
         <!-- Live temps + fans mini panel -->
         <div class="card glass">
-          <h2><span data-icon="thermometer"></span><span data-i18n="tempsAndFans">Temperature &amp; fans</span></h2>
+          <h2><img class="s3d" src="/assets/icon-white-thermo-64.png" alt="" width="20" height="20"><span data-i18n="tempsAndFans">Temperature & fans</span></h2>
           <div id="dashSensors" class="dash-sensors"><div class="muted" data-i18n="sensorsLoading">Reading sensors…</div></div>
-        </div>
-
-        <!-- Quick actions -->
-        <div class="card glass">
-          <h2><span data-icon="zap"></span><span data-i18n="quickActions">Quick actions</span></h2>
-          <div class="qa-grid">
-            <button class="qa-tile" data-qa="fastclean"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles" data-size="19"></span></span><span class="qa-lab" data-i18n="smartScan">Smart Scan</span></button>
-            <button class="qa-tile" data-qa="treemap"><span class="chip" style="--tint:#30D158"><span data-icon="treemap" data-size="19"></span></span><span class="qa-lab" data-i18n="diskMap">Disk Map</span></button>
-            <button class="qa-tile" data-qa="fans"><span class="chip" style="--tint:#FF9F0A"><span data-icon="fan" data-size="19"></span></span><span class="qa-lab" data-i18n="fans">Fans</span></button>
-            <button class="qa-tile" data-qa="apps"><span class="chip" style="--tint:#BF5AF2"><span data-icon="box" data-size="19"></span></span><span class="qa-lab" data-i18n="uninstaller">Uninstaller</span></button>
-          </div>
         </div>
       </div>
 
       <div class="dash-col">
         <!-- Lifetime impact -->
         <div class="card glass">
-          <h2><span data-icon="sparkles"></span><span data-i18n="lifetimeImpact">Lifetime impact</span><span class="muted" id="actSince" style="font-weight:400;margin-left:6px;"></span></h2>
+          <h2><img class="s3d" src="/assets/icon-white-spark-64.png" alt="" width="20" height="20"><span data-i18n="lifetimeImpact">Lifetime impact</span></h2>
           <div class="quick-stats">
-            <div class="stat-tile tile"><span class="chip" style="--tint:#30D158"><span data-icon="trash"></span></span>
+            <div class="stat-tile tile"><span class="chip" style="--tint:#FFFFFF"><img class="s3d" src="/assets/icon-trash-64.png" alt="" width="24" height="24"></span>
               <div><div class="v small num" id="actRecovered">–</div><div class="k" data-i18n="movedToTrash">Moved to Trash</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#0A84FF"><span data-icon="sparkles"></span></span>
+            <div class="stat-tile tile"><span class="chip" style="--tint:#FFFFFF"><img class="s3d" src="/assets/icon-junk-64.png" alt="" width="24" height="24"></span>
               <div><div class="v num" id="actJunk">–</div><div class="k" data-i18n="junkItemsCleaned">Junk items cleaned</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#FF9F0A"><span data-icon="box"></span></span>
+            <div class="stat-tile tile"><span class="chip" style="--tint:#FFFFFF"><img class="s3d" src="/assets/icon-box-64.png" alt="" width="24" height="24"></span>
               <div><div class="v num" id="actUninstalled">–</div><div class="k" data-i18n="appsUninstalled">Apps uninstalled</div></div></div>
-            <div class="stat-tile tile"><span class="chip" style="--tint:#BF5AF2"><span data-icon="refresh"></span></span>
+            <div class="stat-tile tile"><span class="chip" style="--tint:#FFFFFF"><img class="s3d" src="/assets/icon-refresh-64.png" alt="" width="24" height="24"></span>
               <div><div class="v num" id="actUpdated">–</div><div class="k" data-i18n="updatesApplied">Updates applied</div></div></div>
           </div>
         </div>
-
-        <!-- Storage trend chart (absorbed from the old Trends view) -->
-        <div class="card glass">
-          <h2><span data-icon="trendUp"></span><span data-i18n="storageTrend">Storage trend</span>
-            <select id="trendRoot" class="dash-trend-sel" aria-label="Folder to show history for" style="margin-left:auto;font-weight:400;"></select>
-          </h2>
-          <canvas id="trendChart" height="220" aria-label="Folder size history chart" role="img"></canvas>
-          <div class="muted num" id="trendInfo" style="margin-top:8px;font-size:11.5px;"></div>
-        </div>
-
-        <!-- Recent activity -->
-        <div class="card glass">
-          <h2><span data-icon="clock"></span><span data-i18n="recentActivity">Recent activity</span></h2>
-          <div id="actLog" class="act-log"></div>
-        </div>
       </div>
+    </div>
     </div>
   </section>
 
   <!-- ═══════════ Disk Map (Treemap ⇄ Grid) ═══════════ -->
   <section class="view" id="view-treemap" role="tabpanel" aria-label="Disk Map" hidden>
     <!-- In-view empty state / folder picker (shown until a scan exists) -->
-    <div id="diskMapEmpty" class="dm-empty">
-      <svg class="mark" width="72" height="72" viewBox="0 0 96 96" aria-hidden="true">
-        <defs>
-          <linearGradient id="emptyMark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#6A5BFF"/>
-            <stop offset="0.55" stop-color="#3E7BFA"/>
-            <stop offset="1" stop-color="#00C6FB"/>
-          </linearGradient>
-        </defs>
-        <rect x="0" y="0" width="96" height="96" rx="22" fill="url(#emptyMark)"/>
-        <g fill="#fff">
-          <rect x="21" y="23" width="30" height="50" rx="8" opacity="0.96"/>
-          <rect x="55" y="23" width="20" height="23" rx="6" opacity="0.72"/>
-          <rect x="55" y="50" width="9" height="23" rx="4" opacity="0.52"/>
-          <rect x="67" y="50" width="8" height="23" rx="3" opacity="0.9"/>
-        </g>
-      </svg>
+    <div id="diskMapEmpty" class="dm-empty page-hero">
+      <img class="hi" src="/assets/icon-diskmap-256.png" alt="" width="170" height="170">
       <h1 data-i18n="diskMapTitle">Map a folder's disk usage</h1>
       <p data-i18n="diskMapSub">Scan any folder for a GrandPerspective-style treemap and a size-proportional grid. Files go to the Trash — never deleted outright.</p>
       <div class="scan-row dm-scan-row">
@@ -1426,9 +1468,11 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   <!-- ═══════════ Fast Clean (Cleaner) ═══════════ -->
   <section class="view" id="view-fastclean" role="tabpanel" aria-label="Smart Scan" hidden>
     <div class="fc-hero">
-      <div class="fc-mark" id="fcMark"><span data-icon="sparkles" data-size="42"></span></div>
-      <h1 class="fc-title" data-i18n="smartScan">Smart Scan</h1>
-      <p class="fc-sub" id="fcSub" data-i18n="ssSub">Free up space — empties the Bin and clears application caches.</p>
+      <div class="page-hero" style="margin:0;">
+        <img class="hi" id="fcMark3d" src="/assets/icon-smartscan-256.png" alt="" width="170" height="170">
+        <h1 class="fc-title" data-i18n="smartScan">Smart Scan</h1>
+        <p class="ph-sub fc-sub" id="fcSub" data-i18n="ssSub">Free up space — empties the Bin and clears application caches.</p>
+      </div>
       <div class="fc-status" id="fcStatus"></div>
       <button class="fc-cta" id="fcCleanBtn" disabled><span class="fc-cta-main">Clean</span><span class="fc-cta-sub" id="fcCtaSize"></span></button>
     </div>
@@ -1437,6 +1481,11 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 
   <!-- ═══════════ Uninstaller (Applications) ═══════════ -->
   <section class="view" id="view-apps" role="tabpanel" aria-label="Uninstaller" hidden>
+    <div class="page-hero">
+      <img class="hi" src="/assets/icon-uninstaller-256.png" alt="" width="170" height="170">
+      <h1 data-i18n="uninstaller">Uninstaller</h1>
+    </div>
+    <div class="page-wrap">
     <div class="apps-wrap">
       <div class="card glass apps-list-card">
         <h2><span data-icon="box"></span>Applications</h2>
@@ -1447,31 +1496,50 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
         <div class="apps-list" id="appsList"></div>
       </div>
       <div class="card glass apps-detail-card">
-        <div class="apps-empty" id="appsDetailEmpty"><span data-icon="box" data-size="34"></span><p class="muted">Select an app to see what it leaves behind.</p></div>
+        <div class="apps-empty" id="appsDetailEmpty"><img class="s3d" src="/assets/icon-uninstaller-256.png" alt="" width="56" height="56"><p class="muted">Select an app to see what it leaves behind.</p></div>
         <div id="appsDetailBody" hidden></div>
       </div>
+    </div>
     </div>
   </section>
 
   <!-- ═══════════ Updater (Applications) ═══════════ -->
   <section class="view" id="view-updater" role="tabpanel" aria-label="Updater" hidden>
-    <div style="max-width:760px;margin:0 auto;">
+    <div class="page-hero">
+      <img class="hi" src="/assets/icon-updater-256.png" alt="" width="170" height="170">
+      <h1 data-i18n="updater">Updater</h1>
+    </div>
+    <div class="page-wrap">
       <div id="updBody"></div>
     </div>
   </section>
 
   <!-- ═══════════ Maintenance (Speed) ═══════════ -->
   <section class="view" id="view-maintenance" role="tabpanel" aria-label="Performance" hidden>
-    <div style="max-width:780px;margin:0 auto;">
+    <div class="page-hero">
+      <img class="hi" src="/assets/icon-performance-256.png" alt="" width="170" height="170">
+      <h1 data-i18n="performance">Performance</h1>
+    </div>
+    <div class="page-wrap">
+      <!-- Live performance snapshot -->
+      <div class="card glass" style="margin-bottom:16px;">
+        <h2><span data-icon="zap"></span><span data-i18n="livePerf">Live performance</span></h2>
+        <div class="perf-live">
+          <div class="pl-row"><span class="pl-k">CPU</span><div class="pl-track"><div class="pl-fill cpu" id="mpCpu"></div></div><b class="pl-v num" id="mpCpuV">–</b></div>
+          <div class="pl-row"><span class="pl-k">RAM</span><div class="pl-track"><div class="pl-fill ram" id="mpRam"></div></div><b class="pl-v num" id="mpRamV">–</b></div>
+          <div class="pl-row"><span class="pl-k" data-i18n="batteryWord">Battery</span><div class="pl-track"><div class="pl-fill bat" id="mpBat"></div></div><b class="pl-v num" id="mpBatV">–</b></div>
+        </div>
+        <div class="pl-meta"><b id="mpChip">–</b> · <span id="mpUptime">–</span></div>
+      </div>
       <div class="card glass" style="margin-bottom:16px;">
         <h2><span data-icon="zap"></span><span data-i18n="loginItems">Login Items</span></h2>
         <div class="muted" style="margin:-2px 0 10px;">Apps that open automatically when you log in. Turn one off to stop it (Apple system services aren't shown).</div>
-        <div id="mntLoginItems" class="mnt-scroll"><div class="muted">Loading…</div></div>
+        <div id="mntLoginItems" class="mnt-scroll"></div>
       </div>
       <div class="card glass" style="margin-bottom:16px;">
         <h2><span data-icon="settings"></span><span data-i18n="launchAgents">Background items</span></h2>
         <div class="muted" style="margin:-2px 0 10px;" data-i18n="launchAgentsDesc">Background helpers that load automatically (LaunchAgents). Turn one off to stop it from starting.</div>
-        <div id="mntLaunchAgents" class="mnt-scroll"><div class="muted">Loading…</div></div>
+        <div id="mntLaunchAgents" class="mnt-scroll"></div>
       </div>
       <div class="card glass">
         <h2><span data-icon="settings"></span><span data-i18n="maintenance">Maintenance</span></h2>
@@ -1494,21 +1562,22 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 
   <!-- ═══════════ Fans ═══════════ -->
   <section class="view" id="view-fans" role="tabpanel" aria-label="Fans" hidden>
-    <div class="fans-wrap">
-      <div class="fans-head">
-        <h1><span data-icon="fan"></span><span data-i18n="fansTitle">Fan Control</span></h1>
-        <span class="status-pill" id="fansPill" hidden><span class="dot"></span><span id="fansPillText"></span></span>
+    <div class="fans-wrap page-wrap">
+      <div class="page-hero" style="margin-top:0;">
+        <img class="hi" src="/assets/icon-fans-256.png" alt="" width="170" height="170">
+        <h1 data-i18n="fansTitle">Fan Control</h1>
+        <span class="status-pill" id="fansPill" role="status" hidden><span class="dot"></span><span id="fansPillText"></span></span>
       </div>
 
       <div class="fans-grid">
         <!-- Left column: sensors + fans -->
         <div class="fans-col">
           <div class="card glass">
-            <h2><span data-icon="thermometer"></span><span data-i18n="sensors">Sensors</span></h2>
+            <h2><img class="s3d" src="/assets/icon-white-thermo-64.png" alt="" width="20" height="20"><span data-i18n="sensors">Sensors</span></h2>
             <div class="sensor-grid" id="sensorGrid"></div>
           </div>
           <div class="card glass">
-            <h2><span data-icon="fan"></span><span data-i18n="fansHardware">Fans</span></h2>
+            <h2><img class="s3d" src="/assets/icon-white-fan-64.png" alt="" width="20" height="20"><span data-i18n="fansHardware">Fans</span></h2>
             <div id="fanCards"></div>
           </div>
         </div>
@@ -1538,6 +1607,31 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
         <span data-i18n="fansSafety">MacCleaner can only raise fan speed above the system minimum — never below. Automatic control is restored the moment you quit or if the app closes unexpectedly.</span>
       </div>
       <div class="fans-foot" id="fansFoot"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ Privacy & Security ═══════════ -->
+  <section class="view" id="view-privacy" role="tabpanel" aria-label="Privacy" hidden>
+    <div class="page-hero">
+      <img class="hi" src="/assets/icon-privacy-256.png" alt="" width="170" height="170">
+      <h1 data-i18n="privacy">Privacy</h1>
+    </div>
+    <div class="page-wrap">
+      <div class="card glass" style="margin-bottom:16px;">
+        <h2><img class="s3d" src="/assets/icon-privacy-64.png" alt="" width="22" height="22"><span data-i18n="privacyAccess">System access</span></h2>
+        <div class="mnt-row" id="fdaRow">
+          <div class="mnt-ico"><span data-icon="shield" data-size="17"></span></div>
+          <div class="mnt-text"><b data-i18n="fdaTitle">Full Disk Access</b><span id="fdaDesc" data-i18n="fdaChecking">Checking…</span></div>
+          <span class="status-pill" id="fdaPill" role="status" hidden><span class="dot"></span><span id="fdaPillText"></span></span>
+          <button class="btn" id="fdaOpenBtn" hidden><span data-icon="shield" data-size="15"></span><span data-i18n="fdaOpen">Open Settings</span></button>
+        </div>
+        <div class="muted" style="font-size:12px;">Full Disk Access lets MacCleaner read protected caches (Safari) and the Bin. It never uploads anything — all work stays on this Mac.</div>
+      </div>
+      <div class="card glass">
+        <h2><span data-icon="zap"></span><span data-i18n="browserCaches">Browser caches</span></h2>
+        <div class="muted" style="margin:-2px 0 8px;" data-i18n="browserCachesSub">Old site data and cached files, moved to the Trash — recoverable until you empty it.</div>
+        <div id="privacyList"></div>
+      </div>
     </div>
   </section>
 </main>
@@ -1672,11 +1766,10 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
       </nav>
       <div class="prefs-content">
         <div class="prefs-pane" data-pane="general">
-          <div class="set-h"><span data-icon="sun"></span><span data-i18n="appearance">Appearance</span></div>
-          <div class="seg" id="themeSeg" style="margin:6px 0 22px;">
-            <button data-theme-opt="light" data-i18n="light">Light</button>
-            <button data-theme-opt="dark" data-i18n="dark">Dark</button>
-            <button data-theme-opt="system" data-i18n="system">System</button>
+          <div class="set-h"><span data-icon="refresh"></span><span data-i18n="swUpdates">Software updates</span></div>
+          <div class="mnt-row" id="swUpdatesRow" hidden>
+            <div class="mnt-text"><b data-i18n="swUpdates">Software updates</b><span data-i18n="swUpdatesDesc">Fetch updates automatically from GitHub. You get a notification to download and install, then restart to update.</span></div>
+            <label class="switch"><input type="checkbox" id="swUpdatesToggle" checked><span class="track"></span></label>
           </div>
           <div class="set-h"><span data-icon="globe"></span><span data-i18n="language">Language</span></div>
           <div class="lang-grid" id="langGrid">
@@ -1756,19 +1849,23 @@ async function api(url, options) {
   }
   return body;
 }
-/** Animated count-up for stat numbers (skipped under reduced motion). */
+/** Animated count-up for stat numbers (skipped under reduced motion).
+    The in-flight rAF id lives on the element so a new target cancels the
+    previous animation instead of two ticks fighting over textContent. */
 function countUp(el, target, fmt = formatCount) {
   const from = Number(el.dataset.v || 0);
   el.dataset.v = target;
+  if (el._countRaf) { cancelAnimationFrame(el._countRaf); el._countRaf = 0; }
   if (REDUCED || !Number.isFinite(target) || target === from) { el.textContent = fmt(target); return; }
   const t0 = performance.now(), dur = 500;
   const tick = (t) => {
     const p = Math.min(1, (t - t0) / dur);
     const e = 1 - Math.pow(1 - p, 3);
     el.textContent = fmt(Math.round(from + (target - from) * e));
-    if (p < 1) requestAnimationFrame(tick);
+    if (p < 1) el._countRaf = requestAnimationFrame(tick);
+    else el._countRaf = 0;
   };
-  requestAnimationFrame(tick);
+  el._countRaf = requestAnimationFrame(tick);
 }
 
 /* ───────────────────────────── Icon system (Lucide-style strokes) ───────────────────────────── */
@@ -1826,6 +1923,8 @@ const PATHS = {
   thermometer: '<path d="M14 14.76V4.5a2.5 2.5 0 0 0-5 0v10.26a4.5 4.5 0 1 0 5 0z"/>',
   wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
   gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>',
+  battery: '<rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="13" x2="23" y2="11"/>',
 };
 function icon(name, size = 16, cls = '') {
   return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name] || PATHS.file}</svg>`;
@@ -1867,35 +1966,12 @@ function chipFor(node, size = 15) {
 }
 
 /* ───────────────────────────── Theme ───────────────────────────── */
-/* ───────────────────────────── Theme (light / dark / system) ───────────────────────────── */
-const sysDark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
-function resolveTheme(mode) {
-  if (mode === 'light' || mode === 'dark') return mode;
-  return sysDark && sysDark.matches ? 'dark' : 'light';
+/* Theme is locked to light (CleanMyMac-style chrome): no toggle, no OS
+   following. Kept as a function because the treemap/donut/trends redraws run
+   once after `state` exists (and would be needed again if themes ever return). */
+function applyTheme() {
+  document.documentElement.dataset.theme = 'light';
 }
-function applyTheme(mode) {
-  localStorage.setItem('tm-theme', mode);
-  document.documentElement.dataset.theme = resolveTheme(mode);
-  const dark = document.documentElement.dataset.theme !== 'light';
-  $('themeToggle').innerHTML = icon(dark ? 'sun' : 'moon', 16);
-  document.querySelectorAll('#themeSeg [data-theme-opt]').forEach(b =>
-    b.setAttribute('aria-selected', String(b.dataset.themeOpt === mode)));
-  if (state.treemap.nodes.length && state.view === 'treemap' && state.diskMapLayout === 'treemap') drawTreemap();
-  if (state.donut && state.donut.segs.length) drawDonut(1);
-  if (state.view === 'dashboard' && state.trends.snapshots.length) drawTrendChart();
-}
-let themeMode = localStorage.getItem('tm-theme') || 'system';
-// Sidebar footer toggle flips between light/dark explicitly.
-$('themeToggle').addEventListener('click', () => {
-  themeMode = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-  applyTheme(themeMode);
-});
-// Preferences 3-way control.
-document.querySelectorAll('#themeSeg [data-theme-opt]').forEach(b =>
-  b.addEventListener('click', () => { themeMode = b.dataset.themeOpt; applyTheme(themeMode); toast('Appearance: ' + themeMode.charAt(0).toUpperCase() + themeMode.slice(1)); }));
-// Re-resolve when the OS theme changes and we're in 'system' mode.
-if (sysDark && sysDark.addEventListener) sysDark.addEventListener('change', () => { if (themeMode === 'system') applyTheme('system'); });
-// applyTheme() is called after `state` is defined (it reads state.treemap/donut).
 
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
@@ -1903,10 +1979,16 @@ const STRINGS = {
     scanning:'Scanning…', remove:'Remove', scanAgain:'Scan again', binRow:'Bin',
     fans:'Fans',
     // Dashboard + Disk Map + activity (English source for JS-rendered strings)
-    diskMap:'Disk Map', sensorsLoading:'Reading sensors…', dupNeedsScan:'Scan a folder in Disk Map first to look for duplicates.', openDiskMap:'Open Disk Map',
-    noHistoryYet:'No history yet', latest:'latest', filesWord:'files', foldersWord:'folders', noSnapshotsYet:'No snapshots yet — finish a scan to start tracking.', since:'since',
-    verbCleaned:'Cleaned', verbUninstalled:'Uninstalled', verbUpdated:'Updated', verbTrashed:'Trashed', noActivityYet:'No activity yet — clean, uninstall, or update to see it here.',
-    justNow:'just now', minAgo:'m ago', hourAgo:'h ago', dayAgo:'d ago',
+    diskMap:'Disk Map', livePerf:'Live performance', batteryWord:'Battery', swUpdates:'Software updates', swUpdatesDesc:'Fetch updates automatically from GitHub. You get a notification to download and install, then restart to update.',
+    privacy:'Privacy',
+    dashTagline:'Everything your Mac needs, in one place.',
+    privacyAccess:'System access', fdaTitle:'Full Disk Access', fdaChecking:'Checking…',
+    fdaGranted:'Granted — protected caches and the Bin are readable.', fdaMissing:'Not granted — Safari caches and the Bin stay hidden until you allow it.',
+    fdaOk:'Granted', fdaNo:'Not granted',
+    fdaOpen:'Open Settings', fdaOpenedToast:'System Settings opened — add MacCleaner under Full Disk Access, then return here.',
+    browserCaches:'Browser caches', browserCachesSub:'Old site data and cached files, moved to the Trash — recoverable until you empty it.',
+    noBrowsersFound:'No supported browsers found.', notInstalled:'not installed', quitBrowserFirst:'quit the browser first', needsFda:'needs Full Disk Access', cleanWord:'Clean',
+    sensorsLoading:'Reading sensors…', dupNeedsScan:'Scan a folder in Disk Map first to look for duplicates.', openDiskMap:'Open Disk Map',
     // Updater
     updUpToDate:"Everything's up to date.", updUpdate:'Update', updUpdating:'Updating…', updUpdated:'Updated', updInTerminal:'In Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'update available', updAvailablePlural:'updates available', updOnlyMac:'The Updater is available on macOS only.', updCheckFailed:'Could not check for updates', updConfirmTitle:'Update this app?', updConfirmUncertain:'This update may not be exact:', updConfirmProceed:'Update anyway', updCancel:'Cancel',
     // Maintenance / launch agents / DNS
@@ -1920,20 +2002,27 @@ const STRINGS = {
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Custom',
     autoDesc:'The system manages the fans by temperature. No boost applied.', boostActive:'Boost active', boostActiveDesc:'Fans are held above the system minimum.', backToAuto:'Back to Auto',
     rulesBoostActive:'Auto rules boosting', rulesBoostActiveDesc:'A temperature rule raised fan speed.', pauseRules:'Pause rules',
-    onboardTitle:'Fan control needs a one-time authorization', onboardBody:'Fan control needs a one-time system authorization (your password, once). Sensors work without it.', installHelper:'Install fan control', sensorsNoHelper:'Temperature and RPM readings already work.',
+    onboardTitle:'Fan control needs a one-time authorization', dismiss:'Not now', onboardBody:'Fan control needs a one-time system authorization (your password, once). Sensors work without it.', installHelper:'Install fan control', sensorsNoHelper:'Temperature and RPM readings already work.',
     allFans:'All fans', target:'Target', threshold:'Threshold', mappedRpm:'Mapped RPM', controlledByMacos:'controlled by macOS',
-    uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.' },
+    uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.',
+    loading:'Loading…', liAllowedBg:'Allowed in background', liBlocked:'Blocked', liOpens:'Opens at login', liOff:"Off — won't open at login", liBadgeBg:'Background', liNone:"No user login items — nothing opens at login.", liShowClassic:'Show "Open at Login" apps', liMacOnly:'Login items are managed on macOS only.',
+    dropUnresolvable:'Couldn\'t scan "{name}" — the dropped item couldn\'t be resolved to a scannable folder' },
   es: { dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
     scanning:'Escaneando…', remove:'Eliminar', scanAgain:'Escanear de nuevo', binRow:'Papelera',
     fans:'Ventiladores', used:'usado', totalDisk:'Disco total', freeSpace:'Libre', usedSpace:'Usado',
-    diskUsage:'Uso del disco', tempsAndFans:'Temperatura y ventiladores', sensorsLoading:'Leyendo sensores…', quickActions:'Acciones rápidas', lifetimeImpact:'Impacto total', movedToTrash:'Movido a la Papelera', junkItemsCleaned:'Elementos basura limpiados', appsUninstalled:'Apps desinstaladas', updatesApplied:'Actualizaciones aplicadas', storageTrend:'Tendencia de almacenamiento', recentActivity:'Actividad reciente', hostLabel:'Equipo', platformLabel:'Plataforma',
+    swUpdates:'Actualizaciones', swUpdatesDesc:'Buscar actualizaciones automáticamente en GitHub. Recibirás un aviso para descargar e instalar, y luego reiniciar para actualizar.', diskUsage:'Uso del disco', dashTagline:'Todo lo que tu Mac necesita, en un solo lugar.', livePerf:'Rendimiento en vivo', batteryWord:'Batería',
+    privacy:'Privacidad', security:'Seguridad',
+    privacyAccess:'Acceso al sistema', fdaTitle:'Acceso total al disco', fdaChecking:'Comprobando…',
+    fdaGranted:'Concedido: se pueden leer las cachés protegidas y la Papelera.', fdaMissing:'Sin conceder: las cachés de Safari y la Papelera permanecen ocultas.',
+    fdaOk:'Concedido', fdaNo:'Sin concedir',
+    fdaOpen:'Abrir Ajustes', fdaOpenedToast:'Ajustes abierto: añade MacCleaner en Acceso total al disco y vuelve.',
+    browserCaches:'Cachés de navegadores', browserCachesSub:'Datos antiguos de sitios y archivos en caché, a la Papelera: recuperables hasta vaciarla.',
+    noBrowsersFound:'No se han encontrado navegadores compatibles.', notInstalled:'no instalado', quitBrowserFirst:'cierra primero el navegador', needsFda:'necesita Acceso total al disco', cleanWord:'Limpiar',
+    tempsAndFans:'Temperatura y ventiladores', sensorsLoading:'Leyendo sensores…', lifetimeImpact:'Impacto total', movedToTrash:'Movido a la Papelera', junkItemsCleaned:'Elementos basura limpiados', appsUninstalled:'Apps desinstaladas', updatesApplied:'Actualizaciones aplicadas',
     diskMapTitle:'Mapea el uso de disco de una carpeta', diskMapSub:'Escanea cualquier carpeta para ver un treemap tipo GrandPerspective y una cuadrícula proporcional al tamaño. Los archivos van a la Papelera — nunca se borran directamente.', browse:'Explorar…', scan:'Escanear', noScanYet:'Sin escaneo — elige una carpeta arriba.', treemap:'Treemap', grid:'Cuadrícula', scanFolder:'Escanear carpeta…', depth:'Profundidad', exportBtn:'Exportar', tmHint:'clic en una carpeta para entrar · clic derecho para acciones · Esc para subir', sort:'Ordenar', sortSize:'Tamaño', sortName:'Nombre', sortDate:'Fecha de modificación', sortType:'Tipo', fileTypesBySize:'Tipos de archivo por tamaño', largestFiles:'Archivos más grandes', largestFolders:'Carpetas más grandes',
     ignoreUnder:'Ignorar archivos menores de', autoSelectNewest:'Autoseleccionar (conservar el más reciente)', moveToTrash:'Mover a la Papelera', dupNeedsScan:'Escanea una carpeta en Mapa de disco para buscar duplicados.', openDiskMap:'Abrir Mapa de disco',
-    noHistoryYet:'Sin historial aún', latest:'último', filesWord:'archivos', foldersWord:'carpetas', noSnapshotsYet:'Aún no hay instantáneas — termina un escaneo para empezar a registrar.', since:'desde',
-    verbCleaned:'Limpiado', verbUninstalled:'Desinstalado', verbUpdated:'Actualizado', verbTrashed:'Enviado a la Papelera', noActivityYet:'Sin actividad aún — limpia, desinstala o actualiza para verla aquí.',
-    justNow:'ahora mismo', minAgo:' min', hourAgo:' h', dayAgo:' d',
     updUpToDate:'Todo está actualizado.', updUpdate:'Actualizar', updUpdating:'Actualizando…', updUpdated:'Actualizado', updInTerminal:'En Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'actualización disponible', updAvailablePlural:'actualizaciones disponibles', updOnlyMac:'El Actualizador solo está disponible en macOS.', updCheckFailed:'No se pudo buscar actualizaciones', updConfirmTitle:'¿Actualizar esta app?', updConfirmUncertain:'Esta actualización puede no ser exacta:', updConfirmProceed:'Actualizar igualmente', updCancel:'Cancelar',
     launchAgents:'Elementos en segundo plano', launchAgentsDesc:'Ayudantes en segundo plano que se cargan automáticamente (LaunchAgents). Desactiva uno para impedir que se inicie.', noLaunchAgents:'No se encontraron elementos en segundo plano del usuario.', finishInTerminal:'Terminar en Terminal', dnsPartial:'DNS parcialmente vaciado — algunas cachés requieren permisos de administrador.',
     protectedSkipped:'protegidas', inUseSkipped:'en uso — omitidas',
@@ -1945,20 +2034,27 @@ const STRINGS = {
     ctrlAuto:'Auto', ctrlBoost:'Refuerzo', ctrlCustom:'Personalizado',
     autoDesc:'El sistema gestiona los ventiladores según la temperatura. Sin refuerzo.', boostActive:'Refuerzo activo', boostActiveDesc:'Los ventiladores están por encima del mínimo del sistema.', backToAuto:'Volver a Auto',
     rulesBoostActive:'Reglas automáticas activas', rulesBoostActiveDesc:'Una regla de temperatura subió la velocidad.', pauseRules:'Pausar reglas',
-    onboardTitle:'El control de ventiladores necesita una autorización', onboardBody:'El control de ventiladores requiere una autorización única del sistema (tu contraseña, una sola vez). Los sensores funcionan sin ella.', installHelper:'Instalar control', sensorsNoHelper:'Las lecturas de temperatura y RPM ya funcionan.',
+    onboardTitle:'El control de ventiladores necesita una autorización', dismiss:'Ahora no', onboardBody:'El control de ventiladores requiere una autorización única del sistema (tu contraseña, una sola vez). Los sensores funcionan sin ella.', installHelper:'Instalar control', sensorsNoHelper:'Las lecturas de temperatura y RPM ya funcionan.',
     allFans:'Todos los ventiladores', target:'Objetivo', threshold:'Umbral', mappedRpm:'RPM previstas', controlledByMacos:'controlado por macOS',
-    uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.' },
+    uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.',
+    loading:'Cargando…', liAllowedBg:'Permitido en segundo plano', liBlocked:'Bloqueado', liOpens:'Se abre al inicio', liOff:'Desactivado — no se abrirá al inicio', liBadgeBg:'Fondo', liNone:'No hay elementos de inicio del usuario — nada se abre al arrancar.', liShowClassic:'Mostrar apps «Abrir al inicio»', liMacOnly:'Los elementos de inicio solo se gestionan en macOS.',
+    dropUnresolvable:'No se puede analizar «{name}» — el elemento soltado no se pudo resolver a una carpeta analizable.' },
   ru: { dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
     scanning:'Сканирование…', remove:'Удалить', scanAgain:'Сканировать снова', binRow:'Корзина',
     fans:'Кулеры', used:'занято', totalDisk:'Всего на диске', freeSpace:'Свободно', usedSpace:'Занято',
-    diskUsage:'Использование диска', tempsAndFans:'Температура и кулеры', sensorsLoading:'Чтение датчиков…', quickActions:'Быстрые действия', lifetimeImpact:'Общий результат', movedToTrash:'В Корзину', junkItemsCleaned:'Очищено мусора', appsUninstalled:'Удалено приложений', updatesApplied:'Применено обновлений', storageTrend:'Динамика хранилища', recentActivity:'Недавние действия', hostLabel:'Хост', platformLabel:'Платформа',
+    swUpdates:'Обновления', swUpdatesDesc:'Автоматически проверять обновления на GitHub. Придёт уведомление: скачать и установить, затем перезапустить для обновления.', diskUsage:'Использование диска', dashTagline:'Всё, что нужно вашему Mac, в одном месте.', livePerf:'Производительность', batteryWord:'Батарея',
+    privacy:'Приватность', security:'Безопасность',
+    privacyAccess:'Доступ к системе', fdaTitle:'Полный доступ к диску', fdaChecking:'Проверка…',
+    fdaGranted:'Предоставлен: защищённые кэши и Корзина доступны.', fdaMissing:'Не предоставлен: кэши Safari и Корзина скрыты, пока не разрешите.',
+    fdaOk:'Предоставлен', fdaNo:'Не предоставлен',
+    fdaOpen:'Открыть Настройки', fdaOpenedToast:'Настройки открыты — добавьте MacCleaner в «Полный доступ к диску» и вернитесь.',
+    browserCaches:'Кэши браузеров', browserCachesSub:'Старые данные сайтов и кэш — в Корзину, восстановимо до её очистки.',
+    noBrowsersFound:'Поддерживаемые браузеры не найдены.', notInstalled:'не установлен', quitBrowserFirst:'сначала закройте браузер', needsFda:'нужен полный доступ к диску', cleanWord:'Очистить',
+    tempsAndFans:'Температура и кулеры', sensorsLoading:'Чтение датчиков…', lifetimeImpact:'Общий результат', movedToTrash:'В Корзину', junkItemsCleaned:'Очищено мусора', appsUninstalled:'Удалено приложений', updatesApplied:'Применено обновлений',
     diskMapTitle:'Постройте карту использования диска папки', diskMapSub:'Просканируйте любую папку, чтобы увидеть treemap в стиле GrandPerspective и пропорциональную по размеру сетку. Файлы попадают в Корзину — они не удаляются напрямую.', browse:'Обзор…', scan:'Сканировать', noScanYet:'Сканирования пока нет — выберите папку выше.', treemap:'Treemap', grid:'Сетка', scanFolder:'Сканировать папку…', depth:'Глубина', exportBtn:'Экспорт', tmHint:'клик по папке — войти · правый клик — действия · Esc — вверх', sort:'Сортировка', sortSize:'Размер', sortName:'Имя', sortDate:'Дата изменения', sortType:'Тип', fileTypesBySize:'Типы файлов по размеру', largestFiles:'Крупнейшие файлы', largestFolders:'Крупнейшие папки',
     ignoreUnder:'Игнорировать файлы меньше', autoSelectNewest:'Автовыбор (оставить новейший)', moveToTrash:'В Корзину', dupNeedsScan:'Сначала просканируйте папку в Карте диска, чтобы искать дубликаты.', openDiskMap:'Открыть Карту диска',
-    noHistoryYet:'Истории пока нет', latest:'последнее', filesWord:'файлов', foldersWord:'папок', noSnapshotsYet:'Снимков пока нет — завершите сканирование, чтобы начать отслеживание.', since:'с',
-    verbCleaned:'Очищено', verbUninstalled:'Удалено', verbUpdated:'Обновлено', verbTrashed:'В Корзину', noActivityYet:'Действий пока нет — очистите, удалите или обновите, чтобы увидеть их здесь.',
-    justNow:'только что', minAgo:' мин назад', hourAgo:' ч назад', dayAgo:' дн назад',
     updUpToDate:'Всё обновлено.', updUpdate:'Обновить', updUpdating:'Обновление…', updUpdated:'Обновлено', updInTerminal:'В Терминале', updApps:'Приложения', updHomebrew:'Homebrew', updAvailable:'обновление доступно', updAvailablePlural:'обновлений доступно', updOnlyMac:'Обновления доступны только в macOS.', updCheckFailed:'Не удалось проверить обновления', updConfirmTitle:'Обновить это приложение?', updConfirmUncertain:'Это обновление может быть неточным:', updConfirmProceed:'Всё равно обновить', updCancel:'Отмена',
     launchAgents:'Фоновые объекты', launchAgentsDesc:'Фоновые помощники, загружающиеся автоматически (LaunchAgents). Отключите, чтобы они не запускались.', noLaunchAgents:'Пользовательских фоновых объектов не найдено.', finishInTerminal:'Завершить в Терминале', dnsPartial:'Кэш DNS очищен частично — для остального нужны права администратора.',
     protectedSkipped:'защищено', inUseSkipped:'используется — пропущено',
@@ -1970,20 +2066,27 @@ const STRINGS = {
     ctrlAuto:'Авто', ctrlBoost:'Разгон', ctrlCustom:'Вручную',
     autoDesc:'Система управляет кулерами по температуре. Без разгона.', boostActive:'Разгон активен', boostActiveDesc:'Обороты выше системного минимума.', backToAuto:'Вернуть Авто',
     rulesBoostActive:'Работают автоправила', rulesBoostActiveDesc:'Температурное правило подняло обороты.', pauseRules:'Пауза правил',
-    onboardTitle:'Для управления нужна авторизация', onboardBody:'Управлению кулерами нужна однократная авторизация системы (ваш пароль, один раз). Датчики работают и без неё.', installHelper:'Установить управление', sensorsNoHelper:'Показания температуры и оборотов уже работают.',
+    onboardTitle:'Для управления нужна авторизация', dismiss:'Не сейчас', onboardBody:'Управлению кулерами нужна однократная авторизация системы (ваш пароль, один раз). Датчики работают и без неё.', installHelper:'Установить управление', sensorsNoHelper:'Показания температуры и оборотов уже работают.',
     allFans:'Все кулеры', target:'Цель', threshold:'Порог', mappedRpm:'Ожидаемые об/мин', controlledByMacos:'управляется macOS',
-    uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.' },
+    uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.',
+    loading:'Загрузка…', liAllowedBg:'Разрешено в фоне', liBlocked:'Заблокировано', liOpens:'Открывается при входе', liOff:'Выключено — не будет открываться при входе', liBadgeBg:'Фон', liNone:'Пользовательских объектов входа нет — при входе ничего не открывается.', liShowClassic:'Показать приложения «Открываться при входе»', liMacOnly:'Объектами входа можно управлять только в macOS.',
+    dropUnresolvable:'Не удалось просканировать «{name}» — перетащенный объект не удалось разрешить в папку для сканирования.' },
   de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
     scanning:'Scanne…', remove:'Entfernen', scanAgain:'Erneut scannen', binRow:'Papierkorb',
     fans:'Lüfter', used:'belegt', totalDisk:'Gesamt', freeSpace:'Frei', usedSpace:'Belegt',
-    diskUsage:'Speichernutzung', tempsAndFans:'Temperatur & Lüfter', sensorsLoading:'Sensoren werden gelesen…', quickActions:'Schnellaktionen', lifetimeImpact:'Gesamtwirkung', movedToTrash:'In den Papierkorb', junkItemsCleaned:'Müll-Objekte bereinigt', appsUninstalled:'Programme deinstalliert', updatesApplied:'Updates angewendet', storageTrend:'Speicher-Trend', recentActivity:'Letzte Aktivität', hostLabel:'Host', platformLabel:'Plattform',
+    swUpdates:'Aktualisierungen', swUpdatesDesc:'Aktualisierungen automatisch von GitHub holen. Du bekommst eine Meldung zum Herunterladen und Installieren, dann Neustart zum Aktualisieren.', diskUsage:'Speichernutzung', dashTagline:'Alles für deinen Mac an einem Ort.', livePerf:'Live-Leistung', batteryWord:'Akku',
+    privacy:'Datenschutz', security:'Sicherheit',
+    privacyAccess:'Systemzugriff', fdaTitle:'Festplattenvollzugriff', fdaChecking:'Prüfe…',
+    fdaGranted:'Erteilt: geschützte Caches und der Papierkorb sind lesbar.', fdaMissing:'Nicht erteilt: Safari-Caches und der Papierkorb bleiben verborgen.',
+    fdaOk:'Erteilt', fdaNo:'Nicht erteilt',
+    fdaOpen:'Einstellungen öffnen', fdaOpenedToast:'Einstellungen geöffnet — füge MacCleaner unter „Festplattenvollzugriff" hinzu und komm zurück.',
+    browserCaches:'Browser-Caches', browserCachesSub:'Alte Website-Daten und Cache-Dateien in den Papierkorb — wiederherstellbar bis zum Leeren.',
+    noBrowsersFound:'Keine unterstützten Browser gefunden.', notInstalled:'nicht installiert', quitBrowserFirst:'beende zuerst den Browser', needsFda:'braucht Festplattenvollzugriff', cleanWord:'Bereinigen',
+    tempsAndFans:'Temperatur & Lüfter', sensorsLoading:'Sensoren werden gelesen…', lifetimeImpact:'Gesamtwirkung', movedToTrash:'In den Papierkorb', junkItemsCleaned:'Müll-Objekte bereinigt', appsUninstalled:'Programme deinstalliert', updatesApplied:'Updates angewendet',
     diskMapTitle:'Speichernutzung eines Ordners abbilden', diskMapSub:'Scanne einen beliebigen Ordner für einen Treemap im GrandPerspective-Stil und ein größenproportionales Raster. Dateien landen im Papierkorb — sie werden nie direkt gelöscht.', browse:'Durchsuchen…', scan:'Scannen', noScanYet:'Noch kein Scan — wähle oben einen Ordner.', treemap:'Treemap', grid:'Raster', scanFolder:'Ordner scannen…', depth:'Tiefe', exportBtn:'Exportieren', tmHint:'Klick auf einen Ordner zum Öffnen · Rechtsklick für Aktionen · Esc zum Hochgehen', sort:'Sortieren', sortSize:'Größe', sortName:'Name', sortDate:'Änderungsdatum', sortType:'Typ', fileTypesBySize:'Dateitypen nach Größe', largestFiles:'Größte Dateien', largestFolders:'Größte Ordner',
     ignoreUnder:'Dateien ignorieren unter', autoSelectNewest:'Autoauswahl (neueste behalten)', moveToTrash:'In den Papierkorb', dupNeedsScan:'Scanne zuerst einen Ordner in der Speicherkarte, um Duplikate zu finden.', openDiskMap:'Speicherkarte öffnen',
-    noHistoryYet:'Noch kein Verlauf', latest:'aktuell', filesWord:'Dateien', foldersWord:'Ordner', noSnapshotsYet:'Noch keine Snapshots — schließe einen Scan ab, um zu tracken.', since:'seit',
-    verbCleaned:'Bereinigt', verbUninstalled:'Deinstalliert', verbUpdated:'Aktualisiert', verbTrashed:'In den Papierkorb', noActivityYet:'Noch keine Aktivität — bereinige, deinstalliere oder aktualisiere, um sie hier zu sehen.',
-    justNow:'gerade eben', minAgo:' Min', hourAgo:' Std', dayAgo:' T',
     updUpToDate:'Alles ist aktuell.', updUpdate:'Aktualisieren', updUpdating:'Aktualisiere…', updUpdated:'Aktualisiert', updInTerminal:'Im Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'Update verfügbar', updAvailablePlural:'Updates verfügbar', updOnlyMac:'Der Updater ist nur unter macOS verfügbar.', updCheckFailed:'Updates konnten nicht geprüft werden', updConfirmTitle:'Diese App aktualisieren?', updConfirmUncertain:'Dieses Update ist möglicherweise nicht exakt:', updConfirmProceed:'Trotzdem aktualisieren', updCancel:'Abbrechen',
     launchAgents:'Hintergrundobjekte', launchAgentsDesc:'Hintergrundhelfer, die automatisch geladen werden (LaunchAgents). Schalte einen aus, um seinen Start zu verhindern.', noLaunchAgents:'Keine Hintergrundobjekte des Benutzers gefunden.', finishInTerminal:'Im Terminal abschließen', dnsPartial:'DNS teilweise geleert — einige Caches brauchen Administratorrechte.',
     protectedSkipped:'geschützt', inUseSkipped:'in Benutzung — übersprungen',
@@ -1995,20 +2098,27 @@ const STRINGS = {
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Individuell',
     autoDesc:'Das System regelt die Lüfter nach Temperatur. Kein Boost.', boostActive:'Boost aktiv', boostActiveDesc:'Die Lüfter laufen über dem Systemminimum.', backToAuto:'Zurück zu Auto',
     rulesBoostActive:'Auto-Regeln aktiv', rulesBoostActiveDesc:'Eine Temperaturregel hat die Lüfterdrehzahl erhöht.', pauseRules:'Regeln pausieren',
-    onboardTitle:'Lüftersteuerung braucht eine Freigabe', onboardBody:'Die Lüftersteuerung braucht eine einmalige Systemfreigabe (dein Passwort, einmal). Sensoren funktionieren auch ohne.', installHelper:'Steuerung installieren', sensorsNoHelper:'Temperatur- und Drehzahlwerte funktionieren bereits.',
+    onboardTitle:'Lüftersteuerung braucht eine Freigabe', dismiss:'Später', onboardBody:'Die Lüftersteuerung braucht eine einmalige Systemfreigabe (dein Passwort, einmal). Sensoren funktionieren auch ohne.', installHelper:'Steuerung installieren', sensorsNoHelper:'Temperatur- und Drehzahlwerte funktionieren bereits.',
     allFans:'Alle Lüfter', target:'Ziel', threshold:'Schwelle', mappedRpm:'Erwartete U/min', controlledByMacos:'von macOS geregelt',
-    uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.' },
+    uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.',
+    loading:'Wird geladen…', liAllowedBg:'Im Hintergrund erlaubt', liBlocked:'Blockiert', liOpens:'Öffnet sich bei der Anmeldung', liOff:'Aus — öffnet sich nicht bei der Anmeldung', liBadgeBg:'Hintergrund', liNone:'Keine Benutzer-Anmeldeobjekte — nichts öffnet sich bei der Anmeldung.', liShowClassic:'„Bei der Anmeldung öffnen“-Apps anzeigen', liMacOnly:'Anmeldeobjekte lassen sich nur unter macOS verwalten.',
+    dropUnresolvable:'„{name}“ kann nicht gescannt werden — das abgelegte Element ließ sich nicht in einen scannbaren Ordner auflösen.' },
   fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
     scanning:'Analyse…', remove:'Supprimer', scanAgain:"Relancer l'analyse", binRow:'Corbeille',
     fans:'Ventilateurs', used:'utilisé', totalDisk:'Disque total', freeSpace:'Libre', usedSpace:'Utilisé',
-    diskUsage:'Utilisation du disque', tempsAndFans:'Température et ventilateurs', sensorsLoading:'Lecture des capteurs…', quickActions:'Actions rapides', lifetimeImpact:'Impact total', movedToTrash:'Déplacé vers la Corbeille', junkItemsCleaned:'Éléments inutiles nettoyés', appsUninstalled:'Apps désinstallées', updatesApplied:'Mises à jour appliquées', storageTrend:'Tendance du stockage', recentActivity:'Activité récente', hostLabel:'Hôte', platformLabel:'Plateforme',
+    swUpdates:'Mises à jour', swUpdatesDesc:'Rechercher automatiquement les mises à jour sur GitHub. Une notification propose de télécharger et installer, puis de redémarrer pour mettre à jour.', diskUsage:'Utilisation du disque', dashTagline:'Tout ce dont votre Mac a besoin, au même endroit.', livePerf:'Performances en direct', batteryWord:'Batterie',
+    privacy:'Confidentialité', security:'Sécurité',
+    privacyAccess:'Accès système', fdaTitle:'Accès complet au disque', fdaChecking:'Vérification…',
+    fdaGranted:'Accordé : les caches protégés et la Corbeille sont lisibles.', fdaMissing:"Non accordé : les caches Safari et la Corbeille restent masqués.",
+    fdaOk:'Accordé', fdaNo:'Non accordé',
+    fdaOpen:'Ouvrir Réglages', fdaOpenedToast:"Réglages ouvert — ajoutez MacCleaner dans « Accès complet au disque » puis revenez.",
+    browserCaches:'Caches des navigateurs', browserCachesSub:"Anciennes données de sites et fichiers en cache, vers la Corbeille — récupérables jusqu'au vidage.",
+    noBrowsersFound:'Aucun navigateur compatible trouvé.', notInstalled:'non installé', quitBrowserFirst:"fermez d'abord le navigateur", needsFda:"nécessite l'accès complet au disque", cleanWord:'Nettoyer',
+    tempsAndFans:'Température et ventilateurs', sensorsLoading:'Lecture des capteurs…', lifetimeImpact:'Impact total', movedToTrash:'Déplacé vers la Corbeille', junkItemsCleaned:'Éléments inutiles nettoyés', appsUninstalled:'Apps désinstallées', updatesApplied:'Mises à jour appliquées',
     diskMapTitle:"Cartographier l'utilisation disque d'un dossier", diskMapSub:'Analysez n\'importe quel dossier pour un treemap façon GrandPerspective et une grille proportionnelle à la taille. Les fichiers vont à la Corbeille — jamais supprimés directement.', browse:'Parcourir…', scan:'Analyser', noScanYet:'Aucune analyse — choisissez un dossier ci-dessus.', treemap:'Treemap', grid:'Grille', scanFolder:'Analyser un dossier…', depth:'Profondeur', exportBtn:'Exporter', tmHint:'cliquez un dossier pour entrer · clic droit pour les actions · Échap pour remonter', sort:'Trier', sortSize:'Taille', sortName:'Nom', sortDate:'Date de modification', sortType:'Type', fileTypesBySize:'Types de fichiers par taille', largestFiles:'Fichiers les plus volumineux', largestFolders:'Dossiers les plus volumineux',
     ignoreUnder:'Ignorer les fichiers de moins de', autoSelectNewest:'Sélection auto (garder le plus récent)', moveToTrash:'Déplacer vers la Corbeille', dupNeedsScan:'Analysez d\'abord un dossier dans la Carte du disque pour chercher les doublons.', openDiskMap:'Ouvrir la Carte du disque',
-    noHistoryYet:'Pas encore d\'historique', latest:'dernier', filesWord:'fichiers', foldersWord:'dossiers', noSnapshotsYet:'Aucun instantané — terminez une analyse pour commencer le suivi.', since:'depuis',
-    verbCleaned:'Nettoyé', verbUninstalled:'Désinstallé', verbUpdated:'Mis à jour', verbTrashed:'Mis à la Corbeille', noActivityYet:'Aucune activité — nettoyez, désinstallez ou mettez à jour pour la voir ici.',
-    justNow:"à l'instant", minAgo:' min', hourAgo:' h', dayAgo:' j',
     updUpToDate:'Tout est à jour.', updUpdate:'Mettre à jour', updUpdating:'Mise à jour…', updUpdated:'Mis à jour', updInTerminal:'Dans le Terminal', updApps:'Apps', updHomebrew:'Homebrew', updAvailable:'mise à jour disponible', updAvailablePlural:'mises à jour disponibles', updOnlyMac:'Les Mises à jour ne sont disponibles que sur macOS.', updCheckFailed:'Impossible de vérifier les mises à jour', updConfirmTitle:'Mettre à jour cette app ?', updConfirmUncertain:'Cette mise à jour peut ne pas être exacte :', updConfirmProceed:'Mettre à jour quand même', updCancel:'Annuler',
     launchAgents:'Éléments en arrière-plan', launchAgentsDesc:'Assistants en arrière-plan chargés automatiquement (LaunchAgents). Désactivez-en un pour l\'empêcher de démarrer.', noLaunchAgents:'Aucun élément en arrière-plan utilisateur trouvé.', finishInTerminal:'Terminer dans le Terminal', dnsPartial:'DNS partiellement vidé — certains caches nécessitent des droits admin.',
     protectedSkipped:'protégés', inUseSkipped:'en cours d\'utilisation — ignorés',
@@ -2020,18 +2130,20 @@ const STRINGS = {
     ctrlAuto:'Auto', ctrlBoost:'Boost', ctrlCustom:'Personnalisé',
     autoDesc:'Le système gère les ventilateurs selon la température. Aucun boost.', boostActive:'Boost actif', boostActiveDesc:'Les ventilateurs tournent au-dessus du minimum système.', backToAuto:"Revenir à Auto",
     rulesBoostActive:'Règles auto actives', rulesBoostActiveDesc:"Une règle de température a augmenté la vitesse.", pauseRules:'Suspendre les règles',
-    onboardTitle:'Le contrôle nécessite une autorisation', onboardBody:"Le contrôle des ventilateurs nécessite une autorisation système unique (votre mot de passe, une fois). Les capteurs fonctionnent sans.", installHelper:'Installer le contrôle', sensorsNoHelper:'Les relevés de température et de vitesse fonctionnent déjà.',
+    onboardTitle:'Le contrôle nécessite une autorisation', dismiss:'Plus tard', onboardBody:"Le contrôle des ventilateurs nécessite une autorisation système unique (votre mot de passe, une fois). Les capteurs fonctionnent sans.", installHelper:'Installer le contrôle', sensorsNoHelper:'Les relevés de température et de vitesse fonctionnent déjà.',
     allFans:'Tous les ventilateurs', target:'Cible', threshold:'Seuil', mappedRpm:'Tr/min prévus', controlledByMacos:'géré par macOS',
-    uninstallHelper:'Désinstaller le contrôle des ventilateurs', helperInstalled:'Contrôle des ventilateurs installé.', boostApplied:'Boost appliqué', autoRestored:'Contrôle automatique rétabli', rulesSaved:'Règles enregistrées', installed:'Contrôle des ventilateurs installé', installCancelled:'Installation annulée — vous pourrez le faire plus tard.', installFailed:"Impossible d'installer le contrôle", domain:'Capteur', noRules:'Aucune règle — ajoutez-en une pour accélérer en cas de chaleur.' },
+    uninstallHelper:'Désinstaller le contrôle des ventilateurs', helperInstalled:'Contrôle des ventilateurs installé.', boostApplied:'Boost appliqué', autoRestored:'Contrôle automatique rétabli', rulesSaved:'Règles enregistrées', installed:'Contrôle des ventilateurs installé', installCancelled:'Installation annulée — vous pourrez le faire plus tard.', installFailed:"Impossible d'installer le contrôle", domain:'Capteur', noRules:'Aucune règle — ajoutez-en une pour accélérer en cas de chaleur.',
+    loading:'Chargement…', liAllowedBg:'Autorisé en arrière-plan', liBlocked:'Bloqué', liOpens:"S'ouvre à l'ouverture", liOff:"Désactivé — ne s'ouvrira pas à l'ouverture", liBadgeBg:'Arrière-plan', liNone:"Aucun élément d'ouverture utilisateur — rien ne s'ouvre au démarrage.", liShowClassic:"Afficher les apps « Ouvrir à l'ouverture »", liMacOnly:"Les éléments d'ouverture ne sont gérés que sur macOS.",
+    dropUnresolvable:"Impossible d'analyser « {name} » — l'élément déposé n'a pas pu être résolu en dossier analysable." },
 };
 function t(key) {
   const lang = state.lang || 'en';
   return (STRINGS[lang] && STRINGS[lang][key]) || key;
 }
 // Sidebar/header labels are translated from JS maps (no markup changes needed).
-const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', treemap:'diskMap', duplicates:'duplicates' };
+const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', treemap:'diskMap', duplicates:'duplicates', privacy:'privacy' };
 const SIDE_TEXT_KEYS = {};
-const HEAD_KEYS = { 'Speed':'speed', 'Applications':'applications', 'Files':'files' };
+const HEAD_KEYS = { 'Speed':'speed', 'Applications':'applications', 'Files':'files', 'Security':'security' };
 function firstTextNode(el) { for (const n of el.childNodes) { if (n.nodeType === 3 && n.textContent.trim()) return n; } return null; }
 const LANG_NAMES = { en: 'English', es: 'Español', ru: 'Русский', de: 'Deutsch', fr: 'Français' };
 function applyLang(lang, announce) {
@@ -2068,7 +2180,8 @@ function applyLang(lang, announce) {
     $('fcSub').textContent = STRINGS[state.lang] && STRINGS[state.lang].ssSub ? STRINGS[state.lang].ssSub : ($('fcSub').dataset.en || $('fcSub').textContent);
   }
   // Fans view carries dynamically-rendered strings — re-render on language change.
-  if (state.view === 'fans' && state.fans && state.fans.status) { renderFansLive(state.fans.status); renderRules(); }
+  // renderSig = null forces a full pane rebuild (in-place updates don't retranslate).
+  if (state.view === 'fans' && state.fans && state.fans.status) { state.fans.renderSig = null; renderFansLive(state.fans.status); renderRules(); }
 }
 document.querySelectorAll('.lang-opt').forEach(o => o.addEventListener('click', () => applyLang(o.dataset.lang, true)));
 // applyLang() is called after `state` is defined.
@@ -2120,19 +2233,18 @@ const state = {
   grid: { path: null, sort: 'size', query: '', layout: [], totalH: 0, selection: new Set(), anchor: null, rangeStart: 0, rangeEnd: -1 },
   donut: { segs: [], hover: -1, animated: false },
   dup: { loadedFor: null, status: 'idle', groups: [], groupCount: 0, totalReclaimable: 0, selection: new Set(), pollTimer: 0 },
-  trends: { roots: [], path: null, snapshots: [], points: [], hover: -1 },
   fastclean: { loaded: false, cacheScanId: null, trashScanId: null, cachePaths: [], cacheSize: 0, binSize: 0, exclude: [], cleaning: false,
     phase: 'scan', hasPlan: false, planEntries: [], entrySizes: {}, selected: new Set(), binSelected: false,
     confirming: false, loadId: 0, planLoadedAt: 0 },
   apps: { loaded: false, items: [], selected: null, leftovers: null, sel: new Set() },
   updater: {},
-  fans: { status: null, helperState: null, poll: 0, pollMs: 0, mode: 'auto', boostPct: 0,
-          customPct: {}, rules: null, ok: true, boostTimer: 0, customTimer: 0, rendered: false, viewMode: null },
+  fans: { status: null, helperState: null, poll: 0, pollMs: 0, boostPct: 0,
+          customPct: {}, rules: null, ok: true, boostTimer: 0, customTimer: 0, rendered: false, viewMode: null, renderSig: null },
   lang: 'en',
 };
 
 // Theme + language read `state`, so initialize them now that it exists.
-applyTheme(themeMode);
+applyTheme();
 applyLang(localStorage.getItem('tm-lang') || (navigator.language || 'en').slice(0, 2));
 
 function indexTree(root) {
@@ -2148,8 +2260,13 @@ function indexTree(root) {
 /* ───────────────────────────── View switching ───────────────────────────── */
 const tabs = document.querySelectorAll('.side-item[data-view]');
 tabs.forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
+/* Views that wear the full-app wallpaper + white text + frosted glass. */
+const TINTED_VIEWS = ['dashboard', 'fastclean', 'treemap', 'duplicates', 'maintenance', 'fans', 'apps', 'updater', 'privacy'];
 function switchView(name) {
   state.view = name;
+  // Full-app wallpaper follows the active section (CMM-style module screens).
+  if (TINTED_VIEWS.includes(name)) document.body.dataset.pagebg = name;
+  else delete document.body.dataset.pagebg;
   // Every remaining view renders something useful without a folder scan: the
   // Dashboard shows live system data, Disk Map shows its own folder picker,
   // Duplicates shows a prompt. The legacy global empty-state is no longer used.
@@ -2160,6 +2277,10 @@ function switchView(name) {
     v.hidden = !on;
   });
   hideTooltip(); hideCtxMenu();
+  // Selections never survive a view switch: Cmd+Delete is a global shortcut and
+  // would otherwise trash paths picked in a different view.
+  if (state.grid.selection.size) { state.grid.selection.clear(); renderGridWindow(true); }
+  updateSelectionBar();
   if (name === 'treemap') syncDiskMap();
   if (name === 'duplicates') renderDuplicatesGate();
   if (name === 'fastclean') loadFastClean();
@@ -2167,8 +2288,10 @@ function switchView(name) {
   if (name === 'updater') loadUpdater();
   if (name === 'maintenance') loadMaintenance();
   if (name === 'fans') enterFansView();
+  if (name === 'privacy') loadPrivacy();
   if (name === 'dashboard') loadDashboard();
   fanPollAdjust();
+  dashPollAdjust();
 }
 
 /* Disk Map: show folder-picker empty state until a scan exists, then the
@@ -2208,14 +2331,155 @@ $('dmRescanBtn').addEventListener('click', () => {
 function renderDuplicatesGate() {
   if (state.scanId && state.root) { loadDuplicates(); return; }
   $('dupSummary').textContent = '';
-  $('dupBody').innerHTML = `<div class="card glass dm-inline-empty">${icon('copy', 34)}
-    <p class="muted">${escapeHtml(t('dupNeedsScan'))}</p>
-    <button class="btn btn-primary" id="dupGoScan">${icon('treemap', 15)}${escapeHtml(t('openDiskMap'))}</button></div>`;
+  $('dupBody').innerHTML = `<div class="page-hero" style="min-height:42vh;justify-content:center;">
+    <img class="hi" src="/assets/icon-duplicates-256.png" alt="" width="170" height="170">
+    <h1 data-i18n="duplicates">Duplicates</h1>
+    <p class="ph-sub">${escapeHtml(t('dupNeedsScan'))}</p>
+    <button class="btn btn-primary" id="dupGoScan" style="margin-top:8px;">${icon('treemap', 15)}${escapeHtml(t('openDiskMap'))}</button></div>`;
   $('dupBody').querySelector('#dupGoScan').addEventListener('click', () => switchView('treemap'));
 }
 
+/* ───────────────────────────── Privacy & Security ───────────────────────────── */
+/* FDA status + browser caches. Cleaning reuses the standard pipeline:
+   POST /api/privacy/browser-cache-plan returns CONTENT paths inside a
+   registered scan root; they go to the Trash via the normal DELETE /api/files
+   (requireInsideScanRoot). Then we credit the activity feed. */
+async function loadPrivacy() {
+  loadPrivacyFda();
+  loadPrivacyCaches();
+}
+async function loadPrivacyFda() {
+  try {
+    const s = await api('/api/privacy/status');
+    const pill = $('fdaPill'), txt = $('fdaPillText'), desc = $('fdaDesc'), btn = $('fdaOpenBtn');
+    pill.hidden = false;
+    if (s.fullDiskAccess) {
+      txt.textContent = t('fdaOk');
+      pill.classList.remove('warn'); pill.classList.add('ok');
+      desc.textContent = t('fdaGranted');
+      btn.hidden = true;
+    } else {
+      txt.textContent = t('fdaNo');
+      pill.classList.add('warn'); pill.classList.remove('ok');
+      desc.textContent = t('fdaMissing');
+      btn.hidden = false;
+    }
+  } catch (e) {
+    // Status unknown — still surface the pill and the escape hatch so the user
+    // can open System Settings instead of a dead "Checking…" row.
+    const pill = $('fdaPill'), txt = $('fdaPillText'), btn = $('fdaOpenBtn');
+    pill.hidden = false;
+    pill.classList.add('warn'); pill.classList.remove('ok');
+    txt.textContent = t('fdaNo');
+    $('fdaDesc').textContent = t('fdaMissing');
+    btn.hidden = false;
+  }
+}
+async function loadPrivacyCaches() {
+  const list = $('privacyList');
+  list.innerHTML = `<div class="muted">${escapeHtml(t('loading'))}</div>`;
+  try {
+    const { items } = await api('/api/privacy/browser-caches');
+    if (!items.length) { list.innerHTML = `<div class="muted">${escapeHtml(t('noBrowsersFound'))}</div>`; return; }
+    list.innerHTML = items.map(it => {
+      let note = '';
+      if (!it.exists) note = t('notInstalled');
+      else if (it.running) note = t('quitBrowserFirst');
+      else if (it.accessDenied) note = t('needsFda');
+      const disabled = !it.exists || it.running || it.accessDenied || it.sizeBytes === 0;
+      return `<div class="mnt-row">
+        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${it.exists ? formatBytes(it.sizeBytes) : escapeHtml(t('notInstalled'))}${note ? ` · ${escapeHtml(note)}` : ''}</span></div>
+        <button class="btn btn-primary" data-pclean="${escapeHtml(it.id)}" data-name="${escapeHtml(it.name)}" data-size="${it.sizeBytes}" ${disabled ? 'disabled' : ''}>${escapeHtml(t('cleanWord'))}</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-pclean]').forEach(b => b.addEventListener('click', () => cleanBrowserCache(b.dataset.pclean, b.dataset.name, Number(b.dataset.size) || 0)));
+  } catch (e) {
+    list.innerHTML = `<div class="muted">${escapeHtml(String(e.message || e))}</div>`;
+  }
+}
+/** Poll a browser-cache measuring scan (the plan endpoint may answer
+    202 {scanId,status} while the backend walks the browser profile).
+    Resolves the terminal status string, null on the 90s cap, or rejects with
+    the backend's own error (scan failed) so the real message reaches the toast. */
+function pollBrowserCacheScan(scanId) {
+  const deadline = Date.now() + 90_000;
+  return new Promise((resolve, reject) => {
+    const tick = async () => {
+      let d = null;
+      try { d = await api(`/api/scan/${scanId}/result`); }
+      catch (e) { reject(e); return; }
+      if (d && d.status !== 'running') { resolve(d.status); return; }
+      if (Date.now() > deadline) { resolve(null); return; }
+      setTimeout(tick, 700);
+    };
+    tick();
+  });
+}
+
+async function cleanBrowserCache(id, name, sizeBytes) {
+  const btn = document.querySelector(`[data-pclean="${id}"]`);
+  if (btn) btn.disabled = true;
+  try {
+    let plan = await api('/api/privacy/browser-cache-plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (!plan || !Array.isArray(plan.contents)) {
+      // 202 {scanId,status}: the cache measuring scan is still running — poll
+      // its result, then ask for the plan exactly once more.
+      const status = plan && plan.scanId ? await pollBrowserCacheScan(plan.scanId) : null;
+      if (status !== 'complete') {
+        throw new Error(status
+          ? `Could not measure the ${name} cache (scan ${status})`
+          : 'Timed out measuring the browser cache — try again shortly');
+      }
+      plan = await api('/api/privacy/browser-cache-plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!plan || !Array.isArray(plan.contents)) throw new Error('Browser cache plan unavailable');
+    }
+    // Chunk like fastCleanRun so huge cache trees don't build one giant request;
+    // silent (no per-chunk toast) + skipRescan (privacy scan roots aren't the
+    // user's Disk Map scan). Freed bytes come from the server response, not the
+    // pre-measured listing size.
+    const contents = plan.contents;
+    let recovered = 0, failed = 0;
+    for (let i = 0; i < contents.length; i += 400) {
+      const result = await trashPaths(contents.slice(i, i + 400), { silent: true, skipRescan: true });
+      recovered += typeof result.totalFreedBytes === 'number' ? result.totalFreedBytes : 0;
+      failed += result.failed.length;
+    }
+    if (recovered > 0) {
+      // Credit contract: { id, bytes } — the catalog id, never a free-form name.
+      await api('/api/privacy/browser-cache-credit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, bytes: recovered }),
+      });
+      toast(`${name}: ${formatBytes(recovered)} → Trash`);
+    } else if (failed) {
+      toast(`${name}: nothing could be cleared — ${failed} item${failed === 1 ? '' : 's'} failed`, 'error');
+    } else {
+      toast(`${name}: nothing to clear`);
+    }
+    loadPrivacyCaches(); // refresh sizes + buttons (also re-enables on success)
+  } catch (e) {
+    toast(e.message || String(e), 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+$('fdaOpenBtn').addEventListener('click', async () => {
+  try {
+    await api('/api/cleaner/open-fda', { method: 'POST' });
+    toast(t('fdaOpenedToast'));
+  } catch (e) { toast(e.message || String(e), 'error'); }
+});
+
 /* ───────────────────────────── System info ───────────────────────────── */
+let systemLoading = false;
 async function loadSystem() {
+  if (systemLoading) return; // boot reaches this via loadDashboard AND directly — fetch once
+  systemLoading = true;
   try {
     const sys = await api('/api/system');
     state.system = sys;
@@ -2229,8 +2493,79 @@ async function loadSystem() {
     if (!$('pathInput').value) $('pathInput').value = sys.homeDir;
   } catch (e) {
     toast('Could not load system info: ' + e.message, 'error');
+  } finally {
+    systemLoading = false;
   }
 }
+
+/* ───────────────────────────── Live system stats ─────────────────────────────
+   GET /api/system/stats (server-side 2s cache) powers the hero identity line
+   and the live CPU/RAM/battery gauges on the Dashboard and Performance views.
+   The 5s poller runs ONLY while one of those views is active and the tab is
+   visible — mirroring fanPollAdjust so nothing polls in the background. */
+state.stats = { data: null, pollMs: 0, poll: 0, fetching: false };
+
+function fmtUptime(sec) {
+  if (sec == null) return '–';
+  const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+function setBar(id, pct, mode) {
+  const f = $(id), v = $(id + 'V');
+  if (!f || !v) return;
+  f.classList.remove('low', 'chg'); v.classList.remove('chg');
+  if (pct == null) { v.textContent = '–'; f.style.width = '0%'; return; }
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  f.style.width = Math.max(p > 0 ? 2 : 0, p) + '%';
+  if (mode === 'chg') f.classList.add('chg'); else if (p <= 20) f.classList.add('low');
+  if (mode === 'chg') v.classList.add('chg');
+  v.textContent = p + '%';
+}
+function renderLiveStats(s) {
+  if (!s) return;
+  // Identity line: real model · chip · macOS version · uptime (keep old values as fallback).
+  const ident = [s.chip, s.osVersion ? 'macOS ' + s.osVersion : null, s.uptimeSeconds != null ? 'up ' + fmtUptime(s.uptimeSeconds) : null]
+    .filter(Boolean).join(' · ');
+  if (ident) $('sysPlatform').textContent = ident;
+  if (s.modelName) $('sysHost').textContent = s.modelName;
+  const cpu = s.cpuPercent ?? null;
+  const mem = s.memory && s.memory.totalBytes ? (s.memory.usedBytes / s.memory.totalBytes) * 100 : null;
+  const bat = s.battery ? s.battery.percent : null;
+  const chg = !!(s.battery && s.battery.charging);
+  setBar('plCpu', cpu); setBar('plRam', mem); setBar('plBat', bat, chg ? 'chg' : null);
+  setBar('mpCpu', cpu); setBar('mpRam', mem); setBar('mpBat', bat, chg ? 'chg' : null);
+  $('mpChip').textContent = [s.modelName, s.chip].filter(Boolean).join(' · ') || '–';
+  $('mpUptime').textContent = s.uptimeSeconds != null ? 'up ' + fmtUptime(s.uptimeSeconds) : '–';
+}
+async function fetchSystemStats() {
+  if (state.stats.fetching) return;
+  state.stats.fetching = true;
+  try {
+    const s = await api('/api/system/stats');
+    state.stats.data = s;
+    renderLiveStats(s);
+  } catch (e) {
+    // Degrade silently — gauges keep their last values.
+  } finally {
+    state.stats.fetching = false;
+  }
+}
+/* Live poller for Dashboard/Performance: 5s while visible, paused otherwise. */
+function dashPollAdjust() {
+  const want = (!document.hidden && (state.view === 'dashboard' || state.view === 'maintenance')) ? 5000 : 0;
+  if (want === state.stats.pollMs) return;
+  state.stats.pollMs = want;
+  if (state.stats.poll) { clearInterval(state.stats.poll); state.stats.poll = 0; }
+  if (want > 0) {
+    fetchSystemStats();
+    if (state.view === 'dashboard') fetchFanStatus(); // temps panel goes live on the Dashboard too
+    state.stats.poll = setInterval(() => {
+      fetchSystemStats();
+      if (state.view === 'dashboard') fetchFanStatus();
+    }, want);
+  }
+}
+document.addEventListener('visibilitychange', dashPollAdjust);
 
 /* ───────────────────────────── Scanning + SSE ───────────────────────────── */
 function closeEventSource() {
@@ -2256,9 +2591,13 @@ async function startScan(path) {
     $('bigFolders').innerHTML = skeletonRows(6);
     $('donutLegend').innerHTML = skeletonRows(5, 24);
     // Show the scan progress in the Disk Map's own picker/empty state.
-    state.view = 'treemap';
-    tabs.forEach(b => b.setAttribute('aria-current', String(b.dataset.view === 'treemap')));
-    document.querySelectorAll('.view').forEach(v => { const on = v.id === 'view-treemap'; v.classList.toggle('active', on); v.hidden = !on; });
+    // switchView (not a manual flip) so the wallpaper, sidebar highlight and
+    // poller adjustments come from the single code path. The scan pointers are
+    // cleared first so syncDiskMap() shows the picker instead of firing a
+    // redundant loader against the previous scan; restored if the POST fails.
+    const prevScanId = state.scanId, prevRoot = state.root;
+    state.scanId = null; state.root = null;
+    switchView('treemap');
     $('diskMapEmpty').hidden = false;
     $('diskMapResult').hidden = true;
 
@@ -2273,28 +2612,36 @@ async function startScan(path) {
     const es = new EventSource(`/api/scan/${scanId}/progress?token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`);
     state.es = es;
     es.onmessage = async (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === 'progress') {
-        const secs = (performance.now() - t0) / 1000;
-        const rate = secs > 0.2 ? Math.round(msg.scanned / secs) : 0;
-        status.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') +
-          `<span class="num">Scanning… <b>${formatCount(msg.scanned)}</b> items` +
-          (rate ? ` · ${formatCount(rate)}/s` : '') + ` · ${secs.toFixed(1)}s</span>`;
-        $('scanMeta').textContent = msg.currentPath;
-      } else if (msg.type === 'complete') {
-        closeEventSource();
-        let root = msg.root;
-        if (!root) {
-          const r = await api(`/api/scan/${scanId}/result`);
-          root = r.root;
+      /* One try around everything: a malformed frame or a failed result-fetch
+         fallback must still tear down the scan chrome (failScan → endScanChrome)
+         instead of leaving the UI stuck in "Scanning…". */
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'progress') {
+          const secs = (performance.now() - t0) / 1000;
+          const rate = secs > 0.2 ? Math.round(msg.scanned / secs) : 0;
+          status.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') +
+            `<span class="num">Scanning… <b>${formatCount(msg.scanned)}</b> items` +
+            (rate ? ` · ${formatCount(rate)}/s` : '') + ` · ${secs.toFixed(1)}s</span>`;
+          $('scanMeta').textContent = msg.currentPath;
+        } else if (msg.type === 'complete') {
+          closeEventSource();
+          let root = msg.root;
+          if (!root) {
+            const r = await api(`/api/scan/${scanId}/result`);
+            root = r.root;
+          }
+          finishScan(root, performance.now() - t0);
+        } else if (msg.type === 'error') {
+          closeEventSource();
+          failScan(msg.message);
+        } else if (msg.type === 'shutdown') {
+          closeEventSource();
+          failScan('Server is shutting down');
         }
-        finishScan(root, performance.now() - t0);
-      } else if (msg.type === 'error') {
+      } catch (e) {
         closeEventSource();
-        failScan(msg.message);
-      } else if (msg.type === 'shutdown') {
-        closeEventSource();
-        failScan('Server is shutting down');
+        failScan(e && e.message ? e.message : String(e));
       }
     };
     es.onerror = async () => {
@@ -2306,6 +2653,9 @@ async function startScan(path) {
       failScan('Lost connection to the scan stream');
     };
   } catch (e) {
+    // POST failed before the SSE stage — put the previous scan back so its
+    // results stay usable, then surface the error.
+    if (state.scanning) { state.scanId = prevScanId; state.root = prevRoot; }
     failScan(e.message);
   }
 }
@@ -2479,7 +2829,11 @@ function drawDonut(progress = 1) {
   const canvas = $('donutCanvas');
   const dpr = window.devicePixelRatio || 1;
   const cssW = 230;
-  if (canvas.width !== cssW * dpr) { canvas.width = cssW * dpr; canvas.height = cssW * dpr; }
+  // Compare against the ROUNDED bitmap size: cssW * dpr is fractional under
+  // non-integer DPRs, but canvas.width is an integer — the raw compare reallocs
+  // (and clears) the bitmap on every hover frame.
+  const px = Math.round(cssW * dpr);
+  if (canvas.width !== px) { canvas.width = px; canvas.height = px; }
   canvas.style.width = canvas.style.height = cssW + 'px';
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2806,7 +3160,19 @@ $('tmDepth').addEventListener('change', (e) => {
 });
 $('tmRefresh').innerHTML = icon('refresh', 15);
 $('tmRefresh').addEventListener('click', () => { if (state.treemap.rootPath) loadTreemap(state.treemap.rootPath); });
-window.addEventListener('resize', () => { if (state.view === 'treemap' && state.diskMapLayout === 'treemap' && state.treemap.nodes.length) drawTreemap(); });
+/* Resize: repaint coalesced to one per frame, plus one trailing pass ~120ms
+   after the last event so the final layout settles at the exact size. */
+let tmResizeRaf = 0, tmResizeDeb = 0;
+window.addEventListener('resize', () => {
+  if (state.view !== 'treemap' || state.diskMapLayout !== 'treemap' || !state.treemap.nodes.length) return;
+  if (tmResizeRaf) return;
+  tmResizeRaf = requestAnimationFrame(() => {
+    tmResizeRaf = 0;
+    drawTreemap();
+    clearTimeout(tmResizeDeb);
+    tmResizeDeb = setTimeout(drawTreemap, 120);
+  });
+});
 
 /* ── Zoom out (button, breadcrumbs already handle jumps) ── */
 function treemapUp() {
@@ -3017,10 +3383,13 @@ function confirmTrash(paths, opts = {}) {
 }
 $('confirmOk').addEventListener('click', async () => {
   closeModal('confirmModal');
-  const opts = confirmOpts;
-  const result = await trashPaths(confirmPaths, { sizeHint: opts.sizeHint, skipRescan: !!opts.onDone });
-  if (opts.onDone) opts.onDone(result);
+  // Capture and clear the pending selection SYNCHRONOUSLY, before the await:
+  // a confirmTrash() opened while the DELETE is in flight must not have its
+  // paths/opts wiped when this handler resumes.
+  const paths = confirmPaths, opts = confirmOpts;
   confirmPaths = []; confirmOpts = {};
+  const result = await trashPaths(paths, { sizeHint: opts.sizeHint, skipRescan: !!opts.onDone });
+  if (opts.onDone) opts.onDone(result);
 });
 
 async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan = false } = {}) {
@@ -3061,13 +3430,27 @@ function appInitials(name) {
   return (name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || '?';
 }
 /* App-icon tile: real bundle icon when available, letter-tile fallback. The
-   data URI is produced server-side; on a load error we drop back to initials. */
+   data URI is produced server-side and escaped into the src attribute. The
+   initials live in data-initials; a delegated CAPTURE-phase error listener
+   below swaps the img for them (img `error` events don't bubble, so capture
+   is required — no inline onerror handler). */
 function appTile(icon, name) {
   const initials = appInitials(name);
-  return icon
-    ? `<span class="app-tile"><img alt="" src="${icon}" onerror="this.parentNode.textContent='${initials}'"></span>`
-    : `<span class="app-tile">${initials}</span>`;
+  if (!icon) return `<span class="app-tile">${escapeHtml(initials)}</span>`;
+  return `<span class="app-tile" data-initials="${escapeHtml(initials)}"><img alt="" src="${escapeHtml(icon)}"></span>`;
 }
+/* Fallback painter for any app-tile icon that fails to load. Registered once,
+   in the capture phase, so it fires for imgs added later via innerHTML. */
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  const tile = img.closest('.app-tile');
+  if (tile) { tile.textContent = tile.dataset.initials || '?'; return; }
+  // Login-item icon: inline onerror attributes are blocked by the hash-only
+  // CSP, so self-removal is handled here too.
+  if (img.matches('.mnt-appico')) img.remove();
+}, true);
+
 async function loadApps() {
   const a = state.apps;
   if (state.system && state.system.platform !== 'darwin') {
@@ -3211,17 +3594,9 @@ function recordActivity(delta) {
   }).then(() => { if (typeof loadActivity === 'function') loadActivity(); }).catch(() => {});
 }
 
-/* ───────────────────────────── Dashboard activity hub ───────────────────────────── */
-const ACT_TINT = { 'fast-clean':'#0A84FF','system-junk':'#30D158','uninstall':'#FF9F0A','update':'#BF5AF2','large-old':'#64D2FF' };
-const ACT_ICON = { 'fast-clean':'sparkles','system-junk':'hardDrive','uninstall':'box','update':'refresh','large-old':'clock' };
-const ACT_VERB_KEY = { 'fast-clean':'verbCleaned','system-junk':'verbCleaned','uninstall':'verbUninstalled','update':'verbUpdated','large-old':'verbTrashed' };
-function relTime(ms) {
-  const s = (Date.now() - ms) / 1000;
-  if (s < 60) return t('justNow');
-  if (s < 3600) return Math.floor(s / 60) + t('minAgo');
-  if (s < 86400) return Math.floor(s / 3600) + t('hourAgo');
-  return Math.floor(s / 86400) + t('dayAgo');
-}
+/* ───────────────────────────── Dashboard activity hub ─────────────────────────────
+   Lifetime-impact counters only — the activity log list (actLog) was removed
+   with the dashboard redesign, so nothing renders the per-event stream. */
 async function loadActivity() {
   let a;
   try { a = await api('/api/activity'); } catch { return; }
@@ -3229,29 +3604,16 @@ async function loadActivity() {
   if ($('actUninstalled')) countUp($('actUninstalled'), a.appsUninstalled || 0);
   if ($('actUpdated')) countUp($('actUpdated'), a.programsUpdated || 0);
   if ($('actRecovered')) $('actRecovered').textContent = formatBytes(a.totalBytesRecovered || 0);
-  if ($('actSince')) $('actSince').textContent = a.firstRecordedAt ? t('since') + ' ' + formatDate(a.firstRecordedAt) : '';
-  const log = Array.isArray(a.log) ? a.log : [];
-  if ($('actLog')) $('actLog').innerHTML = log.length
-    ? log.slice(0, 15).map(e => `
-      <div class="act-item">
-        <span class="chip" style="--tint:${ACT_TINT[e.kind] || '#8E8E93'}">${icon(ACT_ICON[e.kind] || 'activity', 14)}</span>
-        <div class="meta">
-          <div class="nm">${escapeHtml(t(ACT_VERB_KEY[e.kind]) || 'Did')} ${escapeHtml(e.label || '')}${e.bytes ? ` · ${formatBytes(e.bytes)}` : ''}</div>
-          <div class="sub">${relTime(e.at)}</div>
-        </div>
-      </div>`).join('')
-    : `<div class="muted" style="padding:8px 2px;">${escapeHtml(t('noActivityYet'))}</div>`;
 }
 
 /* ───────────────────────────── Dashboard ─────────────────────────────
-   Always-useful, zero-setup: disk usage, live temps/fans, lifetime impact,
-   activity feed, and the storage-trend chart. */
+   Always-useful, zero-setup: brand hero, disk usage, live temps/fans, live
+   CPU/RAM/battery, lifetime impact. */
 function loadDashboard() {
   if (state.system) { updateDiskRing(); } else { loadSystem(); }
   renderDashSensors(state.fans.status);
   fetchFanStatus();          // refresh the mini temps/fans panel
   loadActivity();
-  loadTrends();              // storage-trend chart card
 }
 function updateDiskRing() {
   const sys = state.system;
@@ -3320,7 +3682,7 @@ function renderUpdater(data) {
   const body = $('updBody');
   const updates = (data.apps || []).filter(a => a.update);
   if (!updates.length) {
-    body.innerHTML = `<div class="apps-empty" style="min-height:46vh;">${icon('checkCircle', 38)}<p class="muted">${escapeHtml(t('updUpToDate'))}</p></div>`;
+    body.innerHTML = `<div class="apps-empty" style="min-height:46vh;"><img class="s3d" src="/assets/icon-updater-256.png" alt="" width="60" height="60"><p class="muted">${escapeHtml(t('updUpToDate'))}</p></div>`;
     return;
   }
   const casks = updates.filter(a => a.update.kind === 'cask');
@@ -3369,6 +3731,14 @@ function renderUpdater(data) {
   body.querySelectorAll('.upd-act[data-open]').forEach(btn =>
     btn.addEventListener('click', () => openUpdaterApp(btn.dataset.open, btn)));
 }
+/* Restore an updater row's action button after a terminal/failed attempt so it
+   stays clickable without leaving and re-entering the view (in-place recovery). */
+function resetUpdBtn(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.innerHTML = icon('download', 14) + escapeHtml(t('updUpdate'));
+}
+
 /* Confirm dialog for casks whose version match is uncertain. Reuses the generic
    #permModal promise flow, temporarily swapping its title/button copy. */
 async function confirmUncertainCask(name, reason, onProceed) {
@@ -3379,8 +3749,13 @@ async function confirmUncertainCask(name, reason, onProceed) {
   ok.innerHTML = icon('download', 14) + escapeHtml(t('updConfirmProceed'));
   const proceed = await confirmPermanent(
     `<b>${escapeHtml(name)}</b><br>${escapeHtml(t('updConfirmUncertain'))} <span style="color:var(--text-3)">${escapeHtml(reason || '')}</span>`);
-  title.innerHTML = savedTitle; ok.innerHTML = savedOk;
-  ok.classList.remove('btn-primary'); ok.classList.add('btn-danger');
+  // Restore the swapped title/button only when this is still the last confirm —
+  // a newer confirmPermanent pending (double-open) owns the chrome now, and a
+  // close (Cancel/X/Escape/backdrop) must always undo the swap.
+  if (!permResolve) {
+    title.innerHTML = savedTitle; ok.innerHTML = savedOk;
+    ok.classList.remove('btn-primary'); ok.classList.add('btn-danger');
+  }
   if (proceed) onProceed();
 }
 async function runCaskUpgrade(token, row) {
@@ -3408,16 +3783,19 @@ async function runCaskUpgrade(token, row) {
           body: JSON.stringify({ token }),
         });
         toast(`${name} needs admin permission — finishing in Terminal. Enter your password there, then refresh.`);
+        // The handoff is complete — don't leave the row dead until the view is
+        // re-entered. Re-arm after a beat so the "In Terminal" state is seen.
+        setTimeout(() => resetUpdBtn(btn), 3000);
       } catch (e2) {
-        btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
+        resetUpdBtn(btn);
         toast('Could not open Terminal: ' + e2.message, 'error');
       }
     } else {
-      btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
+      resetUpdBtn(btn);
       toast(`Update failed: ${r.message}`, 'error');
     }
   } catch (e) {
-    btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
+    resetUpdBtn(btn);
     toast('Update failed: ' + e.message, 'error');
   }
 }
@@ -3436,11 +3814,11 @@ async function runMasUpgrade(id, row) {
       recordActivity({ kind: 'update', label: row.querySelector('.nm').textContent });
       toast('Updated');
     } else {
-      btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
+      resetUpdBtn(btn);
       toast(`Update failed: ${r.message}`, 'error');
     }
   } catch (e) {
-    btn.disabled = false; btn.innerHTML = icon('download', 14) + t('updUpdate');
+    resetUpdBtn(btn);
     toast('Update failed: ' + e.message, 'error');
   }
 }
@@ -3498,9 +3876,11 @@ function pollScanSize(scanId, onDone, tries = 0, isAlive) {
 
 function setFcStatus(text) { $('fcStatus').textContent = text || ''; }
 function setFcMark(name, done) {
-  const m = $('fcMark');
+  // 3D mark: Smart Scan broom normally; the teal monitor-check when clean.
+  const m = $('fcMark3d');
+  if (!m) return;
+  m.src = done ? '/assets/icon-dashboard-256.png' : '/assets/icon-smartscan-256.png';
   m.classList.toggle('fc-done', !!done);
-  m.innerHTML = icon(name, 42);
 }
 function fcTotal() {
   const fc = state.fastclean;
@@ -3614,6 +3994,39 @@ function renderFcList() {
   }));
 }
 
+/** Re-issue size polls for review entries whose size never arrived (shown as
+    '…'). The 5-min re-entry path reuses a cached plan, so the original poll
+    chain died when the view was left — restart one poll per source scan,
+    guarded by the standard alive() pattern. When every poll has landed, one
+    re-render turns the '…' cells into real sizes (and refreshes the CTA). */
+function resumeFcSizePolls() {
+  const fc = state.fastclean;
+  const missing = fc.planEntries.filter(e => fc.entrySizes[e.name] == null);
+  if (!missing.length) return;
+  const myLoad = fc.loadId;
+  const alive = () => fc.loadId === myLoad && state.view === 'fastclean';
+  // Sizes live in whichever scan actually walked the entry's directory; poll
+  // both sources (cache + trash). An entry resolved by either scan is filled.
+  const scans = [fc.cacheScanId, fc.trashScanId].filter(Boolean);
+  if (!scans.length) return;
+  let pending = scans.length;
+  const repaint = () => { if (!alive()) return; renderFcList(); refreshFcButton(); };
+  for (const scanId of scans) {
+    pollScanSize(scanId, (d) => {
+      if (!alive()) return;
+      const byName = {};
+      const kids = d && d.root && d.root.children ? d.root.children : [];
+      for (const c of kids) byName[c.name.toLowerCase()] = c.size;
+      for (const e of missing) {
+        const hit = byName[e.name.toLowerCase()];
+        if (hit != null) fc.entrySizes[e.name] = hit;
+      }
+      if (scanId === fc.trashScanId && d && d.root) fc.binSize = d.root.size;
+      if (--pending === 0) repaint();
+    }, 0, alive);
+  }
+}
+
 /** Reset to the ready state (sparkles mark, default copy, scanning button). */
 function resetFc() {
   const fc = state.fastclean;
@@ -3644,6 +4057,7 @@ async function loadFastClean() {
       fc.planLoadedAt && (Date.now() - fc.planLoadedAt) < 5 * 60 * 1000) {
     renderFcList();
     refreshFcButton();
+    resumeFcSizePolls();
     return;
   }
   // Generation counter: async continuations and poll chains from an older load
@@ -3678,7 +4092,16 @@ async function loadFastClean() {
     // Authoritative deletion set: the server-built cache plan (already scan-authorized).
     // Also surfaces protected/in-use counts so we can be honest about what we skip.
     try {
-      const plan = await api('/api/cleaner/cache-plan');
+      let plan = await api('/api/cleaner/cache-plan');
+      // 202 = the authorizing scan is still walking (server reuses the in-flight
+      // scan on each poll). Poll until entries arrive, the scan errors, or 90s.
+      const planDeadline = Date.now() + 90000;
+      while (plan && plan.scanId && plan.status && !plan.entries && Date.now() < planDeadline) {
+        if (!alive()) return;
+        if (plan.status === 'error') throw new Error(plan.error || 'Cache scan failed');
+        await new Promise((r) => setTimeout(r, 2000));
+        plan = await api('/api/cleaner/cache-plan');
+      }
       if (!alive()) return;
       fc.cacheFlatPaths = plan.flatPaths || [];
       fc.cacheExcluded = (plan.excluded || []).length;
@@ -3689,6 +4112,19 @@ async function loadFastClean() {
       fc.selected = new Set(fc.planEntries.map((e) => e.name));
       fc.phase = 'review';
       fc.planLoadedAt = Date.now();
+      // Per-entry sizes come straight from the plan (it already walked the tree).
+      // Vendor roots in `exclude` are CONDITIONAL (skipped only while their
+      // browser runs) — never filter estimates by fc.exclude.
+      if (plan.sizes) {
+        let total = 0;
+        for (const e of fc.planEntries) {
+          const bytes = (e.contents || []).reduce((s, p) => s + (plan.sizes[p] || 0), 0);
+          fc.entrySizes[e.name] = bytes;
+          total += bytes;
+        }
+        fc.cacheSize = total;
+        fc.cachePaths = fc.cacheFlatPaths;
+      }
       renderFcList();
       refreshFcButton();
       const bits = [];
@@ -3702,8 +4138,8 @@ async function loadFastClean() {
       fc.phase = 'review';
       refreshFcButton();
     }
-    // Size estimate per entry (the cache-plan carries no sizes).
-    pollScanSize(fc.cacheScanId, (d) => {
+    // Legacy no-plan estimate: derive from the fast-clean scan itself.
+    if (!fc.hasPlan) pollScanSize(fc.cacheScanId, (d) => {
       const kids = d && d.root && d.root.children ? d.root.children : [];
       const keep = kids.filter(c => !fc.exclude.includes(c.name.toLowerCase()));
       fc.cachePaths = keep.map(c => c.path);
@@ -3763,7 +4199,14 @@ async function fastCleanRun() {
   if (doBin) {
     setFcStatus('Emptying the Bin…');
     try {
-      const r = await api('/api/cleaner/empty-trash', { method: 'POST' });
+      // Two-step confirm: the only irreversible op requires a 30s single-use
+      // token (step 1 issues it, step 2 spends it — nothing is emptied before).
+      const c = await api('/api/cleaner/empty-trash', { method: 'POST' });
+      const r = await api('/api/cleaner/empty-trash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmToken: c.confirmToken }),
+      });
       const freed = typeof r.freedBytes === 'number' ? r.freedBytes : 0;
       recovered += freed; done.push('Bin emptied');
     } catch (e) {
@@ -3867,10 +4310,10 @@ async function loadMaintenance() {
   const box = $('mntLoginItems');
   if (!box) return;
   if (state.system && state.system.platform !== 'darwin') {
-    box.innerHTML = '<div class="muted">Login items are managed on macOS only.</div>';
+    box.innerHTML = `<div class="muted">${escapeHtml(t('liMacOnly'))}</div>`;
     return;
   }
-  box.innerHTML = '<div class="muted">Loading…</div>';
+  box.innerHTML = `<div class="muted">${escapeHtml(t('loading'))}</div>`;
   try {
     // Default fetch = consent-free sources only (BTM background items via
     // sfltool). Classic "Open at Login" apps come from System Events, which
@@ -3889,23 +4332,23 @@ function renderLoginItems(box, items, classicLoaded) {
     const iconUrl = `/api/maintenance/app-icon?path=${encodeURIComponent(it.path)}&token=${encodeURIComponent(window.MACCLEANER_TOKEN)}`;
     const isBtm = it.kind === 'background';
     const status = isBtm
-      ? `${it.enabled ? 'Allowed in background' : 'Blocked'}${it.detail ? ' · ' + it.detail : ''}`
-      : (it.enabled ? 'Opens at login' : "Off — won't open at login");
+      ? `${it.enabled ? t('liAllowedBg') : t('liBlocked')}${it.detail ? ' · ' + escapeHtml(it.detail) : ''}`
+      : (it.enabled ? t('liOpens') : t('liOff'));
     return `
     <div class="mnt-row${it.enabled ? '' : ' mnt-off'}">
-      <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" onerror="this.remove()"></div>
-      <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(status)}</span></div>
+      <div class="mnt-ico">${letter}<img class="mnt-appico" src="${iconUrl}" alt="" data-appico="1"></div>
+      <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${status}</span></div>
       ${isBtm
-        ? '<span class="mnt-btm-badge" title="Managed by macOS — change it in System Settings → General → Login Items & Extensions">Background</span>'
+        ? `<span class="mnt-btm-badge" title="Managed by macOS — change it in System Settings → General → Login Items &amp; Extensions">${escapeHtml(t('liBadgeBg'))}</span>`
         : `<label class="switch">
-        <input type="checkbox" class="mnt-toggle" ${it.enabled ? 'checked' : ''} data-name="${escapeHtml(it.name)}" data-path="${escapeHtml(it.path)}">
+        <input type="checkbox" class="mnt-toggle" ${it.enabled ? 'checked' : ''} data-name="${escapeHtml(it.name)}" data-path="${escapeHtml(it.path)}" aria-label="${escapeHtml(it.name)}">
         <span class="track"></span>
       </label>`}
     </div>`;
   }).join('') : '';
-  if (!items.length && classicLoaded) html = '<div class="muted">No user login items — nothing opens at login.</div>';
+  if (!items.length && classicLoaded) html = `<div class="muted">${escapeHtml(t('liNone'))}</div>`;
   if (!classicLoaded) {
-    html += `<div style="margin-top:10px"><button class="btn" id="mntLoadClassic">Show “Open at Login” apps</button>
+    html += `<div style="margin-top:10px"><button class="btn" id="mntLoadClassic">${escapeHtml(t('liShowClassic'))}</button>
       <div class="muted" style="margin-top:6px;font-size:12px">Needs one Automation permission (System Events) the first time.</div></div>`;
   }
   box.innerHTML = html;
@@ -3915,10 +4358,16 @@ function renderLoginItems(box, items, classicLoaded) {
 async function loadClassicLoginItems() {
   const box = $('mntLoginItems');
   const btn = $('mntLoadClassic');
-  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  if (btn) { btn.disabled = true; btn.textContent = t('loading'); }
   try {
-    const { items } = await api('/api/maintenance/login-items?classic=1');
-    renderLoginItems(box, items, true);
+    const res = await api('/api/maintenance/login-items?classic=1');
+    // 200 now always: items + classicError (System Events failure no longer
+    // sinks the response). Render what we have, surface the classic error.
+    renderLoginItems(box, res.items || [], true);
+    if (res.classicError) {
+      box.insertAdjacentHTML('beforeend',
+        `<div class="muted" style="font-size:12px;">${escapeHtml(res.classicError)}</div>`);
+    }
   } catch (e) {
     box.innerHTML = `<div class="muted">${escapeHtml(e.code === 'AUTOMATION_DENIED' ? e.message : 'Could not load login items: ' + e.message)}</div>`;
   }
@@ -3931,7 +4380,7 @@ async function loadLaunchAgents() {
   const box = $('mntLaunchAgents');
   if (!box) return;
   if (state.system && state.system.platform !== 'darwin') { box.innerHTML = `<div class="muted">${escapeHtml(t('noLaunchAgents'))}</div>`; return; }
-  box.innerHTML = '<div class="muted">Loading…</div>';
+  box.innerHTML = `<div class="muted">${escapeHtml(t('loading'))}</div>`;
   try {
     const { agents } = await api('/api/maintenance/launch-agents');
     if (!agents || !agents.length) { box.innerHTML = `<div class="muted">${escapeHtml(t('noLaunchAgents'))}</div>`; return; }
@@ -3946,7 +4395,7 @@ async function loadLaunchAgents() {
         <div class="mnt-ico">${letter}</div>
         <div class="mnt-text"><b>${escapeHtml(name)}</b><span title="${escapeHtml(sub)}">${escapeHtml(sub)}</span></div>
         <label class="switch">
-          <input type="checkbox" class="la-toggle" ${on ? 'checked' : ''} data-path="${escapeHtml(a.path)}" data-name="${escapeHtml(name)}">
+          <input type="checkbox" class="la-toggle" ${on ? 'checked' : ''} data-path="${escapeHtml(a.path)}" data-name="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">
           <span class="track"></span>
         </label>
       </div>`;
@@ -3991,7 +4440,7 @@ $('mntLoginItems')?.addEventListener('change', async (e) => {
     if (row) {
       row.classList.toggle('mnt-off', !enabled);
       const sub = row.querySelector('.mnt-text span');
-      if (sub) sub.textContent = enabled ? 'Opens at login' : "Off — won't open at login";
+      if (sub) sub.textContent = enabled ? t('liOpens') : t('liOff');
     }
     toast(`${name} will ${enabled ? 'open' : 'not open'} at login`);
   } catch (err) {
@@ -4226,7 +4675,7 @@ function renderDuplicates() {
         ${chipFor({ type: 'file', extension: ext })}
         <div class="meta">
           <div class="nm">${escapeHtml(g.files[0].name)}</div>
-          <div class="sub num">${g.count} copies × ${formatBytes(g.size)} · sha-256 ${g.hash.slice(0, 12)}…</div>
+          <div class="sub num">${g.count} copies × ${formatBytes(g.size)} · sha-256 ${g.hash.slice(0, 12)}…${g.sharedInode ? ` · <span title="Some of these copies share the same file (hard link / APFS clone) — trashing them frees nothing until every shared copy is removed">shared-inode</span>` : ''}</div>
         </div>
         <span class="reclaim num">+${formatBytes(g.reclaimable)} reclaimable</span>
       </div>
@@ -4292,147 +4741,6 @@ $('dupTrashBtn').addEventListener('click', () => {
   confirmTrash([...state.dup.selection]);
 });
 $('dupMinSize').addEventListener('change', () => loadDuplicates(true));
-
-/* ───────────────────────────── Storage trend (Dashboard card) ─────────────────────────────
-   Absorbed from the removed Trends view: a folder-size history line chart fed by
-   persisted scan snapshots (/api/snapshots). Lives on the Dashboard. */
-async function loadTrends() {
-  try {
-    const { roots } = await api('/api/snapshots');
-    state.trends.roots = roots;
-    const sel = $('trendRoot');
-    if (!roots.length) {
-      sel.innerHTML = `<option>${escapeHtml(t('noHistoryYet'))}</option>`;
-      sel.disabled = true;
-      $('trendInfo').textContent = '';
-      state.trends.snapshots = [];
-      drawTrendChart();
-      return;
-    }
-    sel.disabled = false;
-    const has = (p) => roots.some(r => r.rootPath === p);
-    const short = (p) => p.split('/').filter(Boolean).pop() || p;
-    const preferred = (state.root && has(state.root.path) && state.root.path) ||
-                      (state.trends.path && has(state.trends.path) && state.trends.path) ||
-                      roots[0].rootPath;
-    sel.innerHTML = roots.map(r =>
-      `<option value="${escapeHtml(r.rootPath)}"${r.rootPath === preferred ? ' selected' : ''}>${escapeHtml(short(r.rootPath))} · ${r.count} snapshot${r.count > 1 ? 's' : ''}</option>`).join('');
-    state.trends.path = preferred;
-    await loadTrendData();
-  } catch (e) { /* dashboard is best-effort; keep other cards alive */ }
-}
-
-async function loadTrendData() {
-  const { snapshots } = await api('/api/snapshots?path=' + encodeURIComponent(state.trends.path));
-  state.trends.snapshots = snapshots;
-  state.trends.hover = -1;
-  $('trendInfo').textContent = snapshots.length
-    ? `${t('latest')}: ${formatBytes(snapshots[snapshots.length - 1].totalSize)} · ${formatCount(snapshots[snapshots.length - 1].fileCount)} ${t('filesWord')}`
-    : '';
-  drawTrendChart();
-}
-$('trendRoot').addEventListener('change', (e) => {
-  state.trends.path = e.target.value;
-  loadTrendData().catch(() => {});
-});
-
-function drawTrendChart() {
-  const canvas = $('trendChart');
-  const cssW = Math.max(280, (canvas.parentElement?.clientWidth || 600) - 44);
-  const cssH = 220;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
-  canvas.width = Math.round(cssW * dpr); canvas.height = Math.round(cssH * dpr);
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, cssW, cssH);
-
-  const snaps = state.trends.snapshots;
-  state.trends.points = [];
-  if (!snaps.length) {
-    ctx.fillStyle = cssVar('--text-3');
-    ctx.font = '13px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(t('noSnapshotsYet'), cssW / 2, cssH / 2);
-    return;
-  }
-
-  const padL = 64, padR = 18, padT = 16, padB = 30;
-  const w = cssW - padL - padR, h = cssH - padT - padB;
-  const maxS = (Math.max(...snaps.map(s => s.totalSize)) || 1) * 1.08;
-  const t0 = snaps[0].takenAt, t1 = snaps[snaps.length - 1].takenAt;
-  const span = Math.max(1, t1 - t0);
-  const X = (t) => snaps.length === 1 ? padL + w / 2 : padL + ((t - t0) / span) * w;
-  const Y = (s) => padT + h - (s / maxS) * h;
-
-  ctx.strokeStyle = cssVar('--hairline');
-  ctx.fillStyle = cssVar('--text-3');
-  ctx.font = '10.5px -apple-system, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const v = (maxS / 4) * i, y = Y(v);
-    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssW - padR, y); ctx.stroke();
-    ctx.fillText(v === 0 ? '0 B' : formatBytes(v, 1), padL - 8, y + 3.5);
-  }
-  ctx.textAlign = 'center';
-  ctx.fillText(formatDate(t0), padL + 30, cssH - 10);
-  if (snaps.length > 1) ctx.fillText(formatDate(t1), cssW - padR - 30, cssH - 10);
-
-  const pts = snaps.map(s => ({ x: X(s.takenAt), y: Y(s.totalSize), s }));
-  state.trends.points = pts;
-  const accent = cssVar('--accent') || '#0A84FF';
-
-  if (pts.length > 1) {
-    const grad = ctx.createLinearGradient(0, padT, 0, padT + h);
-    grad.addColorStop(0, 'rgba(10,132,255,0.26)');
-    grad.addColorStop(1, 'rgba(10,132,255,0.02)');
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, padT + h);
-    pts.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(pts[pts.length - 1].x, padT + h);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.beginPath();
-    pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
-  pts.forEach((p, i) => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, i === state.trends.hover ? 5 : 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = accent;
-    ctx.fill();
-    ctx.strokeStyle = cssVar('--bg-1') || '#0e0e13';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  });
-}
-
-$('trendChart').addEventListener('mousemove', (e) => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  let best = -1, bd = 28;
-  state.trends.points.forEach((p, i) => {
-    const d = Math.abs(p.x - x);
-    if (d < bd) { bd = d; best = i; }
-  });
-  if (best !== state.trends.hover) { state.trends.hover = best; drawTrendChart(); }
-  if (best >= 0) {
-    const s = state.trends.points[best].s;
-    const tip = $('tooltip');
-    tip.innerHTML = `<div class="t-head">${icon('clock', 14)}${new Date(s.takenAt).toLocaleString()}</div>
-      <div class="t-line num"><span class="t-strong">${formatBytes(s.totalSize)}</span> · ${formatCount(s.fileCount)} ${t('filesWord')} · ${formatCount(s.dirCount)} ${t('foldersWord')}</div>`;
-    tip.style.display = 'block';
-    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 10) + 'px';
-    tip.style.top = (e.clientY - tip.offsetHeight - 12) + 'px';
-  } else hideTooltip();
-});
-$('trendChart').addEventListener('mouseleave', () => { state.trends.hover = -1; drawTrendChart(); hideTooltip(); });
-window.addEventListener('resize', () => { if (state.view === 'dashboard' && state.trends.snapshots.length) drawTrendChart(); });
 
 /* ───────────────────────────── Browse modal ───────────────────────────── */
 let browsePath = null;
@@ -4827,6 +5135,7 @@ $('settingsSaveBtn').addEventListener('click', async () => {
 /* ── Growth notifications from scheduled scans (poll once a minute) ── */
 let lastNotifPoll = Date.now();
 setInterval(async () => {
+  if (document.hidden) return; // background tab — `since` catches up on return
   try {
     const data = await api('/api/notifications?since=' + lastNotifPoll);
     lastNotifPoll = data.now;
@@ -4917,14 +5226,38 @@ async function loadFanRules() {
   } catch (e) { /* keep whatever we have */ }
 }
 
-/* ── Live paint: pill + sensors + fan cards + control (mode-aware) ── */
+/* ── Live paint: pill + sensors + fan cards + control (mode-aware) ──
+   The 3s poller calls this constantly, so innerHTML is NOT rebuilt every tick:
+   the panes rebuild only when the structural signature below changes, and an
+   unchanged tick updates live values in place. Rebuilding on every poll would
+   kill slider drags (the node under the pointer is replaced mid-gesture). */
+function fanSignature(s) {
+  const temps = s.temps || {};
+  const sensorSet = SENSOR_ORDER.filter(d => typeof temps[d] === 'number').join(',');
+  return [
+    s.helperState || '',
+    state.fans.viewMode || 'auto',
+    s.boostSource || null,
+    (s.fans || []).length,
+    s.helperState === 'active-boost' ? ('banner:' + (s.boostSource || 'user')) : '',
+    sensorSet,
+    state.lang || 'en', // labels inside the panes are translated — rebuild on language change
+  ].join('|');
+}
+
 function renderFansLive(s) {
   if (state.view !== 'fans') return;
-  renderStatusPill(s.helperState, s.fans);
-  renderSensors(s.temps);
-  renderFanCards(s.fans, s.temps);
-  renderControl(s);
-  renderFansFoot(s.helperState);
+  renderStatusPill(s.helperState, s.fans); // no listeners on the pill — cheap every tick
+  if (fanSignature(s) !== state.fans.renderSig) {
+    renderSensors(s.temps);
+    renderFanCards(s.fans, s.temps);
+    renderControl(s); // stores the fresh signature
+    renderFansFoot(s.helperState);
+  } else {
+    updateSensorsLive(s.temps);
+    updateFanCardsLive(s.fans);
+    updateControlLive(s);
+  }
 }
 
 function renderStatusPill(helperState, fans) {
@@ -5002,17 +5335,150 @@ function renderFanCards(fans, temps) {
   }).join('');
 }
 
+/* ── In-place live refresh (unchanged signature): same nodes, new values. ──
+   These never touch innerHTML of listener-bearing containers and never re-bind. */
+function updateSensorsLive(temps) {
+  if (!temps) return;
+  const tiles = $('sensorGrid').querySelectorAll('.sensor');
+  const present = SENSOR_ORDER.filter(d => typeof temps[d] === 'number');
+  if (tiles.length !== present.length) return; // structural drift — rebuild next tick
+  let hotDomain = null, hotVal = -Infinity;
+  for (const d of present) {
+    if (temps[d] > hotVal) { hotVal = temps[d]; hotDomain = d; }
+  }
+  const C = 2 * Math.PI * 16;
+  present.forEach((d, i) => {
+    const el = tiles[i], v = temps[d];
+    const tier = tempTier(v);
+    const stroke = tier === 'hot' ? 'var(--danger)' : tier === 'warm' ? 'var(--warn)' : 'var(--ok)';
+    const frac = Math.max(0, Math.min(1, v / 100));
+    const off = (C * (1 - frac)).toFixed(1);
+    el.className = `sensor ${tier}${d === hotDomain ? ' hottest' : ''}`;
+    const fg = el.querySelector('.ring-t-fg');
+    if (fg) { fg.setAttribute('stroke', stroke); fg.setAttribute('stroke-dashoffset', off); }
+    const name = el.querySelector('.s-name');
+    if (name) {
+      name.innerHTML = escapeHtml(t(SENSOR_KEY[d])) +
+        (d === hotDomain ? `<span class="s-badge">${escapeHtml(t('hottest'))}</span>` : '');
+    }
+    const val = el.querySelector('.s-val');
+    if (val) val.innerHTML = fmtTemp(v) + '<span class="u">°C</span>';
+  });
+}
+
+function updateFanCardsLive(fans) {
+  if (!fans || !fans.length) return;
+  const cards = $('fanCards').querySelectorAll('.fan-card');
+  if (cards.length !== fans.length) return; // structural drift — rebuild next tick
+  fans.forEach((f, i) => {
+    const card = cards[i];
+    const isThermal = f.mode === 'thermal';
+    const rpm = f.actualRpm || 0;
+    const range = Math.max(1, f.maxRpm - f.minRpm);
+    const curFrac = Math.max(0, Math.min(1, (rpm - f.minRpm) / range));
+    const tgtFrac = Math.max(0, Math.min(1, (f.targetRpm - f.minRpm) / range));
+    const modeCls = f.mode === 'auto' ? 'auto' : f.mode === 'manual' ? 'manual' : 'macos';
+    const modeKey = f.mode === 'auto' ? 'modeAuto' : f.mode === 'manual' ? 'modeManual' : 'modeMacos';
+    const chip = card.querySelector('.mode-chip');
+    if (chip) { chip.className = 'mode-chip ' + modeCls; chip.textContent = t(modeKey); }
+    const rpmEl = card.querySelector('.fc-rpm b');
+    if (rpmEl) rpmEl.textContent = formatCount(rpm);
+    const note = card.querySelector('.fc-note');
+    if (note) {
+      note.textContent = (isThermal && rpm === 0)
+        ? '0 RPM · ' + t('controlledByMacos')
+        : (isThermal ? t('controlledByMacos') : '');
+    }
+    const fill = card.querySelector('.fan-range .fill');
+    if (fill) fill.style.width = (curFrac * 100).toFixed(1) + '%';
+    const cur = card.querySelector('.fan-range .cur');
+    if (cur) cur.style.left = (curFrac * 100).toFixed(1) + '%';
+    const rangeEl = card.querySelector('.fan-range');
+    let tgt = card.querySelector('.fan-range .tgt');
+    const showTgt = f.mode === 'manual' && Math.abs(f.targetRpm - rpm) > 30;
+    if (showTgt && rangeEl) {
+      if (!tgt) { tgt = document.createElement('div'); tgt.className = 'tgt'; rangeEl.appendChild(tgt); }
+      tgt.style.left = (tgtFrac * 100).toFixed(1) + '%';
+    } else if (tgt) {
+      tgt.remove();
+    }
+  });
+}
+
+function updateControlLive(s) {
+  const pane = $('ctrlPane');
+  if (!pane) return;
+  const mode = state.fans.viewMode || 'auto';
+  const fans = s.fans || [];
+  if (mode === 'boost') {
+    const pct = state.fans.boostPct;
+    const sl = $('boostSlider');
+    if (sl && !sl.dataset.dragging) sl.value = String(pct); // never move a slider mid-drag
+    const val = $('boostVal');
+    if (val) val.textContent = pct + '%';
+    const mapped = $('boostMapped');
+    if (mapped) mapped.innerHTML = boostMappedHtml(fans, pct);
+  } else if (mode === 'custom') {
+    pane.querySelectorAll('.custom-slider').forEach(sl => {
+      const id = +sl.dataset.fan;
+      const pct = state.fans.customPct[id] ?? 0;
+      if (!sl.dataset.dragging) sl.value = String(pct);
+      const f = fans.find(x => x.id === id);
+      if (!f) return;
+      const rpm = f.minRpm + Math.round((f.maxRpm - f.minRpm) * pct / 100);
+      const wrap = sl.closest('.custom-fan');
+      if (wrap) {
+        const lab = wrap.querySelector('.cf-rpm');
+        if (lab) lab.innerHTML = `${pct}% · <span class="cf-rpmv">${formatCount(rpm)}</span> RPM`;
+      }
+    });
+  }
+  // mode === 'auto': the pane is static copy — nothing live to refresh.
+}
+
+/* While a range input is being dragged, pollers must not snap its .value back —
+   data-dragging guards the writes in the in-place updaters above. */
+function bindDragGuard(sl) {
+  if (!sl || sl.dataset.dragGuard) return;
+  sl.dataset.dragGuard = '1';
+  sl.addEventListener('pointerdown', () => { sl.dataset.dragging = '1'; });
+  const clear = () => { delete sl.dataset.dragging; };
+  sl.addEventListener('pointerup', clear);
+  sl.addEventListener('pointercancel', clear);
+  sl.addEventListener('lostpointercapture', clear);
+}
+
 /* ── Control panel: onboarding (no helper) OR segmented Auto/Boost/Custom ── */
 function renderControl(s) {
   const body = $('controlBody');
+  // Book-keep the structural signature here so every rebuild path (poll tick,
+  // mode switch, helper install/uninstall fallback) stays in sync with the
+  // poller's sig compare — no redundant rebuild 3s later.
+  state.fans.renderSig = fanSignature(s);
   if (s.helperState === 'not-installed') {
-    body.innerHTML = `<div class="onboard">
-      <div class="ob-mark">${icon('fan', 30)}</div>
-      <h3>${escapeHtml(t('onboardTitle'))}</h3>
-      <p>${escapeHtml(t('onboardBody'))}</p>
-      <button class="btn btn-primary" id="installHelperBtn">${icon('shield', 15)}${escapeHtml(t('installHelper'))}</button>
-      <div class="muted" style="margin-top:12px;font-size:11.5px;">${escapeHtml(t('sensorsNoHelper'))}</div>
-    </div>`;
+    // Ask ONCE: after the user cancels the install, remember it (per app, in
+    // localStorage) and downscale the big onboarding to a one-line chip —
+    // visiting Fans again must not re-nag for a permission they declined.
+    const dismissed = localStorage.getItem('fanhelper-dismissed') === '1';
+    if (dismissed) {
+      body.innerHTML = `<div class="fan-lite">
+        <span>${escapeHtml(t('sensorsNoHelper'))}</span>
+        <button class="btn" id="installHelperBtn">${icon('shield', 15)}${escapeHtml(t('installHelper'))}</button>
+      </div>`;
+    } else {
+      body.innerHTML = `<div class="onboard">
+        <div class="ob-mark">${icon('fan', 30)}</div>
+        <h3>${escapeHtml(t('onboardTitle'))}</h3>
+        <p>${escapeHtml(t('onboardBody'))}</p>
+        <button class="btn btn-primary" id="installHelperBtn">${icon('shield', 15)}${escapeHtml(t('installHelper'))}</button>
+        <button class="ob-dismiss" id="installDismissBtn">${escapeHtml(t('dismiss'))}</button>
+        <div class="muted" style="margin-top:12px;font-size:11.5px;">${escapeHtml(t('sensorsNoHelper'))}</div>
+      </div>`;
+      $('installDismissBtn')?.addEventListener('click', () => {
+        localStorage.setItem('fanhelper-dismissed', '1');
+        renderControl(state.fans.status);
+      });
+    }
     $('installHelperBtn').addEventListener('click', installHelper);
     return;
   }
@@ -5061,6 +5527,7 @@ function renderCtrlPane(s, mode) {
         <div class="mapped-list" id="boostMapped">${boostMappedHtml(fans, pct)}</div>
       </div>`;
     const sl = $('boostSlider');
+    bindDragGuard(sl);
     sl.addEventListener('input', () => {
       const p = +sl.value;
       state.fans.boostPct = p;
@@ -5084,6 +5551,7 @@ function renderCtrlPane(s, mode) {
     </div>`;
   }).join('');
   pane.querySelectorAll('.custom-slider').forEach(sl => {
+    bindDragGuard(sl);
     sl.addEventListener('input', () => {
       const id = +sl.dataset.fan, p = +sl.value;
       state.fans.customPct[id] = p;
@@ -5151,12 +5619,16 @@ async function installHelper() {
   try {
     const res = await api('/api/fans/install-helper', { method: 'POST' });
     if (res.status === 'installed') {
+      localStorage.removeItem('fanhelper-dismissed'); // installed — stop treating it as declined
       state.fans.helperState = 'installed';
       toast(t('installed'));
       fetchFanStatus();
     } else if (res.status === 'user-cancelled') {
+      // Cancelled → remember it so Fans visits stop re-prompting with the
+      // full onboarding; a compact chip stays available instead.
+      localStorage.setItem('fanhelper-dismissed', '1');
       toast(t('installCancelled'), 'success');
-      if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
+      renderControl(state.fans.status);
     } else {
       toast(t('installFailed') + (res.detail ? ': ' + res.detail : ''), 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
@@ -5274,7 +5746,14 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     const openModal = document.querySelector('.modal-backdrop.open');
-    if (openModal) { openModal.classList.remove('open'); return; }
+    if (openModal) {
+      openModal.classList.remove('open');
+      // #permModal's promise flow must resolve on Escape too, or the awaiting
+      // caller (confirmPermanent → fastCleanRun / confirmUncertainCask) leaks
+      // its pending promise and the swapped modal chrome.
+      if (openModal.id === 'permModal') resolvePerm(false);
+      return;
+    }
     if ($('ctxMenu').style.display === 'block') { hideCtxMenu(); return; }
     if (typing && document.activeElement === $('gridSearch') && $('gridSearch').value) {
       $('gridSearch').value = ''; state.grid.query = ''; renderGrid(); return;
@@ -5322,6 +5801,8 @@ window.addEventListener('drop', async (e) => {
   if (dir) {
     $('pathInput').value = dir;
     startScan(dir);
+  } else {
+    toast(t('dropUnresolvable').replace('{name}', file.name || ''), 'error');
   }
 });
 
@@ -5329,10 +5810,42 @@ window.addEventListener('drop', async (e) => {
 document.querySelectorAll('[data-qa]').forEach(b =>
   b.addEventListener('click', () => switchView(b.dataset.qa)));
 
+/* ── Wallpaper warm-up: the 9 per-section backgrounds are swapped in by
+   switchView via body[data-pagebg]; a cold cache makes the first view-switch
+   flash. Warm them staggered during idle time right after boot. ── */
+(function preloadWallpapers() {
+  const views = TINTED_VIEWS;
+  const warm = (i) => {
+    if (i >= views.length) return;
+    const img = new Image();
+    img.onload = img.onerror = () => {
+      const next = () => warm(i + 1);
+      (window.requestIdleCallback || ((fn) => setTimeout(fn, 100)))(next);
+    };
+    img.src = `/assets/bg-${views[i]}.jpg`;
+  };
+  const start = () => warm(0);
+  (window.requestIdleCallback || ((fn) => setTimeout(fn, 2000)))(start);
+})();
+
 /* ───────────────────────────── Boot ───────────────────────────── */
-loadSystem();
-switchView('dashboard');
+switchView('dashboard'); // → loadDashboard → loadSystem (single guarded fetch)
 fanPollAdjust(); // start the live temp/fan poller (Fans view only)
+dashPollAdjust(); // start the live CPU/RAM/battery poller (Dashboard + Performance)
+
+/* Software-updates toggle (Electron only — the browser build has no updater). */
+if (window.treemapDesktop?.getAutoUpdates) {
+  const row = $('swUpdatesRow');
+  if (row) {
+    row.hidden = false;
+    window.treemapDesktop.getAutoUpdates().then((on) => {
+      $('swUpdatesToggle').checked = on !== false;
+    }).catch(() => {});
+    $('swUpdatesToggle').addEventListener('change', (e) =>
+      window.treemapDesktop.setAutoUpdates(e.target.checked));
+  }
+}
+
 </script>
 </body>
 </html>

@@ -62,17 +62,31 @@ appRouter.get(
 /**
  * GET /api/updater — every installed app, each tagged with an available update
  * detected from Homebrew's cask catalog, the Mac App Store (mas), or Sparkle.
+ * `degraded`/`degradedReasons` flag sources that could not be CHECKED this
+ * pass, so the panel can tell "no updates" from "couldn't check".
  */
 appRouter.get('/updater', async (_req: Request, res: Response) => {
   if (process.platform !== 'darwin') {
-    res.json({ brewAvailable: false, masAvailable: false, apps: [] });
+    res.json({ brewAvailable: false, masAvailable: false, apps: [], degraded: false, degradedReasons: [] });
     return;
   }
-  const [hasBrew, hasMas, apps] = await Promise.all([brewAvailable(), masAvailable(), appUpdates()]);
-  res.json({ brewAvailable: hasBrew, masAvailable: hasMas, apps });
+  const [hasBrew, hasMas, updates] = await Promise.all([brewAvailable(), masAvailable(), appUpdates()]);
+  res.json({
+    brewAvailable: hasBrew,
+    masAvailable: hasMas,
+    apps: updates.apps,
+    degraded: updates.degraded,
+    degradedReasons: updates.degradedReasons,
+  });
 });
 
-/** POST /api/updater/cask-upgrade { token } — `brew install --cask --adopt --force <token>`. */
+/**
+ * POST /api/updater/cask-upgrade { token } — `brew install --cask --force
+ * <token>` (no --adopt: it cannot be combined with --force, and the goal is
+ * the newest version regardless of who installed the current copy). Guarded
+ * and verified in upgradeCaskAdopt; 409s surface AppError codes like
+ * APP_RUNNING / UNKNOWN_TARGET / APP_OUTSIDE_APPLICATIONS.
+ */
 appRouter.post('/updater/cask-upgrade', async (req: Request, res: Response) => {
   requireMac();
   const token = (req.body as { token?: unknown } | undefined)?.token;

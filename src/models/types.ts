@@ -23,6 +23,14 @@ export interface FileNode {
    * a dir as a leaf that hides detail.
    */
   truncated?: boolean;
+  /**
+   * Inode number from lstat, when the platform provides one. Lets consumers
+   * (duplicate finder, hardlink-aware aggregations) distinguish two directory
+   * entries that point at the same physical file from content copies.
+   * Optional — absent on paths where lstat ran but the scanner recorded no
+   * inode, and on nodes persisted by older versions.
+   */
+  ino?: number;
 }
 
 export type ScanStatus = 'running' | 'complete' | 'error';
@@ -123,6 +131,12 @@ export interface LargeFolder {
   /** Recursive file count. */
   fileCount: number;
   modifiedAt: number;
+  /**
+   * True when this folder (or something beneath it) was truncated by the
+   * tree cap: `fileCount` is then a lower bound (≥1) and the UI should show
+   * "≥" instead of presenting it as an exact count.
+   */
+  truncated?: boolean;
 }
 
 /* ---------- Duplicate finder ---------- */
@@ -356,13 +370,6 @@ export interface AppSummary {
 }
 
 /** One non-Homebrew app in the Updater's "other apps" group. */
-export interface UpdaterOtherApp {
-  name: string;
-  path: string;
-  icon: string | null;
-  source: 'mas' | 'self';
-  website: string | null;
-}
 
 /** One support-file an app leaves behind under ~/Library. */
 export interface AppLeftover {
@@ -401,15 +408,6 @@ export interface AppLeftoversResult {
 }
 
 /** One Homebrew cask with an available update. */
-export interface OutdatedCask {
-  /** Homebrew token (used for `brew upgrade --cask <token>`). */
-  token: string;
-  name: string;
-  installedVersion: string | null;
-  latestVersion: string | null;
-  /** Base64 PNG icon of the matching installed app, or null. */
-  icon: string | null;
-}
 
 /** How an installed app can be updated, when a newer version is available. */
 export interface AppUpdateInfo {
@@ -442,13 +440,6 @@ export interface AppUpdate {
 }
 
 /** A self-updating (Sparkle) app with a newer version available per its appcast. */
-export interface SparkleUpdate {
-  name: string;
-  path: string;
-  icon: string | null;
-  currentVersion: string;
-  latestVersion: string;
-}
 
 /** One Mac App Store app with an available update (via the `mas` CLI). */
 export interface MasUpdate {
@@ -503,4 +494,39 @@ export interface ActivitySummary {
 export interface ApiError {
   error: string;
   code: string;
+}
+
+/* ---------- Live system stats (Performance gauges) ---------- */
+
+/**
+ * Live macOS system snapshot for the Performance section (GET /api/system/stats).
+ * Externally sourced fields degrade to null on failure — the route never fails.
+ */
+export interface SystemStats {
+  /** macOS product version, e.g. "15.3". */
+  osVersion: string | null;
+  /** macOS build number, e.g. "24D60". */
+  osBuild: string | null;
+  /** Raw hardware model identifier, e.g. "MacBookPro18,1". */
+  modelName: string | null;
+  /** CPU marketing string, e.g. "Apple M1 Max". */
+  chip: string | null;
+  /** Seconds since boot. */
+  uptimeSeconds: number;
+  hostname: string;
+  /** CPU busy percent (0–100), sampled as an os.cpus() delta over ~500ms. */
+  cpuPercent: number;
+  memory: {
+    totalBytes: number;
+    usedBytes: number;
+  };
+  /** Battery state, or null on machines without a battery (and on non-macOS). */
+  battery: {
+    /** Charge percent (0–100). */
+    percent: number;
+    /** True when the AC adapter is attached or the battery is actively charging. */
+    charging: boolean;
+    /** Estimated minutes left per pmset; null when pmset gives no estimate. */
+    timeRemaining: number | null;
+  } | null;
 }

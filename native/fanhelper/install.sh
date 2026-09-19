@@ -14,8 +14,8 @@
 #       getpeereid()).
 #
 # Steps: copy binary -> /Library/PrivilegedHelperTools, plist ->
-# /Library/LaunchDaemons, chown root:wheel, chmod, write allowed-uid, then
-# launchctl bootstrap.
+# /Library/LaunchDaemons, chown root:wheel, chmod, write allowed-uid, write a
+# newsyslog.d log-rotation drop-in, then launchctl bootstrap.
 set -euo pipefail
 
 LABEL="com.dronx.maccleaner.fanhelper"
@@ -78,6 +78,19 @@ chmod 755 "$SUPPORT_DIR"
 printf '%s\n' "$CLIENT_UID" > "$ALLOWED_UID_FILE"
 chown root:wheel "$ALLOWED_UID_FILE"
 chmod 644 "$ALLOWED_UID_FILE"
+
+# --- newsyslog drop-in -------------------------------------------------------
+# The LaunchDaemon appends stderr to /var/log/... forever; without rotation a
+# rejection flood or a chatty daemon would grow it unbounded. newsyslog picks
+# this drop-in up automatically (no daemon cooperation needed): rotate at
+# 1 MB (1024 KB), keep 3 rotated files.
+NEWSYSLOG_CONF="/etc/newsyslog.d/${LABEL}.conf"
+cat > "$NEWSYSLOG_CONF" <<'EOF'
+# logfilename                                [owner:group] mode count size when  flags
+/var/log/com.dronx.maccleaner.fanhelper.log                 644  3     1024 *     J
+EOF
+chown root:wheel "$NEWSYSLOG_CONF"
+chmod 644 "$NEWSYSLOG_CONF"
 
 # --- (re)bootstrap the daemon ------------------------------------------------
 # Bootout any prior instance first (ignore errors on fresh install).

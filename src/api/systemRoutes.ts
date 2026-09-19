@@ -5,6 +5,7 @@ import path from 'path';
 import { guardQueryPath } from '../middleware/pathGuard';
 import { AppError } from '../middleware/errorHandler';
 import { diskUsage } from '../services/diskUsage';
+import { getSystemStats } from '../services/systemStats';
 import { SystemInfo } from '../models/types';
 
 export const systemRouter = Router();
@@ -44,6 +45,16 @@ systemRouter.get('/system', async (_req: Request, res: Response) => {
     commonDirs,
   };
   res.json(info);
+});
+
+/**
+ * GET /api/system/stats -> live OS/hardware snapshot (CPU %, memory, battery,
+ * macOS version/build, model, chip, uptime) for the Performance gauges.
+ * Cached ~2s inside the service; every field degrades to null on failure, so
+ * this route never 500s.
+ */
+systemRouter.get('/system/stats', async (_req: Request, res: Response) => {
+  res.json(await getSystemStats());
 });
 
 /**

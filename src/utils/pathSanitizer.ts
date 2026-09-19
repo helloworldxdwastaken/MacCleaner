@@ -81,6 +81,12 @@ export function sanitizePath(input: unknown): string {
   if (input.includes('\0')) {
     throw new PathRejectedError('Path contains a null byte', 'PATH_INVALID');
   }
+  // Reject absurd lengths early — nothing real is this long, and oversized
+  // input otherwise churns resolve/realpath and bloats error bodies (1MB JSON
+  // body limit would allow ~1MB paths).
+  if (input.length > 4096) {
+    throw new PathRejectedError('Path is too long', 'PATH_INVALID');
+  }
 
   let p = input.trim();
   if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) {

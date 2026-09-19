@@ -16,9 +16,34 @@ interface SseClient {
 }
 const sseClients = new Set<SseClient>();
 
-function sseSend(res: Response, event: ScanEvent): void {
+/**
+ * Wire payload accepted by sseSend. Deliberately a superset of ScanEvent: the
+ * SSE 'complete' frame intentionally drops `root` (see finish()) and carries
+ * `scanId` instead, so the stream stays tiny without widening the shared
+ * ScanEvent contract in models/types.ts.
+ */
+type SseEvent = ScanEvent | { type: 'complete'; scanId: string };
+
+/**
+ * Guarded stream write. A client can die between our timer ticks, and writing
+ * to an ended/destroyed socket throws (ERR_STREAM_WRITE_AFTER_END / EPIPE);
+ * without this guard the throw unwinds out of the scan-completion path
+ * (finish → sseSend) or the keep-alive tick as an uncaught exception and can
+ * kill the whole server. A dropped frame is harmless: the client's 'close'
+ * handler (closeClient) does the cleanup.
+ */
+function sseWrite(res: Response, chunk: string): void {
+  if (res.writableEnded || res.destroyed) return;
+  try {
+    res.write(chunk);
+  } catch {
+    /* socket died mid-write — nothing to salvage */
+  }
+}
+
+function sseSend(res: Response, event: SseEvent): void {
   // JSON.stringify never emits raw newlines, so one data: line is enough.
-  res.write(`data: ${JSON.stringify(event)}\n\n`);
+  sseWrite(res, `data: ${JSON.stringify(event)}\n\n`);
 }
 
 function closeClient(client: SseClient): void {
@@ -65,8 +90,35 @@ scanRouter.post('/scan', guardBodyPath, async (req: Request, res: Response) => {
   res.status(202).json({ scanId: scan.scanId });
 });
 
+/**
+ * DELETE /api/scan/:scanId — user-reachable cancel. Only a RUNNING scan is
+ * cancelled: the walker is cooperative (checks `cancelled` between batches)
+ * and flipping status to 'error' makes any open SSE progress stream emit its
+ * terminal frame and close. WHY not mutate terminated scans: a completed
+ * scan's status is what authorizes deletes inside its root
+ * (requireInsideScanRoot), so it must stay 'complete'; cancelling an
+ * already-terminated scan is a no-op that just reports current state.
+ */
+scanRouter.delete('/scan/:scanId', (req: Request, res: Response) => {
+  const scan = requireScan(req, req.params.scanId);
+  if (scan.status === 'running') {
+    scan.cancelled = true;
+    scan.status = 'error';
+    scan.error = 'cancelled';
+    scan.finishedAt = Date.now();
+  }
+  res.json({ scanId: scan.scanId, status: scan.status });
+});
+
 /** GET /api/scan/:scanId/progress — Server-Sent Events stream. */
 scanRouter.get('/scan/:scanId/progress', (req: Request, res: Response) => {
+  // Bound the live-stream registry: each client holds a 150ms timer + a socket.
+  // Authenticated local surface only, but 10 req/s of new streams could still
+  // pile up fds/memory — refuse beyond 50 concurrent streams.
+  if (activeSseCount() >= 50) {
+    res.status(429).json({ error: 'Too many live scan streams', code: 'SSE_LIMIT' });
+    return;
+  }
   const scan = requireScan(req, req.params.scanId);
 
   res.status(200).set({
@@ -82,7 +134,13 @@ scanRouter.get('/scan/:scanId/progress', (req: Request, res: Response) => {
 
   const finish = (): void => {
     if (scan.status === 'complete' && scan.root) {
-      sseSend(res, { type: 'complete', root: scan.root });
+      // WHY no `root` here: this frame used to JSON.stringify the ENTIRE pruned
+      // tree once PER connected SSE client — a tens-of-MB string allocation
+      // multiplied by every open tab on each scan completion. Clients don't
+      // need it: on a root-less 'complete' the frontend fetches the tree once
+      // via GET /api/scan/:scanId/result (shared fetch, one copy), enabled by
+      // the scanId below. This keeps tree serialization out of the SSE path.
+      sseSend(res, { type: 'complete', scanId: scan.scanId });
     } else {
       sseSend(res, { type: 'error', message: scan.error ?? 'Scan failed' });
     }
@@ -99,7 +157,7 @@ scanRouter.get('/scan/:scanId/progress', (req: Request, res: Response) => {
       sseSend(res, { type: 'progress', scanned: scan.scanned, currentPath: scan.currentPath });
       lastBeat = Date.now();
     } else if (Date.now() - lastBeat > 10_000) {
-      res.write(': keep-alive\n\n'); // comment frame, ignored by EventSource
+      sseWrite(res, ': keep-alive\n\n'); // comment frame, ignored by EventSource
       lastBeat = Date.now();
     }
   }, 150);

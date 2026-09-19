@@ -33,14 +33,42 @@ const scans = new Map<string, ScanResult>();
 
 let evictTimer: NodeJS.Timeout | null = null;
 
+/**
+ * Optional eviction hook. diskScanner must not import duplicateFinder (the
+ * dependency would be cyclic and the scanner should stay policy-free), so the
+ * owner of scan-scoped background work registers a cleanup callback here and
+ * the evictor fires it with the evicted scanId just before dropping the
+ * record. duplicateFinder self-registers it at module load (wired to
+ * `cancelDuplicateJobsForScan`) — server.ts deliberately stays out.
+ */
+let onScanEvicted: ((scanId: string) => void) | null = null;
+
+/** Register (or clear with null) the callback fired when a scan is evicted. */
+export function setOnScanEvicted(fn: ((scanId: string) => void) | null): void {
+  onScanEvicted = fn;
+}
+
 function ensureEvictor(): void {
   if (evictTimer) return;
   evictTimer = setInterval(() => {
     const now = Date.now();
     for (const [id, scan] of scans) {
+      // RUNNING scans are never evicted: dropping (or cancelling) a live
+      // scan's record zombifies it — the walker stops cooperatively without
+      // ever setting a terminal status, so the SSE progress stream polls a
+      // forever-'running' closure and never terminates. The TTL exists to
+      // reclaim memory from finished scans; a stuck running scan is stopped
+      // explicitly via DELETE /api/scan/:id or shutdown instead.
+      if (scan.status === 'running') continue;
       if (now - scan.createdAt > SCAN_TTL_MS) {
-        scan.cancelled = true;
         scans.delete(id);
+        // Notify scan-scoped background work (duplicate hashing) before the
+        // id is forgotten; a throwing hook must never break the evictor.
+        try {
+          onScanEvicted?.(id);
+        } catch {
+          /* cleanup is best-effort */
+        }
       }
     }
   }, EVICT_INTERVAL_MS);
@@ -81,11 +109,22 @@ function assertScanRootAllowed(rootPath: string): void {
   }
 }
 
+/** Optional startScan flags — every field optional, defaults = old behavior. */
+export interface StartScanOptions {
+  /**
+   * false skips the automatic end-of-scan Trends snapshot. WHY: internal
+   * probing scans (app-leftover discovery, privacy cache sizing, …) walk
+   * directories the user never asked to track; saving snapshots for them
+   * would pollute Trends history with noise. Default true.
+   */
+  snapshot?: boolean;
+}
+
 /**
  * Kick off a scan of `rootPath`. Returns the scan record immediately;
  * the walk continues in the background and mutates the record as it goes.
  */
-export async function startScan(rootPath: string): Promise<ScanResult> {
+export async function startScan(rootPath: string, opts?: StartScanOptions): Promise<ScanResult> {
   ensureEvictor();
 
   assertScanRootAllowed(rootPath);
@@ -120,7 +159,7 @@ export async function startScan(rootPath: string): Promise<ScanResult> {
   scans.set(scan.scanId, scan);
 
   // Fire and forget — errors land on the record, never as unhandled rejections.
-  void walk(scan, rootStat.isDirectory(), ignore).catch((err: unknown) => {
+  void walk(scan, rootStat.isDirectory(), ignore, opts?.snapshot !== false).catch((err: unknown) => {
     scan.status = 'error';
     scan.error = err instanceof Error ? err.message : String(err);
     scan.finishedAt = Date.now();
@@ -129,7 +168,14 @@ export async function startScan(rootPath: string): Promise<ScanResult> {
   return scan;
 }
 
-function makeNode(fullPath: string, name: string, isDir: boolean, size: number, mtimeMs: number): FileNode {
+function makeNode(
+  fullPath: string,
+  name: string,
+  isDir: boolean,
+  size: number,
+  mtimeMs: number,
+  ino?: number
+): FileNode {
   const node: FileNode = {
     name,
     path: fullPath,
@@ -138,6 +184,9 @@ function makeNode(fullPath: string, name: string, isDir: boolean, size: number, 
     modifiedAt: Math.round(mtimeMs),
     isHidden: name.startsWith('.'),
   };
+  // Inode identity (when the platform's lstat provides one) lets consumers
+  // like the duplicate finder tell hardlinks apart from content copies.
+  if (ino !== undefined) node.ino = ino;
   if (isDir) {
     node.children = [];
   } else {
@@ -147,14 +196,20 @@ function makeNode(fullPath: string, name: string, isDir: boolean, size: number, 
   return node;
 }
 
-async function walk(scan: ScanResult, rootIsDir: boolean, ignore: CompiledIgnore[]): Promise<void> {
+async function walk(
+  scan: ScanResult,
+  rootIsDir: boolean,
+  ignore: CompiledIgnore[],
+  saveSnapshotAtEnd: boolean
+): Promise<void> {
   const rootStat = await fsp.lstat(scan.rootPath);
   const root = makeNode(
     scan.rootPath,
     path.basename(scan.rootPath) || scan.rootPath,
     rootIsDir,
     rootStat.size,
-    rootStat.mtimeMs
+    rootStat.mtimeMs,
+    rootStat.ino
   );
   scan.scanned = 1;
   if (rootIsDir) scan.dirCount = 1;
@@ -173,10 +228,14 @@ async function walk(scan: ScanResult, rootIsDir: boolean, ignore: CompiledIgnore
   scan.currentPath = scan.rootPath;
 
   // Record a history snapshot so Trends works without any user action.
-  // Failures here must never fail the scan itself.
-  void saveSnapshot(scan).catch((err: unknown) => {
-    console.error('[treemap] snapshot save failed:', err);
-  });
+  // Opted out for internal scans (see StartScanOptions.snapshot) so probing
+  // a directory doesn't fabricate user-visible size history. Failures here
+  // must never fail the scan itself.
+  if (saveSnapshotAtEnd) {
+    void saveSnapshot(scan).catch((err: unknown) => {
+      console.error('[treemap] snapshot save failed:', err);
+    });
+  }
 }
 
 /**
@@ -185,6 +244,10 @@ async function walk(scan: ScanResult, rootIsDir: boolean, ignore: CompiledIgnore
  */
 function drainQueue(scan: ScanResult, initial: FileNode[], ignore: CompiledIgnore[]): Promise<void> {
   const queue: FileNode[] = [...initial];
+  // Head-index cursor instead of array.shift(): shift() is O(n) per dequeue
+  // and a wide tree enqueues hundreds of thousands of dirs, turning the walk
+  // into O(n²) shuffling. The drained prefix is reclaimed when the scan ends.
+  let head = 0;
   let active = 0;
 
   return new Promise<void>((resolve, reject) => {
@@ -193,18 +256,18 @@ function drainQueue(scan: ScanResult, initial: FileNode[], ignore: CompiledIgnor
         if (active === 0) resolve();
         return;
       }
-      while (active < CONCURRENCY && queue.length > 0) {
-        const dirNode = queue.shift()!;
+      while (active < CONCURRENCY && head < queue.length) {
+        const dirNode = queue[head++];
         active++;
         processDirectory(scan, dirNode, queue, ignore)
           .catch((err: unknown) => reject(err))
           .finally(() => {
             active--;
-            if (queue.length === 0 && active === 0) resolve();
+            if (head >= queue.length && active === 0) resolve();
             else pump();
           });
       }
-      if (queue.length === 0 && active === 0) resolve();
+      if (head >= queue.length && active === 0) resolve();
     };
     pump();
   });
@@ -248,12 +311,12 @@ async function processDirectory(
 
         if (ent.isDirectory() && !ent.isSymbolicLink()) {
           const stat = await fsp.lstat(fullPath);
-          return makeNode(fullPath, ent.name, true, 0, stat.mtimeMs);
+          return makeNode(fullPath, ent.name, true, 0, stat.mtimeMs, stat.ino);
         }
         // Files, symlinks (not followed — lstat reports the link itself),
         // sockets, fifos: record as a leaf with whatever size lstat reports.
         const stat = await fsp.lstat(fullPath);
-        return makeNode(fullPath, ent.name, false, stat.size, stat.mtimeMs);
+        return makeNode(fullPath, ent.name, false, stat.size, stat.mtimeMs, stat.ino);
       })
     );
 
@@ -294,13 +357,6 @@ function sumDirSizes(node: FileNode): number {
  */
 const MAX_TREE_NODES = 500_000;
 
-/** Live node count of a subtree, honoring already-collapsed directories. */
-function liveCount(node: FileNode): number {
-  let n = 1;
-  if (node.children) for (const c of node.children) n += liveCount(c);
-  return n;
-}
-
 /**
  * Bound a completed tree to ~MAX_TREE_NODES nodes by collapsing the deepest
  * directories into their parent: the parent keeps its aggregated size but
@@ -310,26 +366,43 @@ function liveCount(node: FileNode): number {
  * no children.
  */
 function pruneTree(root: FileNode): void {
-  // One DFS to count nodes and index every directory with its depth.
+  // One DFS to count nodes, index every directory with its depth, and
+  // precompute each directory's subtree node count — so the collapse pass
+  // never has to re-walk subtrees (O(n) total instead of O(n × depth)).
   let count = 0;
-  const dirs: { node: FileNode; depth: number }[] = [];
-  const index = (node: FileNode, depth: number): void => {
+  const dirs: { node: FileNode; depth: number; subtree: number }[] = [];
+  const index = (node: FileNode, depth: number): number => {
     count++;
-    if (node.type !== 'dir' || !node.children) return;
-    dirs.push({ node, depth });
-    for (const c of node.children) index(c, depth + 1);
+    if (node.type !== 'dir' || !node.children) return 1;
+    const entry = { node, depth, subtree: 1 };
+    dirs.push(entry);
+    for (const c of node.children) entry.subtree += index(c, depth + 1);
+    return entry.subtree;
   };
   index(root, 0);
   if (count <= MAX_TREE_NODES) return;
+  const subtreeOf = new Map<FileNode, number>();
+  for (const d of dirs) subtreeOf.set(d.node, d.subtree);
 
   // Collapse deepest first. Descendants are processed before their ancestors,
-  // so a dir is never detached by an earlier collapse, and liveCount() (which
-  // sees earlier collapses below) is never double-subtracted.
+  // so a dir is never detached by an earlier collapse. When an ancestor
+  // collapses, each of its direct children that was ALREADY collapsed has its
+  // whole subtree detached except the truncated child node itself — credit the
+  // child's full `subtree - 1`, not a per-collapse delta: deeper collapses
+  // beneath that child detached their own subtrees, and collapsing the child
+  // detached what remained. Crediting deltas undercounts and lets the tree
+  // finish several-fold over the cap (caught by the Wave F3 review harness).
+
   dirs.sort((a, b) => b.depth - a.depth);
-  for (const { node } of dirs) {
+  for (const { node, subtree } of dirs) {
     if (count <= MAX_TREE_NODES) break;
     if (node === root || !node.children) continue;
-    count -= liveCount(node) - 1;
+    let below = 0;
+    for (const c of node.children) {
+      if (c.type === 'dir' && !c.children) below += (subtreeOf.get(c) ?? 1) - 1;
+    }
+    const removed = subtree - 1 - below;
+    count -= removed;
     node.children = undefined;
     node.truncated = true;
   }
@@ -367,22 +440,37 @@ export function collectLargestFiles(root: FileNode, limit: number, minSize: numb
 
 export function collectLargestFolders(root: FileNode, limit: number, minSize: number): LargeFolder[] {
   const found: LargeFolder[] = [];
-  // Recursive visit returns the subtree's file count so each folder's
-  // recursive count is computed in the same single pass as the walk.
-  const visit = (node: FileNode): number => {
-    if (node.type === 'file') return 1;
+  // Recursive visit returns the subtree's file count plus whether any dir
+  // below was truncated, so each folder's recursive count is computed in the
+  // same single pass as the walk AND flagged when it is only a lower bound.
+  const visit = (node: FileNode): { count: number; truncated: boolean } => {
+    if (node.type === 'file') return { count: 1, truncated: false };
     let count = 0;
-    if (node.children) for (const c of node.children) count += visit(c);
+    let truncated = node.truncated === true;
+    if (node.children) {
+      for (const c of node.children) {
+        const sub = visit(c);
+        count += sub.count;
+        if (sub.truncated) truncated = true;
+      }
+    }
+    // A truncated dir's children were dropped by the tree cap, so the
+    // retained count is 0 even though the dir is known to hold content.
+    // Report ≥1 and flag the entry so the UI can render "≥" instead of a
+    // lying zero — truncated dirs must never look empty.
+    if (truncated && count === 0) count = 1;
     if (node !== root && node.size >= minSize) {
-      found.push({
+      const entry: LargeFolder = {
         name: node.name,
         path: node.path,
         size: node.size,
         fileCount: count,
         modifiedAt: node.modifiedAt,
-      });
+      };
+      if (truncated) entry.truncated = true;
+      found.push(entry);
     }
-    return count;
+    return { count, truncated };
   };
   visit(root);
   return found.sort((a, b) => b.size - a.size).slice(0, limit);

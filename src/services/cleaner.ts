@@ -168,7 +168,17 @@ async function moveToTrashDarwin(paths: string[]): Promise<CleanResult> {
           deleted.push(p);
           freedBytes[p] = sizeOf.get(p) ?? 0;
         } catch (err) {
-          failed.push({ path: p, reason: err instanceof Error ? err.message : String(err) });
+          // The failed batch may have moved some items before erroring: a
+          // path the pre-pass verified present that now reads ENOENT has left
+          // the source — and since this layer only ever trashes, it is in the
+          // Trash. Credit it as deleted (with its pre-measured size) instead
+          // of reporting a failure for something the batch already removed.
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT' && sizeOf.has(p)) {
+            deleted.push(p);
+            freedBytes[p] = sizeOf.get(p) ?? 0;
+          } else {
+            failed.push({ path: p, reason: err instanceof Error ? err.message : String(err) });
+          }
         }
       }
     }
@@ -216,8 +226,21 @@ async function emptyOneTrashDir(
     const size = await measureSize(child); // BEFORE rm — the source is about to vanish
     try {
       await fsp.rm(child, { recursive: true, force: true });
-      removed++;
-      freedBytes += size;
+      // `force` swallows ENOENT, so "no error" is not "gone": confirm the item
+      // actually left the Bin before crediting it — anything still standing
+      // (locked / immutable) counts as failed, never as removed.
+      let gone = false;
+      try {
+        await fsp.lstat(child);
+      } catch {
+        gone = true;
+      }
+      if (gone) {
+        removed++;
+        freedBytes += size;
+      } else {
+        failed++;
+      }
     } catch {
       failed++; // locked / SIP-protected items — skip, don't abort
     }

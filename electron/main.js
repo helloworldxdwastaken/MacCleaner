@@ -146,9 +146,9 @@ function createWindow(port) {
           // Frameless native style: traffic lights overlay the app chrome and the
           // renderer provides the drag region (see .titlebar-drag in index.html).
           titleBarStyle: 'hiddenInset',
-          // Inset 16px inside the floating sidebar card (card sits at 14,14);
+          // Top-left of the flush sidebar rail;
           // .side-logo leaves this row free (html.vibrant .side-logo in index.html).
-          trafficLightPosition: { x: 30, y: 30 },
+          trafficLightPosition: { x: 20, y: 20 },
         }
       : {}),
     show: false,

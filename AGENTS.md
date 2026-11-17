@@ -55,7 +55,6 @@ native/fanhelper/
   install.sh / uninstall.sh / *.plist   LaunchDaemon lifecycle (run as root)
 scripts/
   afterPack.js      electron-builder hook (signs the fan helper inside the .app)
-  gen-tray-icon.js  Procedural tray icon generator
   render-icon.swift Rasterizes build/icon.svg → build/icon.png
 build/          App icon source (icon.svg, icon.png)
 dist/           tsc output (gitignored build artifact, but present locally)

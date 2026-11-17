@@ -14,7 +14,7 @@
    desktop builds keep the solid look. Everything under .vibrant in the
    stylesheet is gated on this class. */
 (function () {
-  document.documentElement.dataset.theme = 'light';
+  document.documentElement.dataset.theme = 'dark';
 
   var ua = navigator.userAgentData;
   var isMac =
@@ -95,57 +95,6 @@
   --blur-1: 16px;   /* cards */
   --blur-2: 30px;   /* rail + overlays */
 }
-:root[data-theme="light"] {
-  --bg-0:          #f5f6f8;
-  --bg-1:          #fbfbfd;
-  --surface-1:     rgba(10,15,30,0.04);
-  --surface-2:     rgba(10,15,30,0.07);
-  --surface-3:     rgba(10,15,30,0.11);
-  --glass:         rgba(255,255,255,0.80);
-  --glass-strong:  rgba(252,252,254,0.96);
-  --hairline:      rgba(10,15,30,0.10);
-  --hairline-2:    rgba(10,15,30,0.18);
-  --shine:         rgba(255,255,255,0.65);
-
-  --text-1:        rgba(10,12,20,0.92);
-  --text-2:        rgba(10,12,20,0.60);
-  --text-3:        rgba(10,12,20,0.42);
-
-  --tm-canvas-bg:  rgba(10,15,30,0.05);
-  --scrim:         rgba(20,24,38,0.38);
-  --skeleton-a:    rgba(10,15,30,0.05);
-  --skeleton-b:    rgba(10,15,30,0.10);
-
-  --shadow-1: 0 1px 2px rgba(20,24,40,0.08);
-  --shadow-2: 0 8px 28px rgba(20,24,40,0.12);
-  --shadow-3: 0 24px 70px rgba(20,24,40,0.18);
-  --blob-opacity: 0.35;
-
-  /* ── Branded painted backdrop (light, whole-app soft gradient) ──
-     Soft mint-white base with gentle green/teal + violet accent blobs —
-     ambient, never hard (CMM-style wash behind every screen). */
-  --canvas-base: #f0f5f2;                                   /* soft mint-white */
-  --blob-a: rgba(106,91,255,0.22);                          /* violet accent, top-left */
-  --blob-b: rgba(38,208,133,0.30);                          /* green, bottom-right */
-  --blob-c: rgba(46,196,182,0.22);                          /* teal, mid-right */
-
-  /* ── Liquid-Glass tokens (light) ──
-     Whiter, higher-alpha surfaces so dark text stays readable over bright
-     wallpapers; borders are dark hairlines. */
-  --glass-bg:        rgba(255,255,255,0.80);
-  --glass-bg-strong: rgba(255,255,255,0.94);
-  --glass-border:    rgba(255,255,255,0.60);
-  --glass-border-2:  rgba(10,15,30,0.16);
-  --glass-shadow:    0 10px 34px rgba(20,24,40,0.14);
-  --glass-shadow-lg: 0 26px 74px rgba(20,24,40,0.20);
-  --glass-wash:      rgba(255,255,255,0.50);
-  --glass-rail:      rgba(255,255,255,0.78);
-  --glass-fill:      rgba(255,255,255,0.60);
-  --glass-fill-2:    rgba(255,255,255,0.72);
-  --blur-1: 16px;
-  --blur-2: 30px;
-}
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 
@@ -153,7 +102,6 @@ html, body { height: 100%; }
    scrollbars inside every nested scroll container — matches. This alone fixes
    the bright-white scrollbar that showed in dark mode. */
 :root[data-theme="dark"]  { color-scheme: dark; }
-:root[data-theme="light"] { color-scheme: light; }
 
 /* Hidden-inset title bar: drag regions (Electron .vibrant builds only).
    The brand row in the sidebar and a thin fixed strip across the main content
@@ -181,10 +129,6 @@ html.vibrant .side-logo button { -webkit-app-region: no-drag; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover, rgba(255,255,255,0.38)); background-clip: padding-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
 * { scrollbar-color: var(--scrollbar-thumb, rgba(255,255,255,0.22)) transparent; } /* Firefox */
-:root[data-theme="light"] {
-  --scrollbar-thumb: rgba(10,15,30,0.24);
-  --scrollbar-thumb-hover: rgba(10,15,30,0.40);
-}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   font-size: 14px;
@@ -200,110 +144,6 @@ body {
 button { font-family: inherit; color: inherit; }
 ::selection { background: var(--accent-soft); }
 .num { font-variant-numeric: tabular-nums; }
-
-/* ════════════════════════ Branded painted backdrop ════════════════════════
-   The hero background in BOTH paths (browser + Electron). A deep navy base
-   (light: lavender-blue) with 3 large, soft brand-color radial blobs placed
-   asymmetrically — indigo top-left, cyan bottom-right, blue mid-right. Static,
-   full-viewport, fixed. Radial gradients are inherently soft, so no filter:blur
-   on this huge layer (keeps it cheap). Glass panels blur over it. */
-body::before {
-  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(60% 55% at 8% 0%,   var(--blob-a), transparent 60%),
-    radial-gradient(70% 60% at 100% 100%, var(--blob-b), transparent 62%),
-    radial-gradient(55% 55% at 92% 34%,  var(--blob-c), transparent 58%),
-    var(--canvas-base);
-}
-
-/* ════════════════════════ Per-page tinted views ════════════════════════
-   Each page picks a wallpaper (body[data-pagebg]) matching that section's
-   logo color, FULL-APP (body::before paints it edge to edge). Text goes white
-   and cards become frosted glass (10% white + blur). Scoped CSS-var overrides
-   do most of the work. */
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) {
-  color: #fff;
-  --text-1: rgba(255,255,255,0.96);
-  --text-2: rgba(255,255,255,0.74);
-  --text-3: rgba(255,255,255,0.52);
-  --hairline: rgba(255,255,255,0.16);
-  --hairline-2: rgba(255,255,255,0.30);
-  --shine: rgba(255,255,255,0.14);
-  --surface-1: rgba(255,255,255,0.10);
-  --surface-2: rgba(255,255,255,0.14);
-  --surface-3: rgba(255,255,255,0.22);
-  --accent-soft: rgba(255,255,255,0.14);
-  --tm-canvas-bg: rgba(0,0,0,0.22);
-  --skeleton-a: rgba(255,255,255,0.08);
-  --skeleton-b: rgba(255,255,255,0.16);
-}
-/* Full-app wallpaper: body::before swaps to the active page's gradient.
-   Softened: desaturate + lift so colors read as a gentle wash, not a neon
-   block — white text still has contrast via the dark overlay. */
-body[data-pagebg]::before { filter: saturate(0.58) brightness(1.18); }
-body[data-pagebg="dashboard"]::before   { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-dashboard.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="fastclean"]::before   { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-fastclean.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="treemap"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-treemap.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="duplicates"]::before  { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-duplicates.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="maintenance"]::before { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-maintenance.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="fans"]::before        { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-fans.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="apps"]::before        { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-apps.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="updater"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-updater.jpg'); background-size: cover; background-position: center; }
-body[data-pagebg="privacy"]::before     { background-image: linear-gradient(rgba(4,8,16,0.18), rgba(4,8,16,0.28)), url('/assets/bg-privacy.jpg'); background-size: cover; background-position: center; }
-
-/* Sidebar over the wallpaper: dark frosted glass, white text (CMM style). */
-body[data-pagebg] .sidebar {
-  color: var(--text-1); /* re-resolve inherited color inside the scoped vars */
-  background: rgba(12,14,34,0.34);
-  backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
-  border-color: rgba(255,255,255,0.12);
-  box-shadow: 0 8px 28px rgba(8,12,30,0.30);
-  --text-1: rgba(255,255,255,0.94);
-  --text-2: rgba(255,255,255,0.66);
-  --text-3: rgba(255,255,255,0.42);
-  --hairline: rgba(255,255,255,0.12);
-  --hairline-2: rgba(255,255,255,0.24);
-  --shine: rgba(255,255,255,0.10);
-  --surface-1: rgba(255,255,255,0.07);
-  --surface-2: rgba(255,255,255,0.10);
-  --surface-3: rgba(255,255,255,0.16);
-}
-
-/* Frosted-glass cards: 10% white + backdrop blur over the page gradient. */
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .glass {
-  background: rgba(255,255,255,0.10);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border-color: rgba(255,255,255,0.16);
-  box-shadow: 0 10px 30px rgba(8,12,30,0.25), inset 0 1px 0 rgba(255,255,255,0.16);
-}
-/* Inputs/selects on tinted pages (browser default would be solid white). */
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy)
-  input[type="text"], :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy)
-  input[type="number"], :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) select {
-  background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.24); color: #fff;
-}
-/* Native dropdown lists (<option>) render outside this page's white-text var
-   scope — pin a solid dark fill or they'd be white-on-white on tinted pages. */
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) select option {
-  background: #1c1c24; color: #fff;
-}
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger {
-  /* Solid, not a red ghost: must read as a button on the red Uninstaller page too. */
-  color: #fff; border-color: rgba(255,255,255,0.22); background: rgba(232,58,48,0.90);
-}
-:is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger:hover {
-  background: rgba(244,74,62,1);
-}
 
 /* ════════════════════════════ Primitives ════════════════════════════ */
 .glass {
@@ -336,7 +176,6 @@ body[data-pagebg] .sidebar {
 }
 .btn-primary:hover { background: #2492ff; box-shadow: 0 6px 24px var(--accent-glow); }
 .btn-danger { background: var(--danger-soft); border-color: rgba(255,69,58,0.38); color: #ff6b61; }
-:root[data-theme="light"] .btn-danger { color: #d63a30; }
 .btn-danger:hover { background: rgba(255,69,58,0.24); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .icon-btn {
@@ -555,8 +394,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .ds-tile .ds-val .u { font-size: 11px; font-weight: 500; color: var(--text-3); margin-left: 1px; }
 .ds-tile.warm .ds-val { color: var(--warn); }
 .ds-tile.hot .ds-val { color: #ff6b61; }
-:root[data-theme="light"] .ds-tile.warm .ds-val { color: #b8860b; }
-:root[data-theme="light"] .ds-tile.hot .ds-val { color: #d63a30; }
 .ds-fanrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 13px; border-radius: var(--r-md);
   background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-1); font: inherit; cursor: pointer; text-align: left;
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
@@ -973,7 +810,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .upd-row .nm { font-size: 13.5px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .upd-row .ver { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .upd-uncertain { display: inline-flex; color: var(--warn); flex: none; }
-:root[data-theme="light"] .upd-uncertain { color: #b8860b; }
 .upd-head { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--text-3); padding: 4px 2px 8px; }
 .upd-head-brew { margin-top: 20px; border-top: 1px solid var(--hairline); padding-top: 16px; }
@@ -1022,8 +858,6 @@ main { padding: 16px 28px 48px; max-width: 1680px; margin: 0 0 0 242px; position
 .sensor.normal .s-val { color: var(--text-1); }
 .sensor.warm .s-val { color: var(--warn); }
 .sensor.hot .s-val { color: #ff6b61; }
-:root[data-theme="light"] .sensor.warm .s-val { color: #b8860b; }
-:root[data-theme="light"] .sensor.hot .s-val { color: #d63a30; }
 .sensor .ring-t-bg { fill: none; stroke: var(--surface-3); stroke-width: 4; }
 .sensor .ring-t-fg { fill: none; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset var(--dur-3) var(--ease); }
 
@@ -1119,184 +953,238 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
 .fans-foot .link-btn:hover { color: var(--text-2); }
 
 /* ════════════════════════════════════════════════════════════════════════
-   Liquid-Glass layer — applies ONLY under .vibrant (macOS Electron build).
-   A native "under-window" vibrancy material sits behind the web contents, so
-   translucent surfaces reveal the desktop and pick up its blur. Without
-   .vibrant (browser preview, win/linux) none of this applies and the UI keeps
-   its solid look — this dual-path is the regression guard.
-
-   Performance budget: at most three live backdrop-filter layers on screen —
-   the rail, top-level cards, and the single active overlay. List/table rows use
-   flat alpha fills (no blur). Blur is never nested more than two deep.
+   Interface v3 — "ink + section colour"
+   ONE dark theme for every screen (browser and desktop build alike). Each
+   section owns a hue (--sec): it tints the backdrop, and it is the accent for
+   that page's primary action, selection, focus and gauges. Hierarchy comes
+   from two surfaces — raised panels and recessed wells — not from blur.
+   The 3D glass icons are the only glossy thing on screen.
    ════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  /* Rounded numerals/headings echo the rounded 3D icons. */
+  --font-round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ink: #0b0d14;
+  --panel: rgba(255,255,255,0.055);
+  --panel-line: rgba(255,255,255,0.09);
+  --well: rgba(0,0,0,0.24);
+  --well-line: rgba(255,255,255,0.06);
+  --r-lg: 16px; --r-md: 12px; --r-sm: 8px;
+  --text-1: rgba(255,255,255,0.95);
+  --text-2: rgba(255,255,255,0.68);
+  --text-3: rgba(255,255,255,0.46);
+  --surface-1: rgba(255,255,255,0.05);
+  --surface-2: rgba(255,255,255,0.09);
+  --surface-3: rgba(255,255,255,0.14);
+  --hairline: rgba(255,255,255,0.09);
+  --hairline-2: rgba(255,255,255,0.20);
+  --glass: var(--panel);
+  --glass-strong: #171a24;
+  --tm-canvas-bg: rgba(0,0,0,0.30);
+  --warn: #FFD966;
+  --danger: #FF6B5E;
+}
+body {
+  font-family: var(--font-ui);
+  --sec: #2BD98F; --sec-deep: #0b2b25;
+  --accent: var(--sec);
+  --accent-soft: color-mix(in srgb, var(--sec) 18%, transparent);
+  --accent-glow: color-mix(in srgb, var(--sec) 32%, transparent);
+  background: var(--ink);
+}
+body[data-pagebg="dashboard"]   { --sec: #2BD98F; --sec-deep: #0b2b25; }
+body[data-pagebg="fastclean"]   { --sec: #24D6B0; --sec-deep: #082e2c; }
+body[data-pagebg="maintenance"] { --sec: #F472C8; --sec-deep: #331031; }
+body[data-pagebg="fans"]        { --sec: #45C8F5; --sec-deep: #0a2741; }
+body[data-pagebg="apps"]        { --sec: #FF8463; --sec-deep: #3a1511; }
+body[data-pagebg="updater"]     { --sec: #6C9DFF; --sec-deep: #0d1e47; }
+body[data-pagebg="treemap"]     { --sec: #A48BFF; --sec-deep: #201548; }
+body[data-pagebg="duplicates"]  { --sec: #FFBE55; --sec-deep: #382408; }
+body[data-pagebg="privacy"]     { --sec: #FFA24D; --sec-deep: #3a1d08; }
 
-/* The branded painted backdrop (body::before) is the hero background in BOTH
-   paths and already provides a rich, blurrable field for the glass. We keep the
-   native vibrancy material behind it (harmless — the painted base sits on top),
-   but do NOT punch the body transparent: the coordinator's direction is to
-   prefer the painted backdrop over desktop show-through. So under .vibrant we
-   only lighten the base slightly so a hint of the vibrancy material still reads
-   at the very edges, while the brand blobs stay dominant. */
-/* :not([data-pagebg]) — this shorthand used to reset the per-page wallpaper
-   image, so the desktop build showed no wallpaper on tinted pages. */
-.vibrant body:not([data-pagebg])::before {
+/* Backdrop: the section hue as light falling from the top-right onto ink. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(60% 55% at 8% 0%,    var(--blob-a), transparent 60%),
-    radial-gradient(70% 60% at 100% 100%, var(--blob-b), transparent 62%),
-    radial-gradient(55% 55% at 92% 34%,  var(--blob-c), transparent 58%),
-    color-mix(in srgb, var(--canvas-base) 94%, transparent);
+    radial-gradient(80% 62% at 88% -12%, color-mix(in srgb, var(--sec) 30%, transparent), transparent 62%),
+    radial-gradient(60% 50% at 0% 105%, color-mix(in srgb, var(--sec) 13%, transparent), transparent 66%),
+    linear-gradient(180deg, var(--sec-deep) 0%, var(--ink) 78%);
 }
 
-/* ── Sidebar rail: the marquee glass surface ── */
-.vibrant .sidebar {
-  background: var(--glass-rail);
-  backdrop-filter: blur(var(--blur-2)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--blur-2)) saturate(180%);
-  border-color: var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
+/* ── Type ── */
+h1, h2, .lo-title, .ring-label b, .stat-tile .v, .ds-tile .ds-val, .sensor .s-val, .fc-cta-main, .fan-rpm {
+  font-family: var(--font-round);
+}
+.card h2 { font-size: 14px; font-weight: 650; letter-spacing: -0.1px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 9px; color: var(--text-1); }
+.card h2 .ic { color: var(--sec); }
+.muted { color: var(--text-2); font-size: 12.5px; line-height: 1.45; }
+/* Labels are sentence case; shouting caps are gone. */
+.side-head, .pl-k, .hero-tile span, .upd-head, .side-soon, .fc-badge-perm, .lo-uncertain, .tile .k, .ds-name {
+  text-transform: none; letter-spacing: 0;
 }
 
-/* ── Cards / panels: lighter glass (one blur layer per card) ── */
-.vibrant .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--blur-1)) saturate(170%);
-  -webkit-backdrop-filter: blur(var(--blur-1)) saturate(170%);
-  border-color: var(--glass-border);
-  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow);
+/* ── Sidebar: a flush rail, not a floating card ── */
+.sidebar {
+  top: 0; left: 0; bottom: 0; width: 228px; padding: 0 10px 14px;
+  border: 0; border-right: 1px solid var(--panel-line); border-radius: 0;
+  background: rgba(0,0,0,0.26); box-shadow: none; color: var(--text-1);
 }
-
-/* ── Overlays: modals / popovers / menus / tooltip / toasts — heavier glass ──
-   These sit above a card, so they get stronger blur + a brighter hairline to
-   separate cleanly. They are the "single active overlay" in the blur budget. */
-.vibrant .modal,
-.vibrant #ctxMenu,
-.vibrant #tooltip,
-.vibrant .toast {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(var(--blur-2)) saturate(180%);
-  -webkit-backdrop-filter: blur(var(--blur-2)) saturate(180%);
-  border-color: var(--glass-border-2);
-  box-shadow: inset 0 1px 0 var(--shine), var(--glass-shadow-lg);
+.side-logo { padding: 20px 8px 16px; margin: 0 2px 8px; border-bottom: 0; font-family: var(--font-round); font-size: 16px; }
+html.vibrant .side-logo { padding-top: 52px; } /* row for the traffic lights (main.js trafficLightPosition) */
+.side-head { font-size: 11.5px; font-weight: 600; color: var(--text-3); padding: 6px 10px 5px; }
+.side-group { margin-top: 12px; }
+.side-item { position: relative; font-size: 13.5px; padding: 8px 10px; border-radius: 9px; color: var(--text-2); }
+.side-item:hover:not(:disabled) { background: var(--surface-1); color: var(--text-1); }
+.side-item[aria-current="true"] {
+  background: color-mix(in srgb, var(--sec) 16%, transparent); color: #fff; box-shadow: none; font-weight: 600;
 }
-.vibrant .modal-backdrop { background: var(--scrim); }
-.vibrant select option { background: var(--glass-bg-strong); }
-
-/* ── Small translucent surfaces: tiles, segmented controls, inputs, chips ──
-   Flat alpha fills (no backdrop-filter) so we stay inside the blur budget and
-   never nest blur inside a blurred card. */
-.vibrant .tile,
-.vibrant .ds-tile,
-.vibrant .qa-tile,
-.vibrant .ds-fanrow,
-.vibrant .sensor,
-.vibrant .gcell,
-.vibrant .fc-item,
-.vibrant .lang-opt,
-.vibrant .apps-search,
-.vibrant .status-pill,
-.vibrant .mode-chip {
-  background: var(--glass-fill);
-  border-color: var(--glass-border);
+.side-item[aria-current="true"]::before {
+  content: ""; position: absolute; left: -10px; top: 9px; bottom: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--sec);
 }
-.vibrant .seg,
-.vibrant input[type="text"],
-.vibrant input[type="number"],
-.vibrant select {
-  background: var(--glass-fill);
-  border-color: var(--glass-border);
+.s3d, .s3d-logo { filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); }
+html.vibrant .titlebar-drag { left: 228px; }
+
+/* ── Page: content column ── */
+main { margin-left: 228px; padding: 22px 32px 48px; max-width: none; min-width: 0; }
+.view, .card { min-width: 0; }
+.view { animation: none; }
+.page-wrap { max-width: 1180px; margin: 0 auto; }
+
+/* Page header: icon, title, one line of context, and the page's one action. */
+.page-hero {
+  display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; column-gap: 16px; row-gap: 2px;
+  align-items: center; justify-items: start; text-align: left;
+  max-width: 1180px; margin: 0 auto 22px; padding: 0;
 }
-.vibrant .seg button[aria-selected="true"],
-.vibrant .side-item[aria-current="true"],
-.vibrant .prefs-tab[aria-selected="true"] {
-  background: var(--glass-fill-2);
+.page-hero .hi { grid-row: 1 / span 3; width: 60px; height: 60px; filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--sec) 45%, transparent)); }
+.page-hero h1 { grid-column: 2; font-size: 26px; font-weight: 700; letter-spacing: -0.4px; line-height: 1.15; align-self: end; }
+.page-hero .ph-sub, .page-hero .ph-meta { grid-column: 2; font-size: 12.5px; color: var(--text-2); max-width: none; }
+.page-hero .ph-meta b { font-weight: 500; }
+.page-hero > .btn, .page-hero > .status-pill { grid-column: 3; grid-row: 1 / span 3; align-self: center; margin: 0 !important; }
+/* The two moments that stay centred: Smart Scan's one-button flow and empty states. */
+#view-fastclean .page-hero, #dupBody .page-hero, .dm-empty.page-hero {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; margin: 18px auto 14px;
 }
-.vibrant .btn { background: var(--glass-fill); border-color: var(--glass-border); }
-.vibrant .btn:hover { background: var(--glass-fill-2); }
-/* Action colors stay fully opaque + readable — never translucent. */
-.vibrant .btn-primary { background: var(--accent); border-color: transparent; }
-.vibrant .btn-primary:hover { background: #2492ff; }
+#view-fastclean .page-hero .hi, #dupBody .page-hero .hi, .dm-empty.page-hero .hi { width: 128px; height: 128px; }
+#view-fastclean .page-hero .ph-sub { max-width: 560px; }
+#view-fastclean .page-hero h1, #dupBody .page-hero h1, .dm-empty.page-hero h1 { align-self: center; }
+.dm-empty.page-hero { min-height: 62vh; justify-content: center; }
+.set-h { text-transform: none; letter-spacing: 0; font-size: 12.5px; }
 
-/* Reduced-transparency (accessibility): fall back to solid surfaces. macOS maps
-   its "Reduce transparency" setting to this media feature, and the token names
-   resolve back to the app's original opaque values. */
-@media (prefers-reduced-transparency: reduce) {
-  /* Keep the branded backdrop (it's opaque, not translucent) but drop every
-     backdrop-filter and translucent surface back to solid fills. */
-  .vibrant .sidebar { background: var(--surface-1);
-    backdrop-filter: none; -webkit-backdrop-filter: none;
-    border-color: var(--hairline); box-shadow: var(--shadow-1); }
-  .vibrant .glass { background: var(--glass);
-    backdrop-filter: blur(24px) saturate(170%); -webkit-backdrop-filter: blur(24px) saturate(170%);
-    border-color: var(--hairline); box-shadow: inset 0 1px 0 var(--shine), var(--shadow-2); }
-  .vibrant .modal, .vibrant #ctxMenu, .vibrant #tooltip, .vibrant .toast {
-    background: var(--glass-strong); border-color: var(--hairline-2); }
-  .vibrant .tile, .vibrant .ds-tile, .vibrant .qa-tile, .vibrant .ds-fanrow, .vibrant .sensor,
-  .vibrant .gcell, .vibrant .fc-item, .vibrant .lang-opt,
-  .vibrant .apps-search, .vibrant .status-pill, .vibrant .mode-chip,
-  .vibrant .seg, .vibrant .btn,
-  .vibrant input[type="text"], .vibrant input[type="number"], .vibrant select {
-    background: var(--surface-1); border-color: var(--hairline); }
+/* ── Surfaces ── */
+.glass, .card.glass {
+  background: var(--panel); border: 1px solid var(--panel-line); border-radius: var(--r-lg);
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
 }
-/* ════════════════════ 2.3 polish: contrast, overflow, title bar ════════════════════ */
-/* Never white-text-on-near-white while a wallpaper JPG is still decoding. */
-body[data-pagebg]::before { background-color: #2b3347; }
-/* Bright wallpapers (amber/orange) need a deeper veil for white text. */
-body[data-pagebg="duplicates"]::before { background-image: linear-gradient(rgba(24,14,0,0.40), rgba(24,14,0,0.52)), url('/assets/bg-duplicates.jpg'); }
-body[data-pagebg="privacy"]::before    { background-image: linear-gradient(rgba(24,10,0,0.34), rgba(24,10,0,0.46)), url('/assets/bg-privacy.jpg'); }
+.card { padding: 18px; }
+/* Wells: anything that sits INSIDE a panel is recessed, never another raised card. */
+.tile, .stat-tile, .ds-tile, .ds-fanrow, .sensor, .hero-tile, .fan-card, .rule-row, .fc-rows.card.glass, .apps-search {
+  background: var(--well); border: 1px solid var(--well-line); border-radius: var(--r-md); box-shadow: none;
+}
+.ds-tile.hottest, .sensor.hottest { border-color: color-mix(in srgb, var(--sec) 55%, transparent); }
+.ds-tile.warm .ds-val, .sensor.warm .s-val { color: var(--warn); }
+.ds-tile.hot .ds-val, .sensor.hot .s-val { color: #FFA39B; }
 
-/* Text links/buttons on tinted pages: the blue accent vanishes on green/blue. */
-body[data-pagebg] main a,
-body[data-pagebg] main .fc-list-actions button { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+/* ── Controls ── */
+.btn { min-height: 34px; padding: 0 14px; border-radius: var(--r-sm); background: var(--surface-2); border-color: var(--panel-line); font-weight: 550; }
+.btn:hover { background: var(--surface-3); border-color: var(--hairline-2); }
+/* Primary = the section colour with ink text (every --sec is a light tone). */
+.btn-primary, .hero-cta {
+  background: var(--sec); border-color: transparent; color: var(--ink); font-weight: 650; box-shadow: none;
+}
+.btn-primary:hover, .hero-cta:hover { background: color-mix(in srgb, var(--sec) 86%, #fff); box-shadow: none; transform: none; }
+.btn-primary .ic, .hero-cta .ic { color: var(--ink); }
+.hero-cta { min-height: 40px; padding: 0 20px; border-radius: 10px; align-self: center; }
+.btn-danger { background: #E5483B; border-color: transparent; color: #fff; }
+.btn-danger:hover { background: #F25A4C; }
+input[type="text"], input[type="number"], select {
+  background: var(--well); border-color: var(--panel-line); color: var(--text-1); border-radius: var(--r-sm);
+}
+input::placeholder { color: var(--text-3); }
+select option { background: #171a24; color: #fff; }
+.apps-search input { background: transparent; border: 0; min-height: 30px; } /* one box, not a box in a box */
+.seg { background: var(--well); border: 1px solid var(--well-line); border-radius: 10px; padding: 3px; }
+.seg button { border-radius: 7px; }
+.seg button[aria-selected="true"] { background: var(--sec); color: var(--ink); font-weight: 650; box-shadow: none; }
+.switch input:checked + .track { background: var(--sec); }
+a, .fc-list-actions button, .mnt-elevate { color: var(--sec); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--sec); outline-offset: 2px; }
 
-/* Warm/hot readings: the light-theme ambers are for white cards, not wallpapers. */
-body[data-pagebg] main .ds-tile.warm .ds-val, body[data-pagebg] main .sensor.warm .s-val { color: #FFD966; }
-body[data-pagebg] main .ds-tile.hot .ds-val,  body[data-pagebg] main .sensor.hot .s-val  { color: #FFA39B; }
+/* ── Status ── */
+.status-pill { background: var(--well); border-color: var(--well-line); color: var(--text-2); }
+.status-pill.ok   { color: #fff; background: rgba(20,160,110,0.45); border-color: transparent; }
+.status-pill.warn { color: #fff; background: rgba(229,72,59,0.62); border-color: transparent; }
+.status-pill.ok .dot, .status-pill.warn .dot { background: #fff; }
+.status-pill.boost { color: var(--ink); background: var(--sec); border-color: transparent; }
+.status-pill.boost .dot { background: var(--ink); }
 
-/* Status pills: filled, so red-on-orange / green-on-green can't happen. */
-body[data-pagebg] main .status-pill.warn { color: #fff; background: rgba(232,58,48,0.62); border-color: rgba(255,255,255,0.28); }
-body[data-pagebg] main .status-pill.ok   { color: #fff; background: rgba(20,160,110,0.55); border-color: rgba(255,255,255,0.28); }
-body[data-pagebg] main .status-pill.warn .dot, body[data-pagebg] main .status-pill.ok .dot { background: #fff; }
-
-/* Selected segment in the desktop (vibrant) build was a blank white pill. */
-html.vibrant body[data-pagebg] main .seg button[aria-selected="true"] { background: rgba(255,255,255,0.24); color: #fff; }
-
-/* Lifetime-impact tiles: shrink/wrap inside the card instead of spilling out. */
+/* ── Dashboard ── */
 .quick-stats { grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); }
 .stat-tile { min-width: 0; padding: 14px; gap: 11px; }
 .stat-tile > div { min-width: 0; }
-.stat-tile .chip { flex: none; }
+.stat-tile .chip { flex: none; background: transparent; }
 .stat-tile .v.small { max-width: 100%; }
 
-/* Live-performance rows: "BATTERY" needs the room; charging value stays legible. */
-.pl-k { width: 68px; }
-body[data-pagebg] main .pl-v.chg { color: #A8F5D2; }
+/* ── Live rows ── */
+.pl-k { width: 68px; font-size: 12px; font-weight: 550; color: var(--text-2); }
+.pl-track { background: var(--well); height: 7px; }
+.pl-fill, .pl-fill.cpu, .pl-fill.ram, .pl-fill.bat, .pl-fill.chg { background: var(--sec); }
+.pl-fill.low { background: #FF6B5E; }
+.pl-v.chg { color: var(--sec); }
 
-/* Wide content scrolls inside its own panel — never the whole page sideways. */
-main { min-width: 0; }
-.view { min-width: 0; }
-.card { min-width: 0; }
+/* ── Lists & rows ── */
+.lo-row .meta { flex: 1; min-width: 0; }
+#updBody { background: var(--panel); border: 1px solid var(--panel-line); border-radius: var(--r-lg); padding: 8px 18px; }
+#updBody:empty { display: none; }
+.upd-head-brew { margin-top: 8px; }
+.mnt-btm-badge, .fan-mode, .s-hot, .badge { text-transform: none; letter-spacing: 0; }
 .mnt-text, .upd-row .meta, .app-row .meta { min-width: 0; }
 .mnt-text > b, .mnt-text > span { overflow-wrap: anywhere; }
-/* Inner lists hand the wheel back to the page at their ends, with a stable gutter. */
 .mnt-scroll, .apps-list, .fc-rows, .clean-list, .browse-list { overscroll-behavior: auto; scrollbar-gutter: stable; }
-
-/* New states */
+.app-row[aria-selected="true"], .app-row.selected { background: color-mix(in srgb, var(--sec) 18%, transparent); }
 .upd-degraded { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; margin: 0 0 12px;
-  border-radius: var(--r-sm); background: rgba(255,214,10,0.16); border: 1px solid rgba(255,214,10,0.38); font-size: 12.5px; }
-.upd-degraded .ic { flex: none; margin-top: 1px; }
-.lo-uncertain { margin-left: 8px; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700;
-  letter-spacing: .04em; text-transform: uppercase; background: rgba(255,214,10,0.22); border: 1px solid rgba(255,214,10,0.45); }
+  border-radius: var(--r-sm); background: rgba(255,217,102,0.13); border: 1px solid rgba(255,217,102,0.34); font-size: 12.5px; }
+.upd-degraded .ic { flex: none; margin-top: 1px; color: var(--warn); }
+.lo-uncertain { margin-left: 8px; padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 650;
+  background: rgba(255,217,102,0.18); border: 1px solid rgba(255,217,102,0.40); }
 .lo-note { font-size: 11.5px; padding: 8px 4px 0; }
 .tune-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--hairline); }
 .tune-row:last-child { border-bottom: none; }
 .tune-row .mnt-text { flex: 1; }
-.tune-state { flex: none; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--hairline-2); }
-.tune-state.bad { background: rgba(255,159,10,0.28); border-color: rgba(255,159,10,0.55); }
-.tune-state.good { background: rgba(38,208,133,0.22); border-color: rgba(38,208,133,0.45); }
+.tune-state { flex: none; font-size: 11px; font-weight: 650; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--hairline-2); }
+.tune-state.bad { background: rgba(255,159,10,0.26); border-color: rgba(255,159,10,0.5); }
+.tune-state.good { background: rgba(38,208,133,0.20); border-color: rgba(38,208,133,0.42); }
 
-/* Desktop build: the traffic lights get their own row inside the sidebar card
-   (they used to sit on top of the logo). Matches trafficLightPosition in main.js. */
-html.vibrant .side-logo { padding-top: 46px; }
+/* ── Smart Scan: the one big round action keeps its drama ── */
+.fc-cta { --fc-green: var(--sec); }
+
+/* ── Dashboard: Mac health ── */
+.health-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+.health-card { display: flex; align-items: center; gap: 26px; padding: 26px 28px; min-height: 196px; overflow: hidden; }
+/* The one glowing thing on the page: the app icon inside a ring of section light. */
+.health-orb { flex: none; width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle, color-mix(in srgb, var(--sec) 26%, transparent) 0%, transparent 68%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sec) 70%, transparent), 0 0 0 9px color-mix(in srgb, var(--sec) 14%, transparent),
+              0 0 46px color-mix(in srgb, var(--sec) 45%, transparent); }
+.health-orb img { width: 104px; height: 104px; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4)); }
+.health-text { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.health-text b { font-family: var(--font-round); font-size: 30px; font-weight: 700; letter-spacing: -0.5px; color: var(--sec); line-height: 1.1; }
+.health-text b.bad { color: var(--warn); }
+.health-tips { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.tip-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; flex: 1; }
+.tip-card .mnt-text { flex: 1; }
+.tip-card .btn { flex: none; }
+@media (max-width: 1120px) { .health-row { grid-template-columns: 1fr; } }
+
+/* ── Overlays ── */
+.modal { background: #171a24; border: 1px solid var(--hairline-2); border-radius: var(--r-lg); color: var(--text-1); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+#ctxMenu, #tooltip, .toast { background: #1d2130; border: 1px solid var(--hairline-2); color: var(--text-1); }
+
+@media (prefers-reduced-motion: no-preference) {
+  body::before { transition: background 0s; }
+}
+
 </style>
 </head>
 <body>
@@ -1344,7 +1232,7 @@ html.vibrant .side-logo { padding-top: 46px; }
   <section class="view" id="view-dashboard" role="tabpanel" aria-label="Dashboard" hidden>
     <!-- Uniform page hero: section icon centered top (same place on every page) -->
     <div class="page-hero">
-      <img class="hi" src="/assets/icon-dashboard-256.png" alt="Dashboard" width="170" height="170">
+      <img class="hi" src="/assets/icon-logo-256.png" alt="" width="170" height="170">
       <h1 data-i18n="dashboard">Dashboard</h1>
       <p class="ph-sub" data-i18n="dashTagline">Everything your Mac needs, in one place.</p>
       <div class="ph-meta num"><b id="sysHost">–</b> · <b id="sysPlatform">–</b></div>
@@ -1352,6 +1240,18 @@ html.vibrant .side-logo { padding-top: 46px; }
     </div>
 
     <div class="page-wrap">
+    <!-- Mac health: the verdict in one glance, with the next step beside it -->
+    <div class="health-row">
+      <div class="card glass health-card">
+        <div class="health-orb"><img src="/assets/icon-logo-256.png" alt="" width="104" height="104"></div>
+        <div class="health-text">
+          <span class="muted" data-i18n="macHealth">Mac health</span>
+          <b id="healthVerdict">–</b>
+          <p class="muted" id="healthWhy"></p>
+        </div>
+      </div>
+      <div class="health-tips" id="healthTips"></div>
+    </div>
     <div class="dash-grid">
       <div class="dash-col">
         <!-- Disk usage at a glance -->
@@ -2062,12 +1962,13 @@ function chipFor(node, size = 15) {
    following. Kept as a function because the treemap/donut/trends redraws run
    once after `state` exists (and would be needed again if themes ever return). */
 function applyTheme() {
-  document.documentElement.dataset.theme = 'light';
+  document.documentElement.dataset.theme = 'dark';
 }
 
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
-  en: { updQuitAsk:"It is open right now. Quit it and install the update?", fcPlanFailed:"Smart Scan couldn't build a safe cleaning plan, so nothing is offered.", nothingToClean:"All clean", tryAgain:"Try again", fdaUnknown:"Unknown", updDegraded:"Couldn't check every source:", liPermHint:"macOS will ask for permission: Automation (System Events) for login apps and an administrator approval for background items.", loUncertain:"Check", loUncertainTip:"Items marked “Check” were matched by app name only and are left unticked — confirm they belong to this app before removing them.", sensorsUnavailable:"Sensors aren't available on this Mac right now.", rulesNotLoaded:"Fan rules haven't loaded yet — try again in a moment.", tuneTitle:"Tune-up without restarting", tuneDesc:"After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.", tuneUptime:"Uptime", tuneUptimeLong:"Over a week without a restart — run the refreshes below.", tuneUptimeOk:"Restarted recently — nothing has had time to build up.", tuneAdvised:"Refresh advised", tuneFine:"Fine", tuneMemory:"Memory", tuneSwap:"swap in use", tuneMemBad:"Memory is under pressure. Quit and reopen the heaviest apps below — that is what actually gives memory back.", tuneMemOk:"Memory pressure is normal.", tuneHeavy:"Heaviest apps right now", refreshUi:"Refresh Dock, menu bar & Control Center", refreshUiDesc:"Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.", relaunchFinder:"Relaunch Finder", relaunchFinderDesc:"Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.", purgeMem:"Release cached memory", purgeMemDesc:"Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).",
+  en: { smartScan:'Smart Scan', tipMemBody:"Quit and reopen the heaviest apps — that is what gives memory back.", macHealth:"Mac health", healthExcellent:"Excellent", healthGood:"Good", healthAttention:"Needs attention", healthAllGood:"Nothing needs doing right now.", healthSee:"See what to do next on the right.", tipDisk:"Your disk is almost full", tipDiskFree:"free. Clear caches and the Bin to get space back.", tipMem:"Memory is under pressure", tipUptime:"Running for", tipHot:"Running hot:", tipHotBody:"Check which app is working hard, or raise the fan speed.", tipTuneUp:"Tune up",
+    updQuitAsk:"It is open right now. Quit it and install the update?", fcPlanFailed:"Smart Scan couldn't build a safe cleaning plan, so nothing is offered.", nothingToClean:"All clean", tryAgain:"Try again", fdaUnknown:"Unknown", updDegraded:"Couldn't check every source:", liPermHint:"macOS will ask for permission: Automation (System Events) for login apps and an administrator approval for background items.", loUncertain:"Check", loUncertainTip:"Items marked “Check” were matched by app name only and are left unticked — confirm they belong to this app before removing them.", sensorsUnavailable:"Sensors aren't available on this Mac right now.", rulesNotLoaded:"Fan rules haven't loaded yet — try again in a moment.", tuneTitle:"Tune-up without restarting", tuneDesc:"After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.", tuneUptime:"Uptime", tuneUptimeLong:"Over a week without a restart — run the refreshes below.", tuneUptimeOk:"Restarted recently — nothing has had time to build up.", tuneAdvised:"Refresh advised", tuneFine:"Fine", tuneMemory:"Memory", tuneSwap:"swap in use", tuneMemBad:"Memory is under pressure. Quit and reopen the heaviest apps below — that is what actually gives memory back.", tuneMemOk:"Memory pressure is normal.", tuneHeavy:"Heaviest apps right now", refreshUi:"Refresh Dock, menu bar & Control Center", refreshUiDesc:"Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.", relaunchFinder:"Relaunch Finder", relaunchFinderDesc:"Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.", purgeMem:"Release cached memory", purgeMemDesc:"Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).",
     clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
     scanning:'Scanning…', remove:'Remove', scanAgain:'Scan again', binRow:'Bin',
     fans:'Fans',
@@ -2100,7 +2001,8 @@ const STRINGS = {
     uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.',
     loading:'Loading…', liAllowedBg:'Allowed in background', liBlocked:'Blocked', liOpens:'Opens at login', liOff:"Off — won't open at login", liBadgeBg:'Background', liNone:"No user login items — nothing opens at login.", liShowClassic:'Show "Open at Login" apps', liMacOnly:'Login items are managed on macOS only.',
     dropUnresolvable:'Couldn\'t scan "{name}" — the dropped item couldn\'t be resolved to a scannable folder' },
-  es: { updQuitAsk:"Está abierta ahora. ¿Cerrarla e instalar la actualización?", fcPlanFailed:"Smart Scan no pudo crear un plan de limpieza seguro; no se ofrece nada.", nothingToClean:"Todo limpio", tryAgain:"Reintentar", fdaUnknown:"Desconocido", updDegraded:"No se pudieron comprobar todas las fuentes:", liPermHint:"macOS pedirá permiso: Automatización (System Events) para las apps de inicio y aprobación de administrador para los ítems en segundo plano.", loUncertain:"Revisar", loUncertainTip:"Los elementos marcados «Revisar» coinciden solo por el nombre de la app y quedan sin marcar: confirma que pertenecen a esta app antes de eliminarlos.", sensorsUnavailable:"Los sensores no están disponibles ahora en este Mac.", rulesNotLoaded:"Las reglas del ventilador aún no se han cargado; inténtalo de nuevo.", tuneTitle:"Puesta a punto sin reiniciar", tuneDesc:"Tras días sin reiniciar, algunos procesos del sistema y apps abiertas ralentizan el Mac. Esto los refresca en el momento: tus ventanas y tu trabajo siguen abiertos.", tuneUptime:"Tiempo encendido", tuneUptimeLong:"Más de una semana sin reiniciar: ejecuta las acciones de abajo.", tuneUptimeOk:"Reiniciado hace poco: no ha habido tiempo de acumular problemas.", tuneAdvised:"Conviene refrescar", tuneFine:"Bien", tuneMemory:"Memoria", tuneSwap:"swap en uso", tuneMemBad:"La memoria está bajo presión. Cierra y vuelve a abrir las apps más pesadas de abajo: eso es lo que de verdad libera memoria.", tuneMemOk:"La presión de memoria es normal.", tuneHeavy:"Apps más pesadas ahora", refreshUi:"Refrescar Dock, barra de menús y Centro de control", refreshUiDesc:"Reinicia los procesos de interfaz del sistema. Arregla un Dock lento, iconos atascados en la barra de menús y fallos de Mission Control.", relaunchFinder:"Reiniciar el Finder", relaunchFinderDesc:"Arregla un Finder lento o bloqueado. Espera a que terminen las copias de archivos: se interrumpirían.", purgeMem:"Liberar memoria en caché", purgeMemDesc:"Devuelve al sistema la memoria de caché de archivos. Necesita tu contraseña de administrador (abre Terminal).",
+  es: { tipMemBody:"Cierra y vuelve a abrir las apps más pesadas: eso es lo que libera memoria.", macHealth:"Salud del Mac", healthExcellent:"Excelente", healthGood:"Buena", healthAttention:"Necesita atención", healthAllGood:"No hay nada que hacer ahora mismo.", healthSee:"Mira qué hacer a continuación a la derecha.", tipDisk:"El disco está casi lleno", tipDiskFree:"libres. Borra cachés y la Papelera para recuperar espacio.", tipMem:"La memoria está bajo presión", tipUptime:"Encendido desde hace", tipHot:"Temperatura alta:", tipHotBody:"Mira qué app está trabajando mucho o sube la velocidad de los ventiladores.", tipTuneUp:"Poner a punto",
+    updQuitAsk:"Está abierta ahora. ¿Cerrarla e instalar la actualización?", fcPlanFailed:"Smart Scan no pudo crear un plan de limpieza seguro; no se ofrece nada.", nothingToClean:"Todo limpio", tryAgain:"Reintentar", fdaUnknown:"Desconocido", updDegraded:"No se pudieron comprobar todas las fuentes:", liPermHint:"macOS pedirá permiso: Automatización (System Events) para las apps de inicio y aprobación de administrador para los ítems en segundo plano.", loUncertain:"Revisar", loUncertainTip:"Los elementos marcados «Revisar» coinciden solo por el nombre de la app y quedan sin marcar: confirma que pertenecen a esta app antes de eliminarlos.", sensorsUnavailable:"Los sensores no están disponibles ahora en este Mac.", rulesNotLoaded:"Las reglas del ventilador aún no se han cargado; inténtalo de nuevo.", tuneTitle:"Puesta a punto sin reiniciar", tuneDesc:"Tras días sin reiniciar, algunos procesos del sistema y apps abiertas ralentizan el Mac. Esto los refresca en el momento: tus ventanas y tu trabajo siguen abiertos.", tuneUptime:"Tiempo encendido", tuneUptimeLong:"Más de una semana sin reiniciar: ejecuta las acciones de abajo.", tuneUptimeOk:"Reiniciado hace poco: no ha habido tiempo de acumular problemas.", tuneAdvised:"Conviene refrescar", tuneFine:"Bien", tuneMemory:"Memoria", tuneSwap:"swap en uso", tuneMemBad:"La memoria está bajo presión. Cierra y vuelve a abrir las apps más pesadas de abajo: eso es lo que de verdad libera memoria.", tuneMemOk:"La presión de memoria es normal.", tuneHeavy:"Apps más pesadas ahora", refreshUi:"Refrescar Dock, barra de menús y Centro de control", refreshUiDesc:"Reinicia los procesos de interfaz del sistema. Arregla un Dock lento, iconos atascados en la barra de menús y fallos de Mission Control.", relaunchFinder:"Reiniciar el Finder", relaunchFinderDesc:"Arregla un Finder lento o bloqueado. Espera a que terminen las copias de archivos: se interrumpirían.", purgeMem:"Liberar memoria en caché", purgeMemDesc:"Devuelve al sistema la memoria de caché de archivos. Necesita tu contraseña de administrador (abre Terminal).",
     dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
@@ -2133,7 +2035,8 @@ const STRINGS = {
     uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.',
     loading:'Cargando…', liAllowedBg:'Permitido en segundo plano', liBlocked:'Bloqueado', liOpens:'Se abre al inicio', liOff:'Desactivado — no se abrirá al inicio', liBadgeBg:'Fondo', liNone:'No hay elementos de inicio del usuario — nada se abre al arrancar.', liShowClassic:'Mostrar apps «Abrir al inicio»', liMacOnly:'Los elementos de inicio solo se gestionan en macOS.',
     dropUnresolvable:'No se puede analizar «{name}» — el elemento soltado no se pudo resolver a una carpeta analizable.' },
-  ru: { updQuitAsk:"Приложение сейчас открыто. Закрыть его и установить обновление?", fcPlanFailed:"Не удалось составить безопасный план очистки — ничего не предлагается.", nothingToClean:"Всё чисто", tryAgain:"Повторить", fdaUnknown:"Неизвестно", updDegraded:"Не все источники удалось проверить:", liPermHint:"macOS запросит разрешения: Автоматизация (System Events) для объектов входа и подтверждение администратора для фоновых объектов.", loUncertain:"Проверить", loUncertainTip:"Объекты с пометкой «Проверить» найдены только по имени приложения и не отмечены — убедитесь, что они относятся к этому приложению.", sensorsUnavailable:"Датчики сейчас недоступны на этом Mac.", rulesNotLoaded:"Правила вентиляторов ещё не загружены — повторите чуть позже.", tuneTitle:"Оптимизация без перезагрузки", tuneDesc:"После нескольких дней без перезагрузки системные помощники и долго работающие приложения замедляют Mac. Здесь их можно обновить на месте — окна и работа остаются открытыми.", tuneUptime:"Время работы", tuneUptimeLong:"Больше недели без перезагрузки — выполните действия ниже.", tuneUptimeOk:"Недавно перезагружен — проблемы не успели накопиться.", tuneAdvised:"Стоит обновить", tuneFine:"В норме", tuneMemory:"Память", tuneSwap:"используется подкачка", tuneMemBad:"Памяти не хватает. Закройте и снова откройте самые тяжёлые приложения ниже — именно это освобождает память.", tuneMemOk:"Нагрузка на память в норме.", tuneHeavy:"Самые тяжёлые приложения сейчас", refreshUi:"Обновить Dock, строку меню и Пункт управления", refreshUiDesc:"Перезапускает системные помощники интерфейса. Исправляет медленный Dock, зависшие значки в строке меню и сбои Mission Control.", relaunchFinder:"Перезапустить Finder", relaunchFinderDesc:"Исправляет медленный или зависший Finder. Сначала дождитесь окончания копирования файлов — оно прервётся.", purgeMem:"Освободить кэш памяти", purgeMemDesc:"Возвращает системе память файлового кэша. Нужен пароль администратора (откроется Терминал).",
+  ru: { tipMemBody:"Закройте и снова откройте самые тяжёлые приложения — это освобождает память.", macHealth:"Состояние Mac", healthExcellent:"Отлично", healthGood:"Хорошо", healthAttention:"Требует внимания", healthAllGood:"Сейчас ничего делать не нужно.", healthSee:"Справа показано, что сделать дальше.", tipDisk:"Диск почти заполнен", tipDiskFree:"свободно. Очистите кэш и Корзину, чтобы вернуть место.", tipMem:"Память перегружена", tipUptime:"Работает уже", tipHot:"Высокая температура:", tipHotBody:"Проверьте, какое приложение нагружает систему, или увеличьте скорость вентиляторов.", tipTuneUp:"Оптимизировать",
+    updQuitAsk:"Приложение сейчас открыто. Закрыть его и установить обновление?", fcPlanFailed:"Не удалось составить безопасный план очистки — ничего не предлагается.", nothingToClean:"Всё чисто", tryAgain:"Повторить", fdaUnknown:"Неизвестно", updDegraded:"Не все источники удалось проверить:", liPermHint:"macOS запросит разрешения: Автоматизация (System Events) для объектов входа и подтверждение администратора для фоновых объектов.", loUncertain:"Проверить", loUncertainTip:"Объекты с пометкой «Проверить» найдены только по имени приложения и не отмечены — убедитесь, что они относятся к этому приложению.", sensorsUnavailable:"Датчики сейчас недоступны на этом Mac.", rulesNotLoaded:"Правила вентиляторов ещё не загружены — повторите чуть позже.", tuneTitle:"Оптимизация без перезагрузки", tuneDesc:"После нескольких дней без перезагрузки системные помощники и долго работающие приложения замедляют Mac. Здесь их можно обновить на месте — окна и работа остаются открытыми.", tuneUptime:"Время работы", tuneUptimeLong:"Больше недели без перезагрузки — выполните действия ниже.", tuneUptimeOk:"Недавно перезагружен — проблемы не успели накопиться.", tuneAdvised:"Стоит обновить", tuneFine:"В норме", tuneMemory:"Память", tuneSwap:"используется подкачка", tuneMemBad:"Памяти не хватает. Закройте и снова откройте самые тяжёлые приложения ниже — именно это освобождает память.", tuneMemOk:"Нагрузка на память в норме.", tuneHeavy:"Самые тяжёлые приложения сейчас", refreshUi:"Обновить Dock, строку меню и Пункт управления", refreshUiDesc:"Перезапускает системные помощники интерфейса. Исправляет медленный Dock, зависшие значки в строке меню и сбои Mission Control.", relaunchFinder:"Перезапустить Finder", relaunchFinderDesc:"Исправляет медленный или зависший Finder. Сначала дождитесь окончания копирования файлов — оно прервётся.", purgeMem:"Освободить кэш памяти", purgeMemDesc:"Возвращает системе память файлового кэша. Нужен пароль администратора (откроется Терминал).",
     dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
@@ -2166,7 +2069,8 @@ const STRINGS = {
     uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.',
     loading:'Загрузка…', liAllowedBg:'Разрешено в фоне', liBlocked:'Заблокировано', liOpens:'Открывается при входе', liOff:'Выключено — не будет открываться при входе', liBadgeBg:'Фон', liNone:'Пользовательских объектов входа нет — при входе ничего не открывается.', liShowClassic:'Показать приложения «Открываться при входе»', liMacOnly:'Объектами входа можно управлять только в macOS.',
     dropUnresolvable:'Не удалось просканировать «{name}» — перетащенный объект не удалось разрешить в папку для сканирования.' },
-  de: { updQuitAsk:"Die App ist gerade geöffnet. Beenden und Update installieren?", fcPlanFailed:"Es konnte kein sicherer Bereinigungsplan erstellt werden – nichts wird angeboten.", nothingToClean:"Alles sauber", tryAgain:"Erneut versuchen", fdaUnknown:"Unbekannt", updDegraded:"Nicht alle Quellen konnten geprüft werden:", liPermHint:"macOS fragt nach Erlaubnis: Automation (System Events) für Anmeldeobjekte und eine Administrator-Bestätigung für Hintergrundobjekte.", loUncertain:"Prüfen", loUncertainTip:"Mit „Prüfen“ markierte Objekte wurden nur über den App-Namen gefunden und sind nicht ausgewählt – prüfe vor dem Entfernen, ob sie zu dieser App gehören.", sensorsUnavailable:"Sensoren sind auf diesem Mac derzeit nicht verfügbar.", rulesNotLoaded:"Die Lüfterregeln sind noch nicht geladen – gleich erneut versuchen.", tuneTitle:"Auffrischen ohne Neustart", tuneDesc:"Nach Tagen ohne Neustart bremsen einige Systemhelfer und lange laufende Apps. Hier werden sie direkt aufgefrischt – Fenster und Arbeit bleiben offen.", tuneUptime:"Laufzeit", tuneUptimeLong:"Über eine Woche ohne Neustart – führe die Aktionen unten aus.", tuneUptimeOk:"Kürzlich neu gestartet – es hat sich noch nichts angestaut.", tuneAdvised:"Auffrischen empfohlen", tuneFine:"In Ordnung", tuneMemory:"Speicher", tuneSwap:"Swap belegt", tuneMemBad:"Der Speicher ist knapp. Beende die schwersten Apps unten und öffne sie neu – das gibt wirklich Speicher frei.", tuneMemOk:"Der Speicherdruck ist normal.", tuneHeavy:"Schwerste Apps im Moment", refreshUi:"Dock, Menüleiste & Kontrollzentrum auffrischen", refreshUiDesc:"Startet die System-UI-Helfer neu. Behebt ein träges Dock, hängende Menüleistensymbole und Mission-Control-Fehler.", relaunchFinder:"Finder neu starten", relaunchFinderDesc:"Behebt einen langsamen oder eingefrorenen Finder. Warte zuerst laufende Kopiervorgänge ab – sie würden abgebrochen.", purgeMem:"Zwischengespeicherten Speicher freigeben", purgeMemDesc:"Gibt Datei-Cache-Speicher an das System zurück. Benötigt dein Administratorpasswort (öffnet Terminal).",
+  de: { tipMemBody:"Beende die schwersten Apps und öffne sie neu – das gibt Speicher frei.", macHealth:"Mac-Zustand", healthExcellent:"Ausgezeichnet", healthGood:"Gut", healthAttention:"Braucht Aufmerksamkeit", healthAllGood:"Im Moment ist nichts zu tun.", healthSee:"Rechts steht, was als Nächstes zu tun ist.", tipDisk:"Die Festplatte ist fast voll", tipDiskFree:"frei. Leere Caches und den Papierkorb, um Platz zu schaffen.", tipMem:"Der Speicher ist knapp", tipUptime:"Läuft seit", tipHot:"Hohe Temperatur:", tipHotBody:"Prüfe, welche App viel arbeitet, oder erhöhe die Lüfterdrehzahl.", tipTuneUp:"Auffrischen",
+    updQuitAsk:"Die App ist gerade geöffnet. Beenden und Update installieren?", fcPlanFailed:"Es konnte kein sicherer Bereinigungsplan erstellt werden – nichts wird angeboten.", nothingToClean:"Alles sauber", tryAgain:"Erneut versuchen", fdaUnknown:"Unbekannt", updDegraded:"Nicht alle Quellen konnten geprüft werden:", liPermHint:"macOS fragt nach Erlaubnis: Automation (System Events) für Anmeldeobjekte und eine Administrator-Bestätigung für Hintergrundobjekte.", loUncertain:"Prüfen", loUncertainTip:"Mit „Prüfen“ markierte Objekte wurden nur über den App-Namen gefunden und sind nicht ausgewählt – prüfe vor dem Entfernen, ob sie zu dieser App gehören.", sensorsUnavailable:"Sensoren sind auf diesem Mac derzeit nicht verfügbar.", rulesNotLoaded:"Die Lüfterregeln sind noch nicht geladen – gleich erneut versuchen.", tuneTitle:"Auffrischen ohne Neustart", tuneDesc:"Nach Tagen ohne Neustart bremsen einige Systemhelfer und lange laufende Apps. Hier werden sie direkt aufgefrischt – Fenster und Arbeit bleiben offen.", tuneUptime:"Laufzeit", tuneUptimeLong:"Über eine Woche ohne Neustart – führe die Aktionen unten aus.", tuneUptimeOk:"Kürzlich neu gestartet – es hat sich noch nichts angestaut.", tuneAdvised:"Auffrischen empfohlen", tuneFine:"In Ordnung", tuneMemory:"Speicher", tuneSwap:"Swap belegt", tuneMemBad:"Der Speicher ist knapp. Beende die schwersten Apps unten und öffne sie neu – das gibt wirklich Speicher frei.", tuneMemOk:"Der Speicherdruck ist normal.", tuneHeavy:"Schwerste Apps im Moment", refreshUi:"Dock, Menüleiste & Kontrollzentrum auffrischen", refreshUiDesc:"Startet die System-UI-Helfer neu. Behebt ein träges Dock, hängende Menüleistensymbole und Mission-Control-Fehler.", relaunchFinder:"Finder neu starten", relaunchFinderDesc:"Behebt einen langsamen oder eingefrorenen Finder. Warte zuerst laufende Kopiervorgänge ab – sie würden abgebrochen.", purgeMem:"Zwischengespeicherten Speicher freigeben", purgeMemDesc:"Gibt Datei-Cache-Speicher an das System zurück. Benötigt dein Administratorpasswort (öffnet Terminal).",
     dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
@@ -2199,7 +2103,8 @@ const STRINGS = {
     uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.',
     loading:'Wird geladen…', liAllowedBg:'Im Hintergrund erlaubt', liBlocked:'Blockiert', liOpens:'Öffnet sich bei der Anmeldung', liOff:'Aus — öffnet sich nicht bei der Anmeldung', liBadgeBg:'Hintergrund', liNone:'Keine Benutzer-Anmeldeobjekte — nichts öffnet sich bei der Anmeldung.', liShowClassic:'„Bei der Anmeldung öffnen“-Apps anzeigen', liMacOnly:'Anmeldeobjekte lassen sich nur unter macOS verwalten.',
     dropUnresolvable:'„{name}“ kann nicht gescannt werden — das abgelegte Element ließ sich nicht in einen scannbaren Ordner auflösen.' },
-  fr: { updQuitAsk:"L'app est ouverte. La quitter et installer la mise à jour ?", fcPlanFailed:"Impossible d'établir un plan de nettoyage sûr : rien n'est proposé.", nothingToClean:"Tout est propre", tryAgain:"Réessayer", fdaUnknown:"Inconnu", updDegraded:"Certaines sources n'ont pas pu être vérifiées :", liPermHint:"macOS demandera une autorisation : Automatisation (System Events) pour les apps à l'ouverture et une approbation administrateur pour les éléments en arrière-plan.", loUncertain:"À vérifier", loUncertainTip:"Les éléments marqués « À vérifier » ne correspondent que par le nom de l'app et restent décochés : vérifiez qu'ils appartiennent à cette app avant de les supprimer.", sensorsUnavailable:"Les capteurs ne sont pas disponibles sur ce Mac pour l'instant.", rulesNotLoaded:"Les règles des ventilateurs ne sont pas encore chargées — réessayez dans un instant.", tuneTitle:"Remise en forme sans redémarrer", tuneDesc:"Après plusieurs jours sans redémarrage, certains services système et apps ouvertes ralentissent le Mac. Ceci les rafraîchit sur place : vos fenêtres et votre travail restent ouverts.", tuneUptime:"Temps d'activité", tuneUptimeLong:"Plus d'une semaine sans redémarrage : lancez les actions ci-dessous.", tuneUptimeOk:"Redémarré récemment : rien n'a eu le temps de s'accumuler.", tuneAdvised:"Rafraîchir conseillé", tuneFine:"OK", tuneMemory:"Mémoire", tuneSwap:"swap utilisé", tuneMemBad:"La mémoire est sous pression. Quittez puis rouvrez les apps les plus lourdes ci-dessous : c'est ce qui libère vraiment la mémoire.", tuneMemOk:"La pression mémoire est normale.", tuneHeavy:"Apps les plus lourdes actuellement", refreshUi:"Rafraîchir le Dock, la barre des menus et le Centre de contrôle", refreshUiDesc:"Redémarre les services d'interface du système. Corrige un Dock lent, des icônes de barre des menus figées et les bugs de Mission Control.", relaunchFinder:"Relancer le Finder", relaunchFinderDesc:"Corrige un Finder lent ou figé. Attendez la fin des copies de fichiers : elles seraient interrompues.", purgeMem:"Libérer la mémoire en cache", purgeMemDesc:"Rend au système la mémoire du cache de fichiers. Nécessite votre mot de passe administrateur (ouvre Terminal).",
+  fr: { tipMemBody:"Quittez puis rouvrez les apps les plus lourdes : c'est ce qui libère la mémoire.", macHealth:"Santé du Mac", healthExcellent:"Excellente", healthGood:"Bonne", healthAttention:"À surveiller", healthAllGood:"Rien à faire pour le moment.", healthSee:"Voyez à droite ce qu'il faut faire ensuite.", tipDisk:"Le disque est presque plein", tipDiskFree:"libres. Videz les caches et la Corbeille pour récupérer de l'espace.", tipMem:"La mémoire est sous pression", tipUptime:"Allumé depuis", tipHot:"Température élevée :", tipHotBody:"Vérifiez quelle app travaille beaucoup, ou augmentez la vitesse des ventilateurs.", tipTuneUp:"Optimiser",
+    updQuitAsk:"L'app est ouverte. La quitter et installer la mise à jour ?", fcPlanFailed:"Impossible d'établir un plan de nettoyage sûr : rien n'est proposé.", nothingToClean:"Tout est propre", tryAgain:"Réessayer", fdaUnknown:"Inconnu", updDegraded:"Certaines sources n'ont pas pu être vérifiées :", liPermHint:"macOS demandera une autorisation : Automatisation (System Events) pour les apps à l'ouverture et une approbation administrateur pour les éléments en arrière-plan.", loUncertain:"À vérifier", loUncertainTip:"Les éléments marqués « À vérifier » ne correspondent que par le nom de l'app et restent décochés : vérifiez qu'ils appartiennent à cette app avant de les supprimer.", sensorsUnavailable:"Les capteurs ne sont pas disponibles sur ce Mac pour l'instant.", rulesNotLoaded:"Les règles des ventilateurs ne sont pas encore chargées — réessayez dans un instant.", tuneTitle:"Remise en forme sans redémarrer", tuneDesc:"Après plusieurs jours sans redémarrage, certains services système et apps ouvertes ralentissent le Mac. Ceci les rafraîchit sur place : vos fenêtres et votre travail restent ouverts.", tuneUptime:"Temps d'activité", tuneUptimeLong:"Plus d'une semaine sans redémarrage : lancez les actions ci-dessous.", tuneUptimeOk:"Redémarré récemment : rien n'a eu le temps de s'accumuler.", tuneAdvised:"Rafraîchir conseillé", tuneFine:"OK", tuneMemory:"Mémoire", tuneSwap:"swap utilisé", tuneMemBad:"La mémoire est sous pression. Quittez puis rouvrez les apps les plus lourdes ci-dessous : c'est ce qui libère vraiment la mémoire.", tuneMemOk:"La pression mémoire est normale.", tuneHeavy:"Apps les plus lourdes actuellement", refreshUi:"Rafraîchir le Dock, la barre des menus et le Centre de contrôle", refreshUiDesc:"Redémarre les services d'interface du système. Corrige un Dock lent, des icônes de barre des menus figées et les bugs de Mission Control.", relaunchFinder:"Relancer le Finder", relaunchFinderDesc:"Corrige un Finder lent ou figé. Attendez la fin des copies de fichiers : elles seraient interrompues.", purgeMem:"Libérer la mémoire en cache", purgeMemDesc:"Rend au système la mémoire du cache de fichiers. Nécessite votre mot de passe administrateur (ouvre Terminal).",
     dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
@@ -3738,7 +3643,34 @@ async function loadActivity() {
 /* ───────────────────────────── Dashboard ─────────────────────────────
    Always-useful, zero-setup: brand hero, disk usage, live temps/fans, live
    CPU/RAM/battery, lifetime impact. */
+/* Mac health card: a verdict from the same live numbers the cards below show,
+   plus up to three "do this next" tips that jump to the right section. */
+async function loadDashHealth() {
+  const box = $('healthTips');
+  if (!box) return;
+  const h = await api('/api/maintenance/health').catch(() => null);
+  const sys = state.system, temps = state.fans.status && state.fans.status.temps;
+  const tips = [];
+  if (sys && sys.totalDisk && sys.freeDisk / sys.totalDisk < 0.10)
+    tips.push({ title: t('tipDisk'), body: `${formatBytes(sys.freeDisk)} ${t('tipDiskFree')}`, view: 'fastclean', btn: t('smartScan') });
+  if (h && (h.pressure === 'warning' || h.pressure === 'critical' || (h.swapUsedBytes || 0) > 2 * 1024 ** 3))
+    tips.push({ title: t('tipMem'), body: t('tipMemBody'), view: 'maintenance', btn: t('tipTuneUp') });
+  if (h && h.uptimeSeconds >= 7 * 86400)
+    tips.push({ title: `${t('tipUptime')} ${fmtUptime(h.uptimeSeconds)}`, body: t('tuneUptimeLong'), view: 'maintenance', btn: t('tipTuneUp') });
+  if (temps && temps.hottest && temps.hottest.value >= 85)
+    tips.push({ title: `${t('tipHot')} ${Math.round(temps.hottest.value)}°C`, body: t('tipHotBody'), view: 'fans', btn: t('fans') });
+  const n = tips.length;
+  $('healthVerdict').textContent = t(n === 0 ? 'healthExcellent' : n === 1 ? 'healthGood' : 'healthAttention');
+  $('healthVerdict').className = n >= 2 ? 'bad' : '';
+  $('healthWhy').textContent = n === 0 ? t('healthAllGood') : t('healthSee');
+  box.innerHTML = tips.slice(0, 3).map(tp => `<div class="card glass tip-card">
+      <div class="mnt-text"><b>${escapeHtml(tp.title)}</b><span>${escapeHtml(tp.body)}</span></div>
+      <button class="btn" data-go="${tp.view}">${escapeHtml(tp.btn)}</button>
+    </div>`).join('') || `<div class="card glass tip-card"><div class="mnt-text"><b>${escapeHtml(t('healthExcellent'))}</b><span>${escapeHtml(t('healthAllGood'))}</span></div></div>`;
+  box.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => switchView(b.dataset.go)));
+}
 function loadDashboard() {
+  loadDashHealth();
   if (state.system) updateDiskRing(); // paint the cached numbers now…
   loadSystem();                       // …and always refresh (free space changes after a clean)
   renderDashSensors(state.fans.status);
@@ -6026,24 +5958,6 @@ window.addEventListener('drop', async (e) => {
 /* ── Dashboard quick actions (tiles + the hero Smart Scan CTA) ── */
 document.querySelectorAll('[data-qa]').forEach(b =>
   b.addEventListener('click', () => switchView(b.dataset.qa)));
-
-/* ── Wallpaper warm-up: the 9 per-section backgrounds are swapped in by
-   switchView via body[data-pagebg]; a cold cache makes the first view-switch
-   flash. Warm them staggered during idle time right after boot. ── */
-(function preloadWallpapers() {
-  const views = TINTED_VIEWS;
-  const warm = (i) => {
-    if (i >= views.length) return;
-    const img = new Image();
-    img.onload = img.onerror = () => {
-      const next = () => warm(i + 1);
-      (window.requestIdleCallback || ((fn) => setTimeout(fn, 100)))(next);
-    };
-    img.src = `/assets/bg-${views[i]}.jpg`;
-  };
-  const start = () => warm(0);
-  (window.requestIdleCallback || ((fn) => setTimeout(fn, 2000)))(start);
-})();
 
 /* ───────────────────────────── Boot ───────────────────────────── */
 switchView('dashboard'); // → loadDashboard → loadSystem (single guarded fetch)

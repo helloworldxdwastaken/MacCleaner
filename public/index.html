@@ -972,7 +972,7 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   --r-lg: 16px; --r-md: 12px; --r-sm: 8px;
   --text-1: rgba(255,255,255,0.95);
   --text-2: rgba(255,255,255,0.68);
-  --text-3: rgba(255,255,255,0.46);
+  --text-3: rgba(255,255,255,0.58); /* ≥4.5:1 on panels over every section tint */
   --surface-1: rgba(255,255,255,0.05);
   --surface-2: rgba(255,255,255,0.09);
   --surface-3: rgba(255,255,255,0.14);
@@ -1096,8 +1096,8 @@ main { margin-left: 228px; padding: 22px 32px 48px; max-width: none; min-width: 
 .btn-primary:hover, .hero-cta:hover { background: color-mix(in srgb, var(--sec) 86%, #fff); box-shadow: none; transform: none; }
 .btn-primary .ic, .hero-cta .ic { color: var(--ink); }
 .hero-cta { min-height: 40px; padding: 0 20px; border-radius: 10px; align-self: center; }
-.btn-danger { background: #E5483B; border-color: transparent; color: #fff; }
-.btn-danger:hover { background: #F25A4C; }
+.btn-danger { background: #D13A2E; border-color: transparent; color: #fff; }
+.btn-danger:hover { background: #DE4335; }
 input[type="text"], input[type="number"], select {
   background: var(--well); border-color: var(--panel-line); color: var(--text-1); border-radius: var(--r-sm);
 }
@@ -1197,6 +1197,22 @@ a, .fc-list-actions button, .mnt-elevate { color: var(--sec); font-weight: 600; 
 @media (prefers-reduced-motion: reduce) {
   .prog.indet .prog-fill, .upd-row.busy::after { animation: none; width: 100%; opacity: .55; }
 }
+
+/* ── Audit fixes: cascade + contrast ── */
+/* Floating selection bar must be opaque — the grid showed straight through it. */
+#selectionBar { background: #1d2130; border: 1px solid var(--hairline-2); box-shadow: 0 16px 44px rgba(0,0,0,0.55); }
+/* Text fields lost their focus cue to a later same-specificity rule. */
+input[type="text"]:focus-visible, input[type="number"]:focus-visible, select:focus-visible {
+  border-color: var(--sec); outline: 2px solid var(--sec); outline-offset: 1px; }
+/* Ink text wherever the (light) section colour is the background. */
+#ctxMenu button:hover, #ctxMenu button:hover .ic, .gcell .sel-mark { color: var(--ink); }
+#ctxMenu button.danger:hover { background: #D13A2E; color: #fff; }
+#ctxMenu button.danger:hover .ic { color: #fff; }
+/* `.card { padding }` now follows these two in the cascade — restore their own. */
+.fc-rows.card.glass { padding: 6px; }
+.card.dup-progress { padding: 60px 0; }
+/* The current section keeps its tint under the pointer. */
+.side-item[aria-current="true"]:hover:not(:disabled) { background: color-mix(in srgb, var(--sec) 22%, transparent); color: #fff; }
 
 /* ── Overlays ── */
 .modal { background: #171a24; border: 1px solid var(--hairline-2); border-radius: var(--r-lg); color: var(--text-1); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
@@ -2229,6 +2245,7 @@ function applyLang(lang, announce) {
   document.querySelectorAll('.lang-opt').forEach(o => o.setAttribute('aria-selected', String(o.dataset.lang === state.lang)));
   if (announce) toast('Language: ' + (LANG_NAMES[state.lang] || state.lang));
   if (state.privacyFdaShown) loadPrivacyFda(); // re-translate the live FDA line
+  if (state.view === 'dashboard' && typeof loadDashHealth === 'function') loadDashHealth();
   // Re-render the live Smart Scan copy if it's showing.
   if (state.view === 'fastclean' && typeof resetFc === 'function' && !state.fastclean.cleaning) {
     $('fcSub').textContent = STRINGS[state.lang] && STRINGS[state.lang].ssSub ? STRINGS[state.lang].ssSub : ($('fcSub').dataset.en || $('fcSub').textContent);
@@ -2630,6 +2647,7 @@ async function loadSystem() {
     const sys = await api('/api/system');
     state.system = sys;
     maybeOnboard();
+    if (state.view === 'dashboard') loadDashHealth(); // disk numbers just arrived
     $('sysHost').textContent = sys.hostname;
     $('sysPlatform').textContent = ({ darwin:'macOS', win32:'Windows', linux:'Linux' })[sys.platform] || sys.platform;
     $('sysTotal').textContent = formatBytes(sys.totalDisk);
@@ -3790,6 +3808,8 @@ async function loadDashHealth() {
   if (temps && temps.hottest && temps.hottest.value >= 85)
     tips.push({ title: `${t('tipHot')} ${Math.round(temps.hottest.value)}°C`, body: t('tipHotBody'), view: 'fans', btn: t('fans') });
   const n = tips.length;
+  // No health reading and nothing local to say: unknown, not "Excellent".
+  if (!h && n === 0) { $('healthVerdict').textContent = '–'; $('healthVerdict').className = ''; $('healthWhy').textContent = ''; box.innerHTML = ''; return; }
   $('healthVerdict').textContent = t(n === 0 ? 'healthExcellent' : n === 1 ? 'healthGood' : 'healthAttention');
   $('healthVerdict').className = n >= 2 ? 'bad' : '';
   $('healthWhy').textContent = n === 0 ? t('healthAllGood') : t('healthSee');
@@ -4176,7 +4196,7 @@ function refreshFcButton() {
   }
   const total = fcSelectedTotal();
   btn.disabled = total <= 0;
-  btn.querySelector('.fc-cta-main').textContent = t(total > 0 || fc.planEntries.length ? 'remove' : 'nothingToClean');
+  btn.querySelector('.fc-cta-main').textContent = t(total > 0 || fc.planEntries.length || (fc.trashAccessible && fc.binSize > 0) ? 'remove' : 'nothingToClean');
   $('fcCtaSize').textContent = total > 0 ? formatBytes(total) : '';
   updateFcListHead();
 }
@@ -5467,7 +5487,7 @@ async function fetchFanStatus() {
     state.fans.ok = true;
     if (!state.fans.rules && s.rulesConfig) state.fans.rules = s.rulesConfig;
     if (state.view === 'fans') renderFansLive(s);
-    if (state.view === 'dashboard') renderDashSensors(s);
+    if (state.view === 'dashboard') { renderDashSensors(s); if (!state.fans.healthTempSeen) { state.fans.healthTempSeen = true; loadDashHealth(); } }
   } catch (e) {
     // Degrade gracefully: no console spam — but never leave "Reading sensors…"
     // / skeleton bars up forever when there is nothing to show.

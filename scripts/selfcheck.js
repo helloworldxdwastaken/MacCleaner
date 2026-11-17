@@ -78,3 +78,13 @@ assert.ok(versionIsPrefix('134.0', '134.0.1'));
 assert.ok(!versionIsPrefix('133.0', '134.0.1'));
 assert.ok(!versionIsPrefix('', '1.0'));
 console.log('selfcheck: version prefix ok');
+
+// Treemap layout: every rectangle keeps its area and stays inside the box.
+const { squarify } = require('../dist/utils/treemap');
+const areas = [600, 300, 200, 150, 100, 50];
+const rects = squarify(areas, { x: 0, y: 0, w: 40, h: 35 });
+rects.forEach((r, i) => {
+  assert.ok(Math.abs(r.w * r.h - areas[i]) < 1e-6, 'area preserved');
+  assert.ok(r.x >= -1e-9 && r.y >= -1e-9 && r.x + r.w <= 40 + 1e-6 && r.y + r.h <= 35 + 1e-6, 'inside the box');
+});
+console.log('selfcheck: treemap ok');

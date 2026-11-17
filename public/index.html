@@ -2569,7 +2569,7 @@ function pollBrowserCacheScan(scanId) {
   return new Promise((resolve, reject) => {
     const tick = async () => {
       let d = null;
-      try { d = await api(`/api/scan/${scanId}/result`); }
+      try { d = await api(`/api/scan/${scanId}/result?summary=1`); }
       catch (e) { reject(e); return; }
       if (d && d.status !== 'running') { resolve(d.status); return; }
       if (Date.now() > deadline) { resolve(null); return; }
@@ -4125,7 +4125,7 @@ async function openFdaSettings() {
 /** Poll a scan's /result until it completes; hand the final body (or null) to onDone.
     Optional isAlive() guard makes stale polls (older load, view left) self-terminate. */
 function pollScanSize(scanId, onDone, tries = 0, isAlive) {
-  api(`/api/scan/${scanId}/result`).then(d => {
+  api(`/api/scan/${scanId}/result?summary=1`).then(d => {
     if (isAlive && !isAlive()) return;
     if (d.status === 'running') {
       if (tries > 850) { onDone(null); return; } // ~10 min safety cap

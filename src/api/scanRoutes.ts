@@ -198,7 +198,13 @@ scanRouter.get('/scan/:scanId/result', (req: Request, res: Response) => {
     dirCount: scan.dirCount,
     startedAt: scan.startedAt,
     finishedAt: scan.finishedAt,
-    root: scan.root,
+    // ?summary=1 → the root and its direct children only. Size/status polls
+    // used to pull the whole tree (tens of MB, a blocking stringify) to read
+    // one number.
+    root:
+      req.query.summary === '1' && scan.root
+        ? { ...scan.root, children: scan.root.children?.map((c) => ({ ...c, children: undefined })) }
+        : scan.root,
   });
 });
 

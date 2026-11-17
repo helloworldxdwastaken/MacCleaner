@@ -28,15 +28,7 @@ export interface TreemapOptions {
  * Worst aspect ratio of a row of areas laid along a side of length `side`.
  * Lower is better; 1.0 means every rectangle in the row is a square.
  */
-function worstRatio(row: number[], side: number): number {
-  let sum = 0;
-  let max = -Infinity;
-  let min = Infinity;
-  for (const a of row) {
-    sum += a;
-    if (a > max) max = a;
-    if (a < min) min = a;
-  }
+function ratioOf(sum: number, max: number, min: number, side: number): number {
   if (sum <= 0 || side <= 0) return Infinity;
   const s2 = sum * sum;
   const w2 = side * side;
@@ -55,14 +47,25 @@ export function squarify(areas: number[], rect: Rect): Rect[] {
   while (i < areas.length) {
     const side = Math.min(remaining.w, remaining.h);
 
-    // Grow the row while the worst aspect ratio keeps improving.
+    // Grow the row while the worst aspect ratio keeps improving. Running
+    // sum/max/min make each step O(1) — re-scanning a copied row per step was
+    // quadratic and froze the server for seconds on huge flat folders.
     const rowStart = i;
     const row: number[] = [areas[i]];
+    let sum = areas[i];
+    let max = areas[i];
+    let min = areas[i];
     i++;
     while (i < areas.length) {
-      const candidate = [...row, areas[i]];
-      if (worstRatio(candidate, side) <= worstRatio(row, side)) {
-        row.push(areas[i]);
+      const a = areas[i];
+      const nSum = sum + a;
+      const nMax = a > max ? a : max;
+      const nMin = a < min ? a : min;
+      if (ratioOf(nSum, nMax, nMin, side) <= ratioOf(sum, max, min, side)) {
+        row.push(a);
+        sum = nSum;
+        max = nMax;
+        min = nMin;
         i++;
       } else {
         break;

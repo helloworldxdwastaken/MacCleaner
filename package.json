@@ -1,6 +1,6 @@
 {
   "name": "maccleaner",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "MacCleaner \u2014 a macOS cleaner suite (Smart Scan, Performance, Maintenance, Uninstaller, Updater, Fan Control) with a GrandPerspective-style disk treemap",
   "author": "dronx <info.dronx@gmail.com>",
   "main": "electron/main.js",

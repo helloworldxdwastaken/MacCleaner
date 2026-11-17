@@ -226,6 +226,19 @@ async function walk(
   scan.status = 'complete';
   scan.finishedAt = Date.now();
   scan.currentPath = scan.rootPath;
+  // A newer tree of the same folder supersedes the old ones: each kept tree
+  // can be 100+ MB, and every trash-then-rescan used to add another until the
+  // 30-minute TTL — the app's main memory leak.
+  for (const [id, other] of scans) {
+    if (id !== scan.scanId && other.status === 'complete' && other.rootPath === scan.rootPath) {
+      scans.delete(id);
+      try {
+        onScanEvicted?.(id);
+      } catch {
+        /* cleanup is best-effort */
+      }
+    }
+  }
 
   // Record a history snapshot so Trends works without any user action.
   // Opted out for internal scans (see StartScanOptions.snapshot) so probing

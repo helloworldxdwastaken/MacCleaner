@@ -76,7 +76,8 @@ npm run dist:mac       # helper + tsc + electron-builder → release/ dmg+zip
 npm run dist:win       # Windows NSIS installer (must run on Windows)
 ```
 
-**There is no test suite** — no test framework, no test script, no test files.
+**There is no test framework.** `npm run check` (after `npm run build`) runs the assert-based
+`scripts/selfcheck.js` over the pure logic — extend it when you add non-trivial logic.
 Verification is `npm run typecheck` and manual testing of the running app
 (`npm run dev` / `npm run app`). If you add tests, you are establishing a new
 convention; otherwise don't add a test framework unasked.

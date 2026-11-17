@@ -273,7 +273,7 @@ body[data-pagebg] .sidebar {
 
 /* Frosted-glass cards: 10% white + backdrop blur over the page gradient. */
 :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
-    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .card.glass {
+    #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .glass {
   background: rgba(255,255,255,0.10);
   backdrop-filter: blur(24px) saturate(150%);
   -webkit-backdrop-filter: blur(24px) saturate(150%);
@@ -297,11 +297,12 @@ body[data-pagebg] .sidebar {
 }
 :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
     #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger {
-  color: #ff8d85; border-color: rgba(255,107,74,0.45); background: rgba(255,69,58,0.20);
+  /* Solid, not a red ghost: must read as a button on the red Uninstaller page too. */
+  color: #fff; border-color: rgba(255,255,255,0.22); background: rgba(232,58,48,0.90);
 }
 :is(#view-dashboard, #view-fastclean, #view-treemap, #view-duplicates,
     #view-maintenance, #view-fans, #view-apps, #view-updater, #view-privacy) .btn-danger:hover {
-  background: rgba(255,69,58,0.32);
+  background: rgba(244,74,62,1);
 }
 
 /* ════════════════════════════ Primitives ════════════════════════════ */
@@ -1234,6 +1235,66 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
   .vibrant input[type="text"], .vibrant input[type="number"], .vibrant select {
     background: var(--surface-1); border-color: var(--hairline); }
 }
+/* ════════════════════ 2.3 polish: contrast, overflow, title bar ════════════════════ */
+/* Never white-text-on-near-white while a wallpaper JPG is still decoding. */
+body[data-pagebg]::before { background-color: #2b3347; }
+/* Bright wallpapers (amber/orange) need a deeper veil for white text. */
+body[data-pagebg="duplicates"]::before { background-image: linear-gradient(rgba(24,14,0,0.40), rgba(24,14,0,0.52)), url('/assets/bg-duplicates.jpg'); }
+body[data-pagebg="privacy"]::before    { background-image: linear-gradient(rgba(24,10,0,0.34), rgba(24,10,0,0.46)), url('/assets/bg-privacy.jpg'); }
+
+/* Text links/buttons on tinted pages: the blue accent vanishes on green/blue. */
+body[data-pagebg] main a,
+body[data-pagebg] main .fc-list-actions button { color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Warm/hot readings: the light-theme ambers are for white cards, not wallpapers. */
+body[data-pagebg] main .ds-tile.warm .ds-val, body[data-pagebg] main .sensor.warm .s-val { color: #FFD966; }
+body[data-pagebg] main .ds-tile.hot .ds-val,  body[data-pagebg] main .sensor.hot .s-val  { color: #FFA39B; }
+
+/* Status pills: filled, so red-on-orange / green-on-green can't happen. */
+body[data-pagebg] main .status-pill.warn { color: #fff; background: rgba(232,58,48,0.62); border-color: rgba(255,255,255,0.28); }
+body[data-pagebg] main .status-pill.ok   { color: #fff; background: rgba(20,160,110,0.55); border-color: rgba(255,255,255,0.28); }
+body[data-pagebg] main .status-pill.warn .dot, body[data-pagebg] main .status-pill.ok .dot { background: #fff; }
+
+/* Selected segment in the desktop (vibrant) build was a blank white pill. */
+html.vibrant body[data-pagebg] main .seg button[aria-selected="true"] { background: rgba(255,255,255,0.24); color: #fff; }
+
+/* Lifetime-impact tiles: shrink/wrap inside the card instead of spilling out. */
+.quick-stats { grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); }
+.stat-tile { min-width: 0; padding: 14px; gap: 11px; }
+.stat-tile > div { min-width: 0; }
+.stat-tile .chip { flex: none; }
+.stat-tile .v.small { max-width: 100%; }
+
+/* Live-performance rows: "BATTERY" needs the room; charging value stays legible. */
+.pl-k { width: 68px; }
+body[data-pagebg] main .pl-v.chg { color: #A8F5D2; }
+
+/* Wide content scrolls inside its own panel — never the whole page sideways. */
+main { min-width: 0; }
+.view { min-width: 0; }
+.card { min-width: 0; }
+.mnt-text, .upd-row .meta, .app-row .meta { min-width: 0; }
+.mnt-text > b, .mnt-text > span { overflow-wrap: anywhere; }
+/* Inner lists hand the wheel back to the page at their ends, with a stable gutter. */
+.mnt-scroll, .apps-list, .fc-rows, .clean-list, .browse-list { overscroll-behavior: auto; scrollbar-gutter: stable; }
+
+/* New states */
+.upd-degraded { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; margin: 0 0 12px;
+  border-radius: var(--r-sm); background: rgba(255,214,10,0.16); border: 1px solid rgba(255,214,10,0.38); font-size: 12.5px; }
+.upd-degraded .ic { flex: none; margin-top: 1px; }
+.lo-uncertain { margin-left: 8px; padding: 1px 7px; border-radius: 99px; font-size: 10px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase; background: rgba(255,214,10,0.22); border: 1px solid rgba(255,214,10,0.45); }
+.lo-note { font-size: 11.5px; padding: 8px 4px 0; }
+.tune-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--hairline); }
+.tune-row:last-child { border-bottom: none; }
+.tune-row .mnt-text { flex: 1; }
+.tune-state { flex: none; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; border: 1px solid var(--hairline-2); }
+.tune-state.bad { background: rgba(255,159,10,0.28); border-color: rgba(255,159,10,0.55); }
+.tune-state.good { background: rgba(38,208,133,0.22); border-color: rgba(38,208,133,0.45); }
+
+/* Desktop build: the traffic lights get their own row inside the sidebar card
+   (they used to sit on top of the logo). Matches trafficLightPosition in main.js. */
+html.vibrant .side-logo { padding-top: 46px; }
 </style>
 </head>
 <body>
@@ -1530,6 +1591,30 @@ input[type="range"]:disabled::-webkit-slider-thumb { border-color: var(--text-3)
           <div class="pl-row"><span class="pl-k" data-i18n="batteryWord">Battery</span><div class="pl-track"><div class="pl-fill bat" id="mpBat"></div></div><b class="pl-v num" id="mpBatV">–</b></div>
         </div>
         <div class="pl-meta"><b id="mpChip">–</b> · <span id="mpUptime">–</span></div>
+      </div>
+      <!-- No-restart tune-up: what usually only a reboot "fixes" after long uptime -->
+      <div class="card glass" style="margin-bottom:16px;">
+        <h2><span data-icon="refresh"></span><span data-i18n="tuneTitle">Tune-up without restarting</span></h2>
+        <div class="muted" style="margin:-2px 0 6px;" data-i18n="tuneDesc">After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.</div>
+        <div id="tuneHealth"><div class="muted" data-i18n="loading">Loading…</div></div>
+        <div class="mnt-row">
+          <div class="mnt-ico"><span data-icon="refresh" data-size="17"></span></div>
+          <div class="mnt-text"><b data-i18n="refreshUi">Refresh Dock, menu bar &amp; Control Center</b><span data-i18n="refreshUiDesc">Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.</span></div>
+          <span class="mnt-status" id="mntStatus-refresh-ui"></span>
+          <button class="btn btn-primary" data-mnt="refresh-ui" data-i18n="run">Run</button>
+        </div>
+        <div class="mnt-row">
+          <div class="mnt-ico"><span data-icon="box" data-size="17"></span></div>
+          <div class="mnt-text"><b data-i18n="relaunchFinder">Relaunch Finder</b><span data-i18n="relaunchFinderDesc">Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.</span></div>
+          <span class="mnt-status" id="mntStatus-relaunch-finder"></span>
+          <button class="btn btn-primary" data-mnt="relaunch-finder" data-i18n="run">Run</button>
+        </div>
+        <div class="mnt-row">
+          <div class="mnt-ico"><span data-icon="zap" data-size="17"></span></div>
+          <div class="mnt-text"><b data-i18n="purgeMem">Release cached memory</b><span data-i18n="purgeMemDesc">Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).</span></div>
+          <span class="mnt-status" id="mntStatus-purge-memory"></span>
+          <button class="btn btn-primary" data-mnt="purge-memory" data-i18n="run">Run</button>
+        </div>
       </div>
       <div class="card glass" style="margin-bottom:16px;">
         <h2><span data-icon="zap"></span><span data-i18n="loginItems">Login Items</span></h2>
@@ -1833,7 +1918,12 @@ function formatDate(ms) {
   if (!ms) return '–';
   return new Date(ms).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
 }
-function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+/* Resolved against the ACTIVE view: tinted pages re-scope --text-* / --tm-* on
+   the view element, so canvas code reading :root painted dark-on-dark labels. */
+function cssVar(name) {
+  const el = (typeof state !== 'undefined' && document.getElementById('view-' + state.view)) || document.documentElement;
+  return getComputedStyle(el).getPropertyValue(name).trim();
+}
 async function api(url, options) {
   options = options || {};
   // Per-launch token injected by the server into this page; required on /api.
@@ -1975,7 +2065,8 @@ function applyTheme() {
 
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
-  en: { clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
+  en: { fcPlanFailed:"Smart Scan couldn't build a safe cleaning plan, so nothing is offered.", nothingToClean:"All clean", tryAgain:"Try again", fdaUnknown:"Unknown", updDegraded:"Couldn't check every source:", liPermHint:"macOS will ask for permission: Automation (System Events) for login apps and an administrator approval for background items.", loUncertain:"Check", loUncertainTip:"Items marked “Check” were matched by app name only and are left unticked — confirm they belong to this app before removing them.", sensorsUnavailable:"Sensors aren't available on this Mac right now.", rulesNotLoaded:"Fan rules haven't loaded yet — try again in a moment.", tuneTitle:"Tune-up without restarting", tuneDesc:"After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.", tuneUptime:"Uptime", tuneUptimeLong:"Over a week without a restart — run the refreshes below.", tuneUptimeOk:"Restarted recently — nothing has had time to build up.", tuneAdvised:"Refresh advised", tuneFine:"Fine", tuneMemory:"Memory", tuneSwap:"swap in use", tuneMemBad:"Memory is under pressure. Quit and reopen the heaviest apps below — that is what actually gives memory back.", tuneMemOk:"Memory pressure is normal.", tuneHeavy:"Heaviest apps right now", refreshUi:"Refresh Dock, menu bar & Control Center", refreshUiDesc:"Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.", relaunchFinder:"Relaunch Finder", relaunchFinderDesc:"Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.", purgeMem:"Release cached memory", purgeMemDesc:"Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).",
+    clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
     scanning:'Scanning…', remove:'Remove', scanAgain:'Scan again', binRow:'Bin',
     fans:'Fans',
     // Dashboard + Disk Map + activity (English source for JS-rendered strings)
@@ -2007,7 +2098,8 @@ const STRINGS = {
     uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.',
     loading:'Loading…', liAllowedBg:'Allowed in background', liBlocked:'Blocked', liOpens:'Opens at login', liOff:"Off — won't open at login", liBadgeBg:'Background', liNone:"No user login items — nothing opens at login.", liShowClassic:'Show "Open at Login" apps', liMacOnly:'Login items are managed on macOS only.',
     dropUnresolvable:'Couldn\'t scan "{name}" — the dropped item couldn\'t be resolved to a scannable folder' },
-  es: { dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
+  es: { fcPlanFailed:"Smart Scan no pudo crear un plan de limpieza seguro; no se ofrece nada.", nothingToClean:"Todo limpio", tryAgain:"Reintentar", fdaUnknown:"Desconocido", updDegraded:"No se pudieron comprobar todas las fuentes:", liPermHint:"macOS pedirá permiso: Automatización (System Events) para las apps de inicio y aprobación de administrador para los ítems en segundo plano.", loUncertain:"Revisar", loUncertainTip:"Los elementos marcados «Revisar» coinciden solo por el nombre de la app y quedan sin marcar: confirma que pertenecen a esta app antes de eliminarlos.", sensorsUnavailable:"Los sensores no están disponibles ahora en este Mac.", rulesNotLoaded:"Las reglas del ventilador aún no se han cargado; inténtalo de nuevo.", tuneTitle:"Puesta a punto sin reiniciar", tuneDesc:"Tras días sin reiniciar, algunos procesos del sistema y apps abiertas ralentizan el Mac. Esto los refresca en el momento: tus ventanas y tu trabajo siguen abiertos.", tuneUptime:"Tiempo encendido", tuneUptimeLong:"Más de una semana sin reiniciar: ejecuta las acciones de abajo.", tuneUptimeOk:"Reiniciado hace poco: no ha habido tiempo de acumular problemas.", tuneAdvised:"Conviene refrescar", tuneFine:"Bien", tuneMemory:"Memoria", tuneSwap:"swap en uso", tuneMemBad:"La memoria está bajo presión. Cierra y vuelve a abrir las apps más pesadas de abajo: eso es lo que de verdad libera memoria.", tuneMemOk:"La presión de memoria es normal.", tuneHeavy:"Apps más pesadas ahora", refreshUi:"Refrescar Dock, barra de menús y Centro de control", refreshUiDesc:"Reinicia los procesos de interfaz del sistema. Arregla un Dock lento, iconos atascados en la barra de menús y fallos de Mission Control.", relaunchFinder:"Reiniciar el Finder", relaunchFinderDesc:"Arregla un Finder lento o bloqueado. Espera a que terminen las copias de archivos: se interrumpirían.", purgeMem:"Liberar memoria en caché", purgeMemDesc:"Devuelve al sistema la memoria de caché de archivos. Necesita tu contraseña de administrador (abre Terminal).",
+    dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
     scanning:'Escaneando…', remove:'Eliminar', scanAgain:'Escanear de nuevo', binRow:'Papelera',
@@ -2039,7 +2131,8 @@ const STRINGS = {
     uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.',
     loading:'Cargando…', liAllowedBg:'Permitido en segundo plano', liBlocked:'Bloqueado', liOpens:'Se abre al inicio', liOff:'Desactivado — no se abrirá al inicio', liBadgeBg:'Fondo', liNone:'No hay elementos de inicio del usuario — nada se abre al arrancar.', liShowClassic:'Mostrar apps «Abrir al inicio»', liMacOnly:'Los elementos de inicio solo se gestionan en macOS.',
     dropUnresolvable:'No se puede analizar «{name}» — el elemento soltado no se pudo resolver a una carpeta analizable.' },
-  ru: { dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
+  ru: { fcPlanFailed:"Не удалось составить безопасный план очистки — ничего не предлагается.", nothingToClean:"Всё чисто", tryAgain:"Повторить", fdaUnknown:"Неизвестно", updDegraded:"Не все источники удалось проверить:", liPermHint:"macOS запросит разрешения: Автоматизация (System Events) для объектов входа и подтверждение администратора для фоновых объектов.", loUncertain:"Проверить", loUncertainTip:"Объекты с пометкой «Проверить» найдены только по имени приложения и не отмечены — убедитесь, что они относятся к этому приложению.", sensorsUnavailable:"Датчики сейчас недоступны на этом Mac.", rulesNotLoaded:"Правила вентиляторов ещё не загружены — повторите чуть позже.", tuneTitle:"Оптимизация без перезагрузки", tuneDesc:"После нескольких дней без перезагрузки системные помощники и долго работающие приложения замедляют Mac. Здесь их можно обновить на месте — окна и работа остаются открытыми.", tuneUptime:"Время работы", tuneUptimeLong:"Больше недели без перезагрузки — выполните действия ниже.", tuneUptimeOk:"Недавно перезагружен — проблемы не успели накопиться.", tuneAdvised:"Стоит обновить", tuneFine:"В норме", tuneMemory:"Память", tuneSwap:"используется подкачка", tuneMemBad:"Памяти не хватает. Закройте и снова откройте самые тяжёлые приложения ниже — именно это освобождает память.", tuneMemOk:"Нагрузка на память в норме.", tuneHeavy:"Самые тяжёлые приложения сейчас", refreshUi:"Обновить Dock, строку меню и Пункт управления", refreshUiDesc:"Перезапускает системные помощники интерфейса. Исправляет медленный Dock, зависшие значки в строке меню и сбои Mission Control.", relaunchFinder:"Перезапустить Finder", relaunchFinderDesc:"Исправляет медленный или зависший Finder. Сначала дождитесь окончания копирования файлов — оно прервётся.", purgeMem:"Освободить кэш памяти", purgeMemDesc:"Возвращает системе память файлового кэша. Нужен пароль администратора (откроется Терминал).",
+    dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
     scanning:'Сканирование…', remove:'Удалить', scanAgain:'Сканировать снова', binRow:'Корзина',
@@ -2071,7 +2164,8 @@ const STRINGS = {
     uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.',
     loading:'Загрузка…', liAllowedBg:'Разрешено в фоне', liBlocked:'Заблокировано', liOpens:'Открывается при входе', liOff:'Выключено — не будет открываться при входе', liBadgeBg:'Фон', liNone:'Пользовательских объектов входа нет — при входе ничего не открывается.', liShowClassic:'Показать приложения «Открываться при входе»', liMacOnly:'Объектами входа можно управлять только в macOS.',
     dropUnresolvable:'Не удалось просканировать «{name}» — перетащенный объект не удалось разрешить в папку для сканирования.' },
-  de: { dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
+  de: { fcPlanFailed:"Es konnte kein sicherer Bereinigungsplan erstellt werden – nichts wird angeboten.", nothingToClean:"Alles sauber", tryAgain:"Erneut versuchen", fdaUnknown:"Unbekannt", updDegraded:"Nicht alle Quellen konnten geprüft werden:", liPermHint:"macOS fragt nach Erlaubnis: Automation (System Events) für Anmeldeobjekte und eine Administrator-Bestätigung für Hintergrundobjekte.", loUncertain:"Prüfen", loUncertainTip:"Mit „Prüfen“ markierte Objekte wurden nur über den App-Namen gefunden und sind nicht ausgewählt – prüfe vor dem Entfernen, ob sie zu dieser App gehören.", sensorsUnavailable:"Sensoren sind auf diesem Mac derzeit nicht verfügbar.", rulesNotLoaded:"Die Lüfterregeln sind noch nicht geladen – gleich erneut versuchen.", tuneTitle:"Auffrischen ohne Neustart", tuneDesc:"Nach Tagen ohne Neustart bremsen einige Systemhelfer und lange laufende Apps. Hier werden sie direkt aufgefrischt – Fenster und Arbeit bleiben offen.", tuneUptime:"Laufzeit", tuneUptimeLong:"Über eine Woche ohne Neustart – führe die Aktionen unten aus.", tuneUptimeOk:"Kürzlich neu gestartet – es hat sich noch nichts angestaut.", tuneAdvised:"Auffrischen empfohlen", tuneFine:"In Ordnung", tuneMemory:"Speicher", tuneSwap:"Swap belegt", tuneMemBad:"Der Speicher ist knapp. Beende die schwersten Apps unten und öffne sie neu – das gibt wirklich Speicher frei.", tuneMemOk:"Der Speicherdruck ist normal.", tuneHeavy:"Schwerste Apps im Moment", refreshUi:"Dock, Menüleiste & Kontrollzentrum auffrischen", refreshUiDesc:"Startet die System-UI-Helfer neu. Behebt ein träges Dock, hängende Menüleistensymbole und Mission-Control-Fehler.", relaunchFinder:"Finder neu starten", relaunchFinderDesc:"Behebt einen langsamen oder eingefrorenen Finder. Warte zuerst laufende Kopiervorgänge ab – sie würden abgebrochen.", purgeMem:"Zwischengespeicherten Speicher freigeben", purgeMemDesc:"Gibt Datei-Cache-Speicher an das System zurück. Benötigt dein Administratorpasswort (öffnet Terminal).",
+    dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
     scanning:'Scanne…', remove:'Entfernen', scanAgain:'Erneut scannen', binRow:'Papierkorb',
@@ -2103,7 +2197,8 @@ const STRINGS = {
     uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.',
     loading:'Wird geladen…', liAllowedBg:'Im Hintergrund erlaubt', liBlocked:'Blockiert', liOpens:'Öffnet sich bei der Anmeldung', liOff:'Aus — öffnet sich nicht bei der Anmeldung', liBadgeBg:'Hintergrund', liNone:'Keine Benutzer-Anmeldeobjekte — nichts öffnet sich bei der Anmeldung.', liShowClassic:'„Bei der Anmeldung öffnen“-Apps anzeigen', liMacOnly:'Anmeldeobjekte lassen sich nur unter macOS verwalten.',
     dropUnresolvable:'„{name}“ kann nicht gescannt werden — das abgelegte Element ließ sich nicht in einen scannbaren Ordner auflösen.' },
-  fr: { dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
+  fr: { fcPlanFailed:"Impossible d'établir un plan de nettoyage sûr : rien n'est proposé.", nothingToClean:"Tout est propre", tryAgain:"Réessayer", fdaUnknown:"Inconnu", updDegraded:"Certaines sources n'ont pas pu être vérifiées :", liPermHint:"macOS demandera une autorisation : Automatisation (System Events) pour les apps à l'ouverture et une approbation administrateur pour les éléments en arrière-plan.", loUncertain:"À vérifier", loUncertainTip:"Les éléments marqués « À vérifier » ne correspondent que par le nom de l'app et restent décochés : vérifiez qu'ils appartiennent à cette app avant de les supprimer.", sensorsUnavailable:"Les capteurs ne sont pas disponibles sur ce Mac pour l'instant.", rulesNotLoaded:"Les règles des ventilateurs ne sont pas encore chargées — réessayez dans un instant.", tuneTitle:"Remise en forme sans redémarrer", tuneDesc:"Après plusieurs jours sans redémarrage, certains services système et apps ouvertes ralentissent le Mac. Ceci les rafraîchit sur place : vos fenêtres et votre travail restent ouverts.", tuneUptime:"Temps d'activité", tuneUptimeLong:"Plus d'une semaine sans redémarrage : lancez les actions ci-dessous.", tuneUptimeOk:"Redémarré récemment : rien n'a eu le temps de s'accumuler.", tuneAdvised:"Rafraîchir conseillé", tuneFine:"OK", tuneMemory:"Mémoire", tuneSwap:"swap utilisé", tuneMemBad:"La mémoire est sous pression. Quittez puis rouvrez les apps les plus lourdes ci-dessous : c'est ce qui libère vraiment la mémoire.", tuneMemOk:"La pression mémoire est normale.", tuneHeavy:"Apps les plus lourdes actuellement", refreshUi:"Rafraîchir le Dock, la barre des menus et le Centre de contrôle", refreshUiDesc:"Redémarre les services d'interface du système. Corrige un Dock lent, des icônes de barre des menus figées et les bugs de Mission Control.", relaunchFinder:"Relancer le Finder", relaunchFinderDesc:"Corrige un Finder lent ou figé. Attendez la fin des copies de fichiers : elles seraient interrompues.", purgeMem:"Libérer la mémoire en cache", purgeMemDesc:"Rend au système la mémoire du cache de fichiers. Nécessite votre mot de passe administrateur (ouvre Terminal).",
+    dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
     scanning:'Analyse…', remove:'Supprimer', scanAgain:"Relancer l'analyse", binRow:'Corbeille',
@@ -2138,7 +2233,7 @@ const STRINGS = {
 };
 function t(key) {
   const lang = state.lang || 'en';
-  return (STRINGS[lang] && STRINGS[lang][key]) || key;
+  return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key; // English beats a raw key
 }
 // Sidebar/header labels are translated from JS maps (no markup changes needed).
 const SIDE_VIEW_KEYS = { dashboard:'dashboard', fastclean:'smartScan', maintenance:'performance', fans:'fans', apps:'uninstaller', updater:'updater', treemap:'diskMap', duplicates:'duplicates', privacy:'privacy' };
@@ -2154,6 +2249,9 @@ function applyLang(lang, announce) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.dataset.i18n;
     if (!el.dataset.en) el.dataset.en = el.textContent; // capture the English source once
+    // Don't clobber live results with the placeholder copy.
+    if (el.id === 'scanStatus' && (state.scanning || state.scanId)) return;
+    if (el.id === 'fdaDesc' && state.privacyFdaShown) return;
     el.textContent = dict[k] != null ? dict[k] : el.dataset.en;
   });
   // Sidebar tool labels + soon badges.
@@ -2175,6 +2273,7 @@ function applyLang(lang, announce) {
   });
   document.querySelectorAll('.lang-opt').forEach(o => o.setAttribute('aria-selected', String(o.dataset.lang === state.lang)));
   if (announce) toast('Language: ' + (LANG_NAMES[state.lang] || state.lang));
+  if (state.privacyFdaShown) loadPrivacyFda(); // re-translate the live FDA line
   // Re-render the live Smart Scan copy if it's showing.
   if (state.view === 'fastclean' && typeof resetFc === 'function' && !state.fastclean.cleaning) {
     $('fcSub').textContent = STRINGS[state.lang] && STRINGS[state.lang].ssSub ? STRINGS[state.lang].ssSub : ($('fcSub').dataset.en || $('fcSub').textContent);
@@ -2263,6 +2362,9 @@ tabs.forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.v
 /* Views that wear the full-app wallpaper + white text + frosted glass. */
 const TINTED_VIEWS = ['dashboard', 'fastclean', 'treemap', 'duplicates', 'maintenance', 'fans', 'apps', 'updater', 'privacy'];
 function switchView(name) {
+  // A new section starts at its top — the page scroll used to carry over, so a
+  // view could open halfway down with its header cut off.
+  if (state.view !== name) window.scrollTo(0, 0);
   state.view = name;
   // Full-app wallpaper follows the active section (CMM-style module screens).
   if (TINTED_VIEWS.includes(name)) document.body.dataset.pagebg = name;
@@ -2352,8 +2454,15 @@ async function loadPrivacyFda() {
   try {
     const s = await api('/api/privacy/status');
     const pill = $('fdaPill'), txt = $('fdaPillText'), desc = $('fdaDesc'), btn = $('fdaOpenBtn');
+    state.privacyFdaShown = true;
     pill.hidden = false;
-    if (s.fullDiskAccess) {
+    if (s.fullDiskAccess == null) {
+      // Probe inconclusive — don't claim "not granted".
+      txt.textContent = t('fdaUnknown');
+      pill.classList.remove('warn', 'ok');
+      desc.textContent = t('fdaMissing');
+      btn.hidden = false;
+    } else if (s.fullDiskAccess) {
       txt.textContent = t('fdaOk');
       pill.classList.remove('warn'); pill.classList.add('ok');
       desc.textContent = t('fdaGranted');
@@ -2379,16 +2488,17 @@ async function loadPrivacyCaches() {
   const list = $('privacyList');
   list.innerHTML = `<div class="muted">${escapeHtml(t('loading'))}</div>`;
   try {
-    const { items } = await api('/api/privacy/browser-caches');
+    // Only browsers that actually have a cache here — six "not installed" rows are noise.
+    const items = ((await api('/api/privacy/browser-caches')).items || []).filter(it => it.exists);
     if (!items.length) { list.innerHTML = `<div class="muted">${escapeHtml(t('noBrowsersFound'))}</div>`; return; }
     list.innerHTML = items.map(it => {
       let note = '';
-      if (!it.exists) note = t('notInstalled');
+      if (!it.exists) note = '';
       else if (it.running) note = t('quitBrowserFirst');
       else if (it.accessDenied) note = t('needsFda');
       const disabled = !it.exists || it.running || it.accessDenied || it.sizeBytes === 0;
       return `<div class="mnt-row">
-        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${it.exists ? formatBytes(it.sizeBytes) : escapeHtml(t('notInstalled'))}${note ? ` · ${escapeHtml(note)}` : ''}</span></div>
+        <div class="mnt-text"><b>${escapeHtml(it.name)}</b><span>${it.accessDenied ? '' : (it.truncated ? '≥ ' : '') + formatBytes(it.sizeBytes)}${note ? `${it.accessDenied ? '' : ' · '}${escapeHtml(note)}` : ''}</span></div>
         <button class="btn btn-primary" data-pclean="${escapeHtml(it.id)}" data-name="${escapeHtml(it.name)}" data-size="${it.sizeBytes}" ${disabled ? 'disabled' : ''}>${escapeHtml(t('cleanWord'))}</button>
       </div>`;
     }).join('');
@@ -2580,6 +2690,8 @@ async function startScan(path) {
   closeEventSource();
   const status = $('scanStatus');
   status.classList.remove('error');
+  // Declared outside the try: the catch below restores them.
+  const prevScanId = state.scanId, prevRoot = state.root;
   try {
     state.scanning = true;
     $('scanBtn').disabled = true;
@@ -2595,7 +2707,6 @@ async function startScan(path) {
     // poller adjustments come from the single code path. The scan pointers are
     // cleared first so syncDiskMap() shows the picker instead of firing a
     // redundant loader against the previous scan; restored if the POST fails.
-    const prevScanId = state.scanId, prevRoot = state.root;
     state.scanId = null; state.root = null;
     switchView('treemap');
     $('diskMapEmpty').hidden = false;
@@ -2895,8 +3006,10 @@ async function loadTreemap(rootPath, animate = false) {
   if (!state.scanId) return;
   const zoom = $('treemapZoom');
   if (animate && !REDUCED) zoom.classList.add('zooming');
+  const seq = state.treemap.loadSeq = (state.treemap.loadSeq || 0) + 1;
   try {
     const data = await api(`/api/scan/${state.scanId}/treemap?maxDepth=${state.treemap.maxDepth}&minSize=4096&root=${encodeURIComponent(rootPath)}`);
+    if (seq !== state.treemap.loadSeq) return; // a newer navigation won
     state.treemap.rootPath = data.root.path;
     state.treemap.rootName = data.root.name;
     state.treemap.rootSize = data.root.size;
@@ -3396,10 +3509,18 @@ async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan =
   if (!paths.length) return { deleted: [], failed: [] };
   const estimate = paths.reduce((s, p) => s + trashSizeOf(p, sizeHint), 0);
   try {
-    const result = await api('/api/files', {
-      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths }),
-    });
+    // The server caps a request at 500 paths — send chunks and merge, so a
+    // big selection (duplicates auto-select) never fails wholesale.
+    const result = { deleted: [], failed: [], totalFreedBytes: 0 };
+    for (let i = 0; i < paths.length; i += 400) {
+      const r = await api('/api/files', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paths: paths.slice(i, i + 400) }),
+      });
+      result.deleted.push(...(r.deleted || []));
+      result.failed.push(...(r.failed || []));
+      result.totalFreedBytes += r.totalFreedBytes || 0;
+    }
     if (!silent) {
       if (result.deleted.length) {
         // Prefer the server-confirmed freed bytes over the client-side estimate.
@@ -3502,6 +3623,7 @@ async function selectApp(appPath) {
     a.leftovers = data;
     renderLeftovers();
   } catch (e) {
+    if (a.selected !== appPath) return; // a stale failure must not replace a newer app's detail
     body.innerHTML = `<p class="muted" style="padding:6px;">Could not analyze this app: ${escapeHtml(e.message)}</p>`;
   }
 }
@@ -3526,16 +3648,17 @@ function renderLeftovers() {
     <div class="lo-row" style="font-weight:600;">
       <input type="checkbox" id="loApp" ${app.running ? 'disabled' : 'checked'}>
       <div class="meta"><div class="nm">${escapeHtml(app.name)}.app</div><div class="cat">${app.running ? 'Application · quit to remove' : 'Application'}</div></div>
-      <span class="sz" style="color:${sizeColor(app.size)}">${formatBytes(app.size)}</span>
+      <span class="sz">${formatBytes(app.size)}</span>
       <span style="width:23px;flex:none;"></span>
     </div>
     ${rows.length ? rows.map((r, i) => `
       <div class="lo-row">
-        <input type="checkbox" class="lo-cb" data-i="${i}" checked>
-        <div class="meta"><div class="nm">${escapeHtml(r.name)}</div><div class="cat">${escapeHtml(r.category)}</div></div>
-        <span class="sz" style="color:${sizeColor(r.size)}">${formatBytes(r.size)}</span>
+        <input type="checkbox" class="lo-cb" data-i="${i}" ${r.uncertain ? '' : 'checked'}>
+        <div class="meta"><div class="nm">${escapeHtml(r.name)}${r.uncertain ? `<span class="lo-uncertain" title="${escapeHtml(t('loUncertainTip'))}">${escapeHtml(t('loUncertain'))}</span>` : ''}</div><div class="cat">${escapeHtml(r.category)}</div></div>
+        <span class="sz">${formatBytes(r.size)}</span>
         <button class="icon-link rev" title="Reveal in Finder" data-reveal="${escapeHtml(r.path)}">${icon('external', 15)}</button>
       </div>`).join('') : '<p class="muted" style="padding:10px 4px;">No leftover files found — clean install.</p>'}
+    ${rows.some(r => r.uncertain) ? `<p class="muted lo-note">${escapeHtml(t('loUncertainTip'))}</p>` : ''}
     <div class="lo-foot">
       <button class="btn btn-danger" id="loTrashBtn"><span></span></button>
       <span class="muted" id="loTotal"></span>
@@ -3610,7 +3733,8 @@ async function loadActivity() {
    Always-useful, zero-setup: brand hero, disk usage, live temps/fans, live
    CPU/RAM/battery, lifetime impact. */
 function loadDashboard() {
-  if (state.system) { updateDiskRing(); } else { loadSystem(); }
+  if (state.system) updateDiskRing(); // paint the cached numbers now…
+  loadSystem();                       // …and always refresh (free space changes after a clean)
   renderDashSensors(state.fans.status);
   fetchFanStatus();          // refresh the mini temps/fans panel
   loadActivity();
@@ -3681,8 +3805,11 @@ async function loadUpdater() {
 function renderUpdater(data) {
   const body = $('updBody');
   const updates = (data.apps || []).filter(a => a.update);
+  // "Couldn't check" must never read as "up to date".
+  const degraded = data.degraded && (data.degradedReasons || []).length
+    ? `<div class="upd-degraded" role="status">${icon('alert', 14)}<span>${escapeHtml(t('updDegraded'))} ${escapeHtml(data.degradedReasons.join(' '))}</span></div>` : '';
   if (!updates.length) {
-    body.innerHTML = `<div class="apps-empty" style="min-height:46vh;"><img class="s3d" src="/assets/icon-updater-256.png" alt="" width="60" height="60"><p class="muted">${escapeHtml(t('updUpToDate'))}</p></div>`;
+    body.innerHTML = degraded || `<div class="apps-empty" style="min-height:46vh;"><img class="s3d" src="/assets/icon-updater-256.png" alt="" width="60" height="60"><p class="muted">${escapeHtml(t('updUpToDate'))}</p></div>`;
     return;
   }
   const casks = updates.filter(a => a.update.kind === 'cask');
@@ -3704,7 +3831,7 @@ function renderUpdater(data) {
       </div>`;
   };
 
-  const parts = [];
+  const parts = [degraded];
   // "Apps" group first (never labelled "Other apps").
   if (others.length) {
     parts.push(`<div class="upd-head">${icon('box', 14)}${escapeHtml(t('updApps'))} · ${others.length} ${escapeHtml(others.length === 1 ? t('updAvailable') : t('updAvailablePlural'))}</div>`);
@@ -3791,13 +3918,39 @@ async function runCaskUpgrade(token, row) {
         toast('Could not open Terminal: ' + e2.message, 'error');
       }
     } else {
-      resetUpdBtn(btn);
-      toast(`Update failed: ${r.message}`, 'error');
+      caskUpgradeFailed(token, row, btn, name, r.message);
     }
   } catch (e) {
+    // 409 guards (app running, unknown target) are instructions, not crashes:
+    // show them on the row and let the user simply try again.
     resetUpdBtn(btn);
-    toast('Update failed: ' + e.message, 'error');
+    toast(e.message, 'error');
+    const ver = row.querySelector('.ver');
+    if (ver) ver.textContent = e.message;
   }
+}
+/* A failed background update keeps its reason ON the row (a toast vanishes)
+   and turns the button into "Finish in Terminal": there brew can ask for a
+   password and show its full output, which is what most failures need. */
+function caskUpgradeFailed(token, row, btn, name, message) {
+  toast(`Update failed: ${message}`, 'error');
+  const ver = row.querySelector('.ver');
+  if (ver) ver.textContent = message;
+  const fresh = btn.cloneNode(false); // same button, old click handler dropped
+  fresh.disabled = false;
+  fresh.innerHTML = icon('external', 14) + escapeHtml(t('finishInTerminal'));
+  btn.replaceWith(fresh);
+  fresh.addEventListener('click', async () => {
+    fresh.disabled = true;
+    try {
+      await api('/api/updater/cask-terminal', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      toast(`${name}: finishing in Terminal — reopen Updater when it is done.`);
+    } catch (e) { toast('Could not open Terminal: ' + e.message, 'error'); }
+    fresh.disabled = false;
+  });
 }
 async function runMasUpgrade(id, row) {
   const btn = row.querySelector('.upd-act');
@@ -3882,10 +4035,7 @@ function setFcMark(name, done) {
   m.src = done ? '/assets/icon-dashboard-256.png' : '/assets/icon-smartscan-256.png';
   m.classList.toggle('fc-done', !!done);
 }
-function fcTotal() {
-  const fc = state.fastclean;
-  return fc.cacheSize + (fc.trashAccessible ? fc.binSize : 0);
-}
+
 /** Total size of the items currently ticked in the review list. */
 function fcSelectedTotal() {
   const fc = state.fastclean;
@@ -3922,13 +4072,13 @@ function refreshFcButton() {
   }
   if (fc.phase === 'error') {
     btn.disabled = false;
-    btn.querySelector('.fc-cta-main').textContent = 'Try again';
+    btn.querySelector('.fc-cta-main').textContent = t('tryAgain');
     $('fcCtaSize').textContent = '';
     return;
   }
-  const total = fc.hasPlan ? fcSelectedTotal() : fcTotal();
+  const total = fcSelectedTotal();
   btn.disabled = total <= 0;
-  btn.querySelector('.fc-cta-main').textContent = t(fc.hasPlan ? 'remove' : 'clean');
+  btn.querySelector('.fc-cta-main').textContent = t(total > 0 || fc.planEntries.length ? 'remove' : 'nothingToClean');
   $('fcCtaSize').textContent = total > 0 ? formatBytes(total) : '';
   updateFcListHead();
 }
@@ -3956,7 +4106,8 @@ function fcSetAll(on) {
 function renderFcList() {
   const fc = state.fastclean;
   const host = $('fcList');
-  if (!fc.hasPlan || fc.phase === 'done') { host.hidden = true; host.innerHTML = ''; return; }
+  const binRow = fc.trashAccessible && fc.binSize > 0;
+  if (!fc.hasPlan || fc.phase === 'done' || (!fc.planEntries.length && !binRow)) { host.hidden = true; host.innerHTML = ''; return; }
   const rows = fc.planEntries.map(e => {
     const size = fc.entrySizes[e.name];
     const on = fc.selected.has(e.name);
@@ -4081,7 +4232,7 @@ async function loadFastClean() {
 
     if (!fc.trashAccessible) {
       // ~/.Trash is TCC-protected and we lack Full Disk Access.
-      $('fcSub').innerHTML = 'Clears application caches. <a href="#" id="fcGrant" style="color:var(--accent);text-decoration:none;">Grant Full Disk Access</a> to also empty the Bin.';
+      $('fcSub').innerHTML = 'Clears application caches. <a href="#" id="fcGrant">Grant Full Disk Access</a> to also empty the Bin.';
       $('fcGrant').addEventListener('click', (e) => {
         e.preventDefault(); openFdaSettings();
         toast('Add MacCleaner (or your terminal) under Full Disk Access, then reopen Smart Scan.');
@@ -4108,7 +4259,7 @@ async function loadFastClean() {
       fc.cacheSkippedRunning = (plan.skippedRunning || []).length;
       // One review row per catalog entry; all ticked by default.
       fc.planEntries = plan.entries || [];
-      fc.hasPlan = fc.planEntries.length > 0;
+      fc.hasPlan = true; // a loaded plan is the ONLY source of deletable paths (even when empty)
       fc.selected = new Set(fc.planEntries.map((e) => e.name));
       fc.phase = 'review';
       fc.planLoadedAt = Date.now();
@@ -4131,25 +4282,17 @@ async function loadFastClean() {
       if (fc.cacheExcluded) bits.push(`${fc.cacheExcluded} ${t('protectedSkipped')}`);
       if (fc.cacheSkippedRunning) bits.push(`${fc.cacheSkippedRunning} ${t('inUseSkipped')}`);
       if (bits.length && fc.trashAccessible) $('fcSub').textContent = t('ssSub') + ' · ' + bits.join(' · ');
-      else if (bits.length) $('fcSub').textContent = $('fcSub').textContent + ' · ' + bits.join(' · ');
+      // insertAdjacentText keeps the "Grant Full Disk Access" link clickable.
+      else if (bits.length) $('fcSub').insertAdjacentText('beforeend', ' · ' + bits.join(' · '));
     } catch (e) {
       if (!alive()) return;
-      // No plan → old single-button flow once sizes arrive.
-      fc.phase = 'review';
+      // No plan = nothing safe to delete. Never fall back to trashing raw
+      // ~/Library/Caches children: that bypasses the safelist and the
+      // running-app guard the plan enforces.
+      fc.phase = 'error';
+      $('fcSub').textContent = t('fcPlanFailed') + ' ' + (e.message || '');
       refreshFcButton();
     }
-    // Legacy no-plan estimate: derive from the fast-clean scan itself.
-    if (!fc.hasPlan) pollScanSize(fc.cacheScanId, (d) => {
-      const kids = d && d.root && d.root.children ? d.root.children : [];
-      const keep = kids.filter(c => !fc.exclude.includes(c.name.toLowerCase()));
-      fc.cachePaths = keep.map(c => c.path);
-      fc.cacheSize = keep.reduce((s, c) => s + c.size, 0);
-      const byName = {};
-      for (const c of keep) byName[c.name.toLowerCase()] = c.size;
-      for (const e of fc.planEntries) fc.entrySizes[e.name] = byName[e.name.toLowerCase()] || 0;
-      renderFcList();
-      refreshFcButton();
-    }, 0, alive);
   } catch (e) {
     if (!alive()) return;
     // Scan failed — say so and offer a way back instead of a frozen "Scanning…".
@@ -4164,13 +4307,10 @@ async function fastCleanRun() {
   if (fc.cleaning || fc.confirming || fc.phase !== 'review') return;
   // Bin only when the user explicitly ticked it in the review list (or, in the
   // no-plan fallback, when it's non-empty — matching the old behavior).
-  const doBin = fc.hasPlan
-    ? fc.binSelected && fc.trashAccessible && fc.binSize > 0
-    : fc.trashAccessible && fc.binSize > 0;
+  if (!fc.hasPlan) return;
+  const doBin = fc.binSelected && fc.trashAccessible && fc.binSize > 0;
   // Only the ticked entries go to the Trash.
-  const cachePaths = fc.hasPlan
-    ? fc.planEntries.filter((e) => fc.selected.has(e.name)).flatMap((e) => e.contents)
-    : ((fc.cacheFlatPaths && fc.cacheFlatPaths.length) ? fc.cacheFlatPaths : fc.cachePaths);
+  const cachePaths = fc.planEntries.filter((e) => fc.selected.has(e.name)).flatMap((e) => e.contents);
   const doCache = cachePaths.length > 0;
   if (!doBin && !doCache) return;
 
@@ -4305,24 +4445,43 @@ async function runMnt(btn) {
   btn.innerHTML = orig;
 }
 
+/* Health readout for the no-restart tune-up card: long uptime, memory pressure
+   / swap, and the apps holding the most memory (quitting + reopening those is
+   what actually gives memory back — nothing here kills an app for the user). */
+async function loadHealth() {
+  const box = $('tuneHealth');
+  if (!box) return;
+  try {
+    const h = await api('/api/maintenance/health');
+    const days = h.uptimeSeconds / 86400;
+    const longUp = days >= 7;
+    const memBad = h.pressure === 'warning' || h.pressure === 'critical' || (h.swapUsedBytes || 0) > 2 * 1024 ** 3;
+    const badge = (bad, txt) => `<span class="tune-state ${bad ? 'bad' : 'good'}">${escapeHtml(txt)}</span>`;
+    const apps = (h.topApps || []).map(a => `${escapeHtml(a.name)} ${formatBytes(a.memBytes)}`).join(' · ');
+    box.innerHTML = `
+      <div class="tune-row"><div class="mnt-text"><b>${escapeHtml(t('tuneUptime'))}: ${escapeHtml(fmtUptime(h.uptimeSeconds))}</b>
+        <span>${escapeHtml(t(longUp ? 'tuneUptimeLong' : 'tuneUptimeOk'))}</span></div>${badge(longUp, t(longUp ? 'tuneAdvised' : 'tuneFine'))}</div>
+      <div class="tune-row"><div class="mnt-text"><b>${escapeHtml(t('tuneMemory'))}${h.swapUsedBytes != null ? ` · ${escapeHtml(t('tuneSwap'))} ${formatBytes(h.swapUsedBytes)}` : ''}</b>
+        <span>${escapeHtml(t(memBad ? 'tuneMemBad' : 'tuneMemOk'))}</span></div>${badge(memBad, t(memBad ? 'tuneAdvised' : 'tuneFine'))}</div>
+      ${apps ? `<div class="tune-row"><div class="mnt-text"><b>${escapeHtml(t('tuneHeavy'))}</b><span>${apps}</span></div></div>` : ''}`;
+  } catch (e) {
+    box.innerHTML = `<div class="muted">${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
 async function loadMaintenance() {
   document.querySelectorAll('.mnt-status').forEach(s => { s.textContent = ''; });
+  if (!state.system || state.system.platform === 'darwin') loadHealth();
   const box = $('mntLoginItems');
   if (!box) return;
   if (state.system && state.system.platform !== 'darwin') {
     box.innerHTML = `<div class="muted">${escapeHtml(t('liMacOnly'))}</div>`;
     return;
   }
-  box.innerHTML = `<div class="muted">${escapeHtml(t('loading'))}</div>`;
-  try {
-    // Default fetch = consent-free sources only (BTM background items via
-    // sfltool). Classic "Open at Login" apps come from System Events, which
-    // prompts for Automation permission — so they're loaded on demand below.
-    const { items } = await api('/api/maintenance/login-items');
-    renderLoginItems(box, items, false);
-  } catch (e) {
-    box.innerHTML = `<div class="muted">${escapeHtml('Could not load login items: ' + e.message)}</div>`;
-  }
+  // Both login-item sources prompt on current macOS (System Events →
+  // Automation; background items → administrator approval), so nothing is
+  // read until the user asks: render the opt-in button straight away.
+  renderLoginItems(box, [], false);
   loadLaunchAgents();
 }
 
@@ -4348,8 +4507,8 @@ function renderLoginItems(box, items, classicLoaded) {
   }).join('') : '';
   if (!items.length && classicLoaded) html = `<div class="muted">${escapeHtml(t('liNone'))}</div>`;
   if (!classicLoaded) {
-    html += `<div style="margin-top:10px"><button class="btn" id="mntLoadClassic">${escapeHtml(t('liShowClassic'))}</button>
-      <div class="muted" style="margin-top:6px;font-size:12px">Needs one Automation permission (System Events) the first time.</div></div>`;
+    html += `<div><button class="btn" id="mntLoadClassic">${escapeHtml(t('liShowClassic'))}</button>
+      <div class="muted" style="margin-top:6px;font-size:12px">${escapeHtml(t('liPermHint'))}</div></div>`;
   }
   box.innerHTML = html;
   $('mntLoadClassic')?.addEventListener('click', loadClassicLoginItems);
@@ -4711,10 +4870,18 @@ function renderDuplicates() {
   updateDupToolbar();
 }
 
+/** path → size straight from the duplicate groups (the scan tree may have been
+    pruned, so state.pathIndex can miss files the groups still list). */
+function dupSizeMap() {
+  const m = new Map();
+  for (const g of state.dup.groups) for (const f of g.files) m.set(f.path, g.size);
+  return m;
+}
 function updateDupToolbar() {
   const n = state.dup.selection.size;
+  const sizes = dupSizeMap();
   let total = 0;
-  for (const p of state.dup.selection) total += state.pathIndex.get(p)?.size ?? 0;
+  for (const p of state.dup.selection) total += sizes.get(p) ?? 0;
   $('dupTrashBtn').disabled = !n;
   $('dupTrashBtn').innerHTML = icon('trash', 14) + (n ? `Move ${n} to Trash (${formatBytes(total)})` : 'Move to Trash');
 }
@@ -4738,7 +4905,24 @@ $('dupTrashBtn').addEventListener('click', () => {
       return;
     }
   }
-  confirmTrash([...state.dup.selection]);
+  confirmTrash([...state.dup.selection], {
+    sizeHint: dupSizeMap(),
+    // Stay in Duplicates: drop what was trashed from the results instead of
+    // rescanning the whole folder (which jumped to Disk Map and re-hashed).
+    onDone: (result) => {
+      const gone = new Set(result.deleted || []);
+      if (!gone.size) return;
+      state.dup.groups = state.dup.groups.map(g => {
+        const files = g.files.filter(f => !gone.has(f.path));
+        const count = Math.min(g.count, files.length);
+        return { ...g, files, count, reclaimable: g.size * Math.max(0, count - 1) };
+      }).filter(g => g.files.length > 1);
+      state.dup.groupCount = state.dup.groups.length;
+      state.dup.totalReclaimable = state.dup.groups.reduce((s, g) => s + g.reclaimable, 0);
+      state.dup.selection.clear();
+      renderDuplicates();
+    },
+  });
 });
 $('dupMinSize').addEventListener('change', () => loadDuplicates(true));
 
@@ -5010,8 +5194,12 @@ let settingsData = { ignore: [], schedules: [] };
 $('settingsBtn').addEventListener('click', async () => {
   $('settingsModal').classList.add('open');
   $('settingsStatus').textContent = '';
+  // Save PUTs the whole lists — keep it disabled until they are really loaded,
+  // or a failed/pending load would overwrite every schedule and ignore rule.
+  $('settingsSaveBtn').disabled = true;
   try {
     settingsData = await api('/api/settings');
+    $('settingsSaveBtn').disabled = false;
   } catch (e) {
     toast('Could not load settings: ' + e.message, 'error');
     settingsData = { ignore: [], schedules: [] };
@@ -5179,8 +5367,15 @@ async function fetchFanStatus() {
     if (state.view === 'fans') renderFansLive(s);
     if (state.view === 'dashboard') renderDashSensors(s);
   } catch (e) {
-    // Degrade gracefully: no console spam.
+    // Degrade gracefully: no console spam — but never leave "Reading sensors…"
+    // / skeleton bars up forever when there is nothing to show.
     state.fans.ok = false;
+    if (!state.fans.status) {
+      const msg = `<div class="muted">${escapeHtml(t('sensorsUnavailable'))}</div>`;
+      const dash = $('dashSensors'), grid = $('sensorGrid');
+      if (dash) dash.innerHTML = msg;
+      if (grid) grid.innerHTML = msg;
+    }
   } finally {
     fanFetching = false;
   }
@@ -5500,9 +5695,11 @@ function renderControl(s) {
     </div>
     <div id="ctrlPane"></div>`;
   body.querySelectorAll('[data-fmode]').forEach(b => b.addEventListener('click', () => {
+    // "Auto" only becomes the shown mode once the backend confirms it
+    // (setFansAuto sets viewMode on success) — a failed call must not lie.
+    if (b.dataset.fmode === 'auto') { setFansAuto(); return; }
     state.fans.viewMode = b.dataset.fmode;
-    if (b.dataset.fmode === 'auto') setFansAuto();
-    else renderControl(state.fans.status);
+    renderControl(state.fans.status);
   }));
   $('bannerAutoBtn')?.addEventListener('click', setFansAuto);
   renderCtrlPane(s, mode);
@@ -5630,7 +5827,7 @@ async function installHelper() {
       toast(t('installCancelled'), 'success');
       renderControl(state.fans.status);
     } else {
-      toast(t('installFailed') + (res.detail ? ': ' + res.detail : ''), 'error');
+      toast(t('installFailed') + ((res.message || res.detail) ? ": " + (res.message || res.detail) : ""), 'error');
       if (btn) { btn.disabled = false; btn.innerHTML = icon('shield', 15) + t('installHelper'); }
     }
   } catch (e) {
@@ -5649,7 +5846,7 @@ async function uninstallHelper() {
     } else if (res.status === 'user-cancelled') {
       /* stay put */
     } else {
-      toast(t('installFailed') + (res.detail ? ': ' + res.detail : ''), 'error');
+      toast(t('installFailed') + ((res.message || res.detail) ? ": " + (res.message || res.detail) : ""), 'error');
     }
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -5665,14 +5862,23 @@ function renderFansFoot(helperState) {
 }
 
 /* ── Auto-rules card ── */
-$('rulesMaster').addEventListener('change', () => {
-  if (!state.fans.rules) state.fans.rules = { enabled: false, rules: [], pollSeconds: 15 };
+/* Never PUT a made-up empty config over saved rules: if the rules haven't
+   loaded yet, load them first and bail out when that fails. */
+async function ensureFanRules() {
+  if (!state.fans.rules) await loadFanRules();
+  if (!state.fans.rules) toast(t('rulesNotLoaded'), 'error');
+  return !!state.fans.rules;
+}
+$('rulesMaster').addEventListener('change', async () => {
+  const want = $('rulesMaster').checked;
+  if (!(await ensureFanRules())) { $('rulesMaster').checked = !want; return; }
+  $('rulesMaster').checked = want;
   state.fans.rules.enabled = $('rulesMaster').checked;
   $('rulesList').classList.toggle('rules-disabled', !state.fans.rules.enabled);
   saveRules();
 });
-$('rulesAddBtn').addEventListener('click', () => {
-  if (!state.fans.rules) state.fans.rules = { enabled: false, rules: [], pollSeconds: 15 };
+$('rulesAddBtn').addEventListener('click', async () => {
+  if (!(await ensureFanRules())) return;
   state.fans.rules.rules.push({ domain: 'hottest', threshold: 80, targetPercent: 60 });
   if (!state.fans.rules.enabled) { state.fans.rules.enabled = true; $('rulesMaster').checked = true; }
   renderRules();

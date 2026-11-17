@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { promises as fsp } from 'fs';
 import { GrowthNotification, ScheduleConfig } from '../models/types';
 import { startScan, getScan } from './diskScanner';
 import { getSettings, patchSchedule } from './settings';
@@ -78,7 +79,9 @@ async function runScheduled(sched: ScheduleConfig): Promise<void> {
   await patchSchedule(sched.id, { lastRunAt: Date.now() });
 
   const target = sanitizePath(sched.path); // throws on blocked/invalid paths
-  const history = await listSnapshots(target);
+  // Snapshots are stored under the scan's REALPATH root — look history up the
+  // same way, or a symlinked schedule path never finds its previous run.
+  const history = await listSnapshots(await fsp.realpath(target).catch(() => target));
   const prev = history[history.length - 1];
 
   const scan = await startScan(target);

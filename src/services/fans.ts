@@ -886,6 +886,9 @@ async function engineTick(cfg: FanRulesConfig): Promise<void> {
 function restartEngine(cfg: FanRulesConfig): void {
   if (engineTimer) clearInterval(engineTimer);
   engineTimer = null;
+  // Latches are keyed by rule INDEX — after an edit index N is a different
+  // rule, so a stale latch would boost for a rule that never triggered.
+  engineLatched.clear();
   if (process.platform !== 'darwin') return;
   if (!cfg.enabled || cfg.rules.length === 0) {
     // Rules turned off: drop any engine demand (user boost is untouched).

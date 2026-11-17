@@ -86,10 +86,18 @@ function cpuTicks(): { idle: number; total: number } {
  * short window. os.cpus() alone only exposes since-boot averages, which stay
  * flat and useless for a live gauge — the diff is what makes it live.
  */
+let lastTicks: { at: number; ticks: { idle: number; total: number } } | null = null;
 async function sampleCpuPercent(): Promise<number> {
-  const before = cpuTicks();
-  await new Promise((resolve) => setTimeout(resolve, CPU_SAMPLE_MS));
+  // Diff against the PREVIOUS poll when it is recent (the UI polls every 5s):
+  // a wider, steadier window and no 500ms sleep. Only the first/stale call
+  // pays for a dedicated sampling window.
+  let before = lastTicks && Date.now() - lastTicks.at < 30_000 ? lastTicks.ticks : null;
+  if (!before) {
+    before = cpuTicks();
+    await new Promise((resolve) => setTimeout(resolve, CPU_SAMPLE_MS));
+  }
   const after = cpuTicks();
+  lastTicks = { at: Date.now(), ticks: after };
   const idleDelta = after.idle - before.idle;
   const totalDelta = after.total - before.total;
   if (totalDelta <= 0) return 0;
@@ -194,24 +202,35 @@ async function readBattery(): Promise<SystemStats['battery']> {
 /** In-flight/recent snapshot, mirroring fans.ts readStatus caching. */
 let statsCache: { at: number; value: Promise<SystemStats> } | null = null;
 
+type StaticInfo = Pick<SystemStats, 'osVersion' | 'osBuild' | 'modelName' | 'chip'>;
+let staticInfo: StaticInfo | null = null;
+/** OS version / model / chip never change while we run — spawn for them once
+ *  (4 processes per poll otherwise). A partial read is not cached, so a
+ *  timed-out probe is retried on the next poll. */
+async function readStaticInfo(): Promise<StaticInfo> {
+  if (staticInfo) return staticInfo;
+  if (process.platform !== 'darwin') return { osVersion: null, osBuild: null, modelName: null, chip: null };
+  const [osVersion, osBuild, modelName, chip] = await Promise.all([
+    execText(SW_VERS, ['-productVersion']),
+    execText(SW_VERS, ['-buildVersion']),
+    execText(SYSCTL, ['-n', 'hw.model']),
+    execText(SYSCTL, ['-n', 'machdep.cpu.brand_string']),
+  ]);
+  const info = { osVersion, osBuild, modelName, chip };
+  if (osVersion && osBuild && modelName && chip) staticInfo = info;
+  return info;
+}
+
 async function buildStats(): Promise<SystemStats> {
-  const isMac = process.platform === 'darwin';
-  // All sources run concurrently; the CPU sampler is the long pole (~500ms).
-  const [osVersion, osBuild, modelName, chip, cpuPercent, memory, battery] = await Promise.all([
-    isMac ? execText(SW_VERS, ['-productVersion']) : Promise.resolve(null),
-    isMac ? execText(SW_VERS, ['-buildVersion']) : Promise.resolve(null),
-    isMac ? execText(SYSCTL, ['-n', 'hw.model']) : Promise.resolve(null),
-    isMac ? execText(SYSCTL, ['-n', 'machdep.cpu.brand_string']) : Promise.resolve(null),
+  const [info, cpuPercent, memory, battery] = await Promise.all([
+    readStaticInfo(),
     sampleCpuPercent(),
     readMemoryUsage(),
     readBattery(),
   ]);
 
   return {
-    osVersion,
-    osBuild,
-    modelName,
-    chip,
+    ...info,
     uptimeSeconds: Math.floor(os.uptime()),
     hostname: os.hostname(),
     cpuPercent,

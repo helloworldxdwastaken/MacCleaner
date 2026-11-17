@@ -36,7 +36,9 @@ export class CommandTimeoutError extends Error {
  */
 function run(cmd: string, args: string[], timeoutMs = 20000): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout, stderr) => {
+    // 16 MB: `sfltool dumpbtm` / `launchctl print` can exceed Node's 1 MB default,
+    // which would surface as a bogus command failure.
+    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
         if ((err.killed && err.signal === 'SIGTERM') || err.code === 'ETIMEDOUT') {
           reject(new CommandTimeoutError(`${cmd} did not finish within ${timeoutMs}ms`));
@@ -132,6 +134,7 @@ export async function runMaintenanceInTerminal(action: string): Promise<void> {
   if (process.platform !== 'darwin') throw new Error('macOS only');
   const COMMANDS: Record<string, string> = {
     'flush-dns': 'sudo killall -HUP mDNSResponder; sudo dscacheutil -flushcache; echo "DNS cache flushed."',
+    'purge-memory': 'sudo purge; echo "Cached memory released."',
   };
   const cmd = COMMANDS[action];
   if (!cmd) throw new Error(`No Terminal action for "${action}"`);
@@ -159,8 +162,112 @@ export async function rebuildLaunchServices(): Promise<MaintenanceResult> {
   }
 }
 
+/* ---------- No-restart tune-up (long-uptime remedies) ----------
+ * After a week or two without a restart the usual culprits are user-level UI
+ * agents that have leaked or wedged (Dock, menu bar, Control Center, Finder)
+ * and memory pinned by long-running apps. Each of these agents is relaunched
+ * by launchd the instant it exits, so a `killall` is a clean in-place restart:
+ * no logout, no lost windows. (WindowServer is deliberately NOT touched —
+ * restarting it logs the user out.) */
+
+/** `killall <name>`; "no matching processes" just means it wasn't running. */
+async function relaunchAgent(name: string): Promise<boolean> {
+  try {
+    await run('killall', [name], 8000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshUi(): Promise<MaintenanceResult> {
+  const names = ['Dock', 'SystemUIServer', 'ControlCenter', 'NotificationCenter'];
+  const done: string[] = [];
+  for (const n of names) if (await relaunchAgent(n)) done.push(n);
+  await run('qlmanage', ['-r', 'cache'], 15000).catch(() => undefined); // Quick Look thumbnails
+  return done.length
+    ? { id: 'refresh-ui', ok: true, message: `Restarted ${done.join(', ')} — windows and apps untouched.` }
+    : { id: 'refresh-ui', ok: false, message: 'None of the UI agents could be restarted.' };
+}
+
+async function relaunchFinder(): Promise<MaintenanceResult> {
+  return (await relaunchAgent('Finder'))
+    ? { id: 'relaunch-finder', ok: true, message: 'Finder relaunched.' }
+    : { id: 'relaunch-finder', ok: false, message: 'Finder could not be relaunched.' };
+}
+
+/** `purge` needs root on current macOS — report honestly and offer Terminal. */
+async function purgeMemory(): Promise<MaintenanceResult> {
+  try {
+    await run('purge', [], 30000);
+    return { id: 'purge-memory', ok: true, message: 'Cached memory released.' };
+  } catch {
+    return {
+      id: 'purge-memory',
+      ok: false,
+      partial: true,
+      message: 'Releasing cached memory needs administrator rights.',
+      elevate: { action: 'purge-memory', hint: 'sudo purge' },
+    };
+  }
+}
+
+export interface SystemHealth {
+  uptimeSeconds: number;
+  /** 1-minute load average divided by core count (≈1 = fully busy). */
+  loadPerCore: number;
+  swapUsedBytes: number | null;
+  /** Kernel memory-pressure level. */
+  pressure: 'normal' | 'warning' | 'critical' | null;
+  /** Heaviest apps by resident memory (helper processes folded into their app). */
+  topApps: Array<{ name: string; memBytes: number; cpuPercent: number }>;
+}
+
+/** Fold `ps` rows into apps: "/Applications/X.app/…/X Helper" counts toward X. */
+export function groupProcesses(psOut: string): SystemHealth['topApps'] {
+  const byApp = new Map<string, { memBytes: number; cpuPercent: number }>();
+  for (const line of psOut.split('\n')) {
+    const m = /^\s*(\d+)\s+([\d.]+)\s+(.+)$/.exec(line);
+    if (!m) continue;
+    const comm = m[3].trim();
+    const app = /\/([^/]+)\.app\//.exec(comm);
+    const name = app ? app[1] : path.basename(comm);
+    const cur = byApp.get(name) ?? { memBytes: 0, cpuPercent: 0 };
+    cur.memBytes += Number(m[1]) * 1024;
+    cur.cpuPercent += Number(m[2]);
+    byApp.set(name, cur);
+  }
+  return [...byApp.entries()]
+    .map(([name, v]) => ({ name, memBytes: v.memBytes, cpuPercent: Math.round(v.cpuPercent) }))
+    .sort((a, b) => b.memBytes - a.memBytes)
+    .slice(0, 6);
+}
+
+export async function systemHealth(): Promise<SystemHealth> {
+  const [swap, level, ps] = await Promise.all([
+    run('sysctl', ['-n', 'vm.swapusage'], 5000).catch(() => ''),
+    run('sysctl', ['-n', 'kern.memorystatus_vm_pressure_level'], 5000).catch(() => ''),
+    run('ps', ['-axo', 'rss=,pcpu=,comm='], 10000).catch(() => ''),
+  ]);
+  const used = /used\s*=\s*([\d.]+)([MG])/.exec(swap);
+  const lvl = parseInt(level, 10);
+  return {
+    uptimeSeconds: Math.floor(os.uptime()),
+    loadPerCore: os.loadavg()[0] / Math.max(1, os.cpus().length),
+    swapUsedBytes: used ? Math.round(parseFloat(used[1]) * (used[2] === 'G' ? 1024 ** 3 : 1024 ** 2)) : null,
+    pressure: lvl === 1 ? 'normal' : lvl === 2 ? 'warning' : lvl === 4 ? 'critical' : null,
+    topApps: groupProcesses(ps),
+  };
+}
+
 export async function runMaintenance(id: string): Promise<MaintenanceResult> {
   switch (id) {
+    case 'refresh-ui':
+      return refreshUi();
+    case 'relaunch-finder':
+      return relaunchFinder();
+    case 'purge-memory':
+      return purgeMemory();
     case 'flush-dns':
       return flushDns();
     case 'rebuild-launchservices':
@@ -389,12 +496,19 @@ export async function listLoginItems(opts: { includeClassic?: boolean } = {}): P
   }
 
   // Modern background items (SMAppService / BTM — Adobe Creative Cloud & co.)
-  // don't appear in System Events at all; merge them in read-only. sfltool
-  // needs no Automation consent, so this runs on every load.
-  for (const b of await listBackgroundItems()) {
-    if (activePaths.has(b.path)) continue;
-    if (items.some((i) => i.name === b.name && i.path === b.path)) continue;
-    items.push(b);
+  // don't appear in System Events at all; merge them in read-only. On current
+  // macOS `sfltool dumpbtm` raises an ADMINISTRATOR prompt for non-root callers
+  // (and hangs until answered), so it is opt-in exactly like the classic list —
+  // never run it on a plain page load.
+  if (includeClassic) {
+    const bg = await backgroundItems();
+    for (const b of bg.items) {
+      if (activePaths.has(b.path)) continue;
+      if (items.some((i) => i.name === b.name && i.path === b.path)) continue;
+      items.push(b);
+    }
+    // A failed read must not look like "no background items" (nor be cached).
+    if (bg.error) classicError = classicError ? `${classicError} ${bg.error}` : bg.error;
   }
 
   items.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -547,12 +661,21 @@ function preferBtmRecord(a: BtmRecord, b: BtmRecord, myUid: number): boolean {
  * the on/off switch for these; they are reported read-only.
  */
 export async function listBackgroundItems(): Promise<LoginItem[]> {
-  if (process.platform !== 'darwin') return [];
+  return (await backgroundItems()).items;
+}
+
+async function backgroundItems(): Promise<{ items: LoginItem[]; error: string | null }> {
+  if (process.platform !== 'darwin') return { items: [], error: null };
   let out: string;
   try {
-    out = await run('sfltool', ['dumpbtm'], 15000);
-  } catch {
-    return []; // older macOS without sfltool, or BTM unavailable — not fatal
+    // 60s: the user may need to answer the macOS administrator prompt.
+    out = await run('sfltool', ['dumpbtm'], 60000);
+  } catch (e) {
+    const missing = (e as NodeJS.ErrnoException).code === 'ENOENT'; // older macOS without sfltool
+    return {
+      items: [],
+      error: missing ? null : 'Background items could not be read (macOS needs an administrator approval for that list).',
+    };
   }
   // dumpbtm repeats records per UID section (console user + other local
   // users). Dedupe preferring THIS process's uid, then the highest
@@ -585,7 +708,7 @@ export async function listBackgroundItems(): Promise<LoginItem[]> {
       dispositionRaw: r.disposition || undefined,
     });
   }
-  return items;
+  return { items, error: null };
 }
 
 /** Human label for the BTM "Type:" field. */
@@ -711,7 +834,7 @@ async function launchAgentEnabled(label: string, disabledKey: boolean): Promise<
     const msg = e instanceof Error ? e.message : String(e);
     // "Could not find service" / nonzero → not loaded. Any other error is
     // inconclusive, so defer to the plist's Disabled key.
-    if (/could not find|no such|not find service|113|3:|165/i.test(msg)) return !disabledKey ? false : false;
+    if (/could not find|no such|not find service|\b113\b|\b165\b/i.test(msg)) return false;
     return disabledKey ? false : null;
   }
 }
@@ -734,12 +857,12 @@ export async function listLaunchAgents(): Promise<LaunchAgent[]> {
   }
   const plists = entries.filter((n) => n.toLowerCase().endsWith('.plist'));
 
-  const agents: LaunchAgent[] = [];
-  for (const file of plists) {
+  // Parallel: each agent costs a plutil + a launchctl spawn (was ~0.25s × N in series).
+  const built = await Promise.all(plists.map(async (file): Promise<LaunchAgent | null> => {
     const full = path.join(dir, file);
     const j = await readPlistJson(full);
     const label = typeof j.Label === 'string' && j.Label.trim() ? j.Label.trim() : file.replace(/\.plist$/i, '');
-    if (/^com\.apple\./i.test(label)) continue; // Apple agents — never manage
+    if (/^com\.apple\./i.test(label)) return null; // Apple agents — never manage
 
     let program: string | null = null;
     const args = j.ProgramArguments;
@@ -747,15 +870,16 @@ export async function listLaunchAgents(): Promise<LaunchAgent[]> {
     else if (typeof j.Program === 'string') program = j.Program;
 
     const disabledKey = j.Disabled === true;
-    agents.push({
+    return {
       label,
       path: full,
       program,
       runAtLoad: j.RunAtLoad === true,
       keepAlive: j.KeepAlive === true || (j.KeepAlive != null && typeof j.KeepAlive === 'object'),
       enabled: await launchAgentEnabled(label, disabledKey),
-    });
-  }
+    };
+  }));
+  const agents = built.filter((a): a is LaunchAgent => a !== null);
   agents.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   return agents;
 }

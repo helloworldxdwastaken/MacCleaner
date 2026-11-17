@@ -25,7 +25,8 @@ settingsRouter.get('/settings', async (_req: Request, res: Response) => {
  * the same rules as scan paths.
  */
 settingsRouter.put('/settings', async (req: Request, res: Response) => {
-  const body = req.body as { ignore?: unknown; schedules?: unknown };
+  // Express 5 leaves req.body undefined when nothing was parsed → 400, not a 500.
+  const body = (req.body ?? {}) as { ignore?: unknown; schedules?: unknown };
   if (body.ignore === undefined && body.schedules === undefined) {
     throw new AppError(400, 'NOTHING_TO_UPDATE', 'Body must include "ignore" and/or "schedules"');
   }

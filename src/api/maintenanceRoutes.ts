@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import {
-  runMaintenance, runMaintenanceInTerminal, listLoginItems, setLoginItemEnabled, getAppIconPng,
+  runMaintenance, runMaintenanceInTerminal, listLoginItems, setLoginItemEnabled, getAppIconPng, systemHealth,
   listLaunchAgents, setLaunchAgentEnabled, CommandTimeoutError,
 } from '../services/maintenance';
 import { guardQueryPath, guardBodyPath } from '../middleware/pathGuard';
@@ -14,9 +14,9 @@ import { AppError } from '../middleware/errorHandler';
 
 export const maintenanceRouter = Router();
 
-const RUN_ACTIONS = new Set(['flush-dns', 'rebuild-launchservices']);
+const RUN_ACTIONS = new Set(['flush-dns', 'rebuild-launchservices', 'refresh-ui', 'relaunch-finder', 'purge-memory']);
 /** Maintenance actions that can be finished with interactive sudo in Terminal. */
-const ELEVATE_ACTIONS = new Set(['flush-dns']);
+const ELEVATE_ACTIONS = new Set(['flush-dns', 'purge-memory']);
 
 function requireMac(): void {
   if (process.platform !== 'darwin') {
@@ -27,6 +27,12 @@ function requireMac(): void {
 function isAutomationDenied(msg: string): boolean {
   return /-1743|not authori|not allowed to send/i.test(msg);
 }
+
+/** GET /api/maintenance/health → uptime, memory pressure, swap, heaviest apps. */
+maintenanceRouter.get('/maintenance/health', async (_req: Request, res: Response) => {
+  requireMac();
+  res.json(await systemHealth());
+});
 
 /** POST /api/maintenance/run { action } → { id, ok, message } */
 maintenanceRouter.post('/maintenance/run', async (req: Request, res: Response) => {

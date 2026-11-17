@@ -50,11 +50,13 @@ export function guardBodyPaths(req: Request, _res: Response, next: NextFunction)
 /** Sanitize an optional ?path= / ?root= query parameter. */
 export function guardQueryPath(...params: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
+    const clean: Record<string, unknown> = { ...req.query };
     for (const name of params) {
-      const value = req.query[name];
-      if (value === undefined) continue;
-      req.query[name] = sanitizePath(value);
+      if (clean[name] !== undefined) clean[name] = sanitizePath(clean[name]);
     }
+    // Express 5 `req.query` is a re-parsing getter — assigning into it is
+    // silently lost, so shadow it with the sanitized copy.
+    Object.defineProperty(req, 'query', { value: clean, writable: true, configurable: true, enumerable: true });
     next();
   };
 }
@@ -67,7 +69,13 @@ export function insideAnyScanRoot(p: string): boolean {
 /** Reject body paths that fall outside every completed scan root. */
 export async function requireInsideScanRoot(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const body = req.body as { path?: string; paths?: string[] };
-  const candidates = body.paths ?? (body.path !== undefined ? [body.path] : []);
+  // Check BOTH fields: a request carrying `path` plus an empty `paths` must
+  // not skip validation of `path`.
+  const candidates = [...(body.paths ?? []), ...(body.path !== undefined ? [body.path] : [])];
+  if (candidates.length === 0) {
+    next(new AppError(400, 'PATH_REQUIRED', 'Request body must include "path" or "paths"'));
+    return;
+  }
   for (const p of candidates) {
     // Resolve symlinks in the parent chain: lexical containment alone lets a
     // link planted inside a scanned tree make a path OUTSIDE it look

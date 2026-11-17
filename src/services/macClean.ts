@@ -72,6 +72,12 @@ export const CACHE_EXCLUDE = new Set<string>([
   'com.apple.AppleAccount',
   'FamilyCircle',
   'com.adobe', // Adobe license/activation caches (prefix)
+  // Downloaded browser/tool binaries — "regenerable" only by a manual
+  // reinstall (npx playwright install …); trashing them breaks test runs.
+  'ms-playwright',
+  'ms-playwright-go',
+  'Cypress',
+  'puppeteer',
   // Group-container-scoped caches (shared app data, not throwaway)
   'Group Containers',
   // Vendor roots — conditional excludes, see CACHE_VENDOR_ROOTS above.
@@ -90,6 +96,11 @@ export const CACHE_EXCLUDE = new Set<string>([
  */
 export function cacheExcluded(basename: string): boolean {
   const b = basename.toLowerCase();
+  // Apple system caches belong to daemons that are ALWAYS running (so the
+  // running-app guard can't protect them); pulling files out from under them
+  // buys a few MB and risks odd behaviour until the next login. Xcode's
+  // developer-tool caches are the exception: big, safe, and app-guarded.
+  if ((b === 'com.apple' || b.startsWith('com.apple.')) && !b.startsWith('com.apple.dt.')) return true;
   for (const raw of CACHE_EXCLUDE) {
     // Vendor roots live in the set only as the catalog/report of conditional
     // excludes — they must never match as PERMANENT excludes here. Iteration
@@ -363,6 +374,34 @@ export interface CachePlan {
  * so DELETE /api/files authorizes it — this function only decides WHAT is safe
  * to clear, not the authorization.
  */
+/**
+ * Names of every app with a live process (from `ps`, "…/Name.app/…").
+ * lsappinfo only lists apps registered with LaunchServices — background
+ * helpers, CLI-launched Electron apps and menu-bar agents are missing from it,
+ * so their caches were offered while they were running.
+ */
+export async function runningAppNameRuns(): Promise<string[][]> {
+  if (process.platform !== 'darwin') return [];
+  const out = await execFileP('/bin/ps', ['-axo', 'comm='], 8000).catch(() => '');
+  const names = new Set<string>();
+  for (const m of out.matchAll(/\/([^/\n]+)\.app\//g)) names.add(m[1].toLowerCase());
+  return [...names].map(nameRun).filter((r) => r.length > 0);
+}
+
+/** True when the cache-dir name contains a running app's name as whole tokens
+ *  ("Asta Shared Profiles" / "com.veroxstudio.asta" ↔ Asta.app). Errs on the
+ *  side of skipping — a skipped cache costs nothing, a trashed live one can. */
+export function matchesRunningAppName(basename: string, appRuns: string[][]): boolean {
+  const segs = nameRun(basename);
+  return appRuns.some((run) => {
+    outer: for (let i = 0; i + run.length <= segs.length; i++) {
+      for (let k = 0; k < run.length; k++) if (segs[i + k] !== run[k]) continue outer;
+      return true;
+    }
+    return false;
+  });
+}
+
 export async function buildCachePlan(): Promise<CachePlan> {
   const root = path.join(os.homedir(), 'Library', 'Caches');
   const plan: CachePlan = { root, entries: [], excluded: [], skippedRunning: [] };
@@ -373,7 +412,7 @@ export async function buildCachePlan(): Promise<CachePlan> {
   } catch {
     return plan; // no Caches dir / unreadable
   }
-  const running = await runningBundleIds();
+  const [running, appRuns] = await Promise.all([runningBundleIds(), runningAppNameRuns()]);
   const runningIds: RunningId[] = [...running].map((id) => ({ id, segs: id.split('.') }));
 
   for (const child of children) {
@@ -399,6 +438,7 @@ export async function buildCachePlan(): Promise<CachePlan> {
       // roots): skip if either belongs to a running app.
       const runningMatch =
         matchesRunningBundle(name, runningIds) ||
+        matchesRunningAppName(name, appRuns) ||
         kids.some((k) => k.isDirectory() && matchesRunningBundle(k.name, runningIds));
       if (runningMatch) {
         plan.skippedRunning.push(name);
@@ -408,7 +448,7 @@ export async function buildCachePlan(): Promise<CachePlan> {
       if (kids.length > 0) plan.entries.push({ dir: full, name, contents: kids.map((k) => path.join(full, k.name)) });
     } else {
       // Loose file (or symlink) directly under Caches — clear the file itself.
-      if (matchesRunningBundle(name, runningIds)) {
+      if (matchesRunningBundle(name, runningIds) || matchesRunningAppName(name, appRuns)) {
         plan.skippedRunning.push(name);
         continue;
       }

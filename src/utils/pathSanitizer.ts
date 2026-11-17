@@ -88,7 +88,9 @@ export function sanitizePath(input: unknown): string {
     throw new PathRejectedError('Path is too long', 'PATH_INVALID');
   }
 
-  let p = input.trim();
+  // No trim: "Icon\r" and "report " are real file names — trimming would
+  // resolve a delete/open to a DIFFERENT sibling. Typed input is trimmed by the UI.
+  let p = input;
   if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) {
     p = path.join(os.homedir(), p.slice(1));
   }

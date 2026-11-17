@@ -10,8 +10,11 @@ import { Request, Response, NextFunction } from 'express';
  * enforcing 10 req/s sustained.
  */
 
-const REFILL_PER_SEC = 10;
-const CAPACITY = 20;
+// Sized for the app's own UI on loopback (the only client the Host guard and
+// token admit): a view can fire one icon request per list row on top of the
+// 3–5s pollers, which the old 20-burst bucket answered with 429s.
+const REFILL_PER_SEC = 30;
+const CAPACITY = 120;
 const SWEEP_INTERVAL_MS = 60_000;
 /** Buckets idle longer than this are dropped to keep the map small. */
 const IDLE_EXPIRY_MS = 5 * 60_000;

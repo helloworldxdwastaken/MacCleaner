@@ -1,6 +1,6 @@
 {
   "name": "maccleaner",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "MacCleaner \u2014 a macOS cleaner suite (Smart Scan, Performance, Maintenance, Uninstaller, Updater, Fan Control) with a GrandPerspective-style disk treemap",
   "author": "dronx <info.dronx@gmail.com>",
   "main": "electron/main.js",
@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "check": "node scripts/selfcheck.js",
     "app": "npm run build && electron .",
     "build:helper": "bash native/fanhelper/build.sh",
     "dist": "npm run build && electron-builder",

@@ -290,7 +290,10 @@ async function processDirectory(
   try {
     entries = await fsp.readdir(dirNode.path, { withFileTypes: true });
   } catch {
-    return; // EACCES / EPERM / ENOENT(race) — skip silently
+    // EACCES / EPERM / ENOENT(race): contents unknown, NOT empty — flag it so
+    // "empty folder" cleanup never offers a TCC-protected dir for the Trash.
+    dirNode.truncated = true;
+    return;
   }
 
   scan.currentPath = dirNode.path;
@@ -298,7 +301,9 @@ async function processDirectory(
 
   // Honor the user's "don't scan" list before paying for any lstat calls.
   if (ignore.length > 0) {
+    const before = entries.length;
     entries = entries.filter((ent) => !matchesAny(ignore, path.join(dirNode.path, ent.name), ent.name));
+    if (entries.length < before) dirNode.truncated = true; // hidden children ≠ empty
   }
 
   for (let i = 0; i < entries.length; i += STAT_BATCH) {

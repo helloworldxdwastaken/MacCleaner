@@ -454,6 +454,10 @@ async function fetchAppcast(url: string): Promise<string | null> {
 interface CaskInfo {
   token: string;
   version: string;
+  /** Full catalog version incl. the ",build" part — the Caskroom dir name. */
+  rawVersion: string;
+  /** `version :latest` casks carry no comparable version — never offered. */
+  latest: boolean;
   /**
    * Bundle ids the cask declares (from `uninstall`/`zap` quit/launchctl/pkgutil
    * keys and Preferences/Caches paths). Used to CONFIRM a name-based match maps
@@ -466,11 +470,59 @@ interface CaskInfo {
  *  callers surface it as `degraded` so "no cask updates" isn't mistaken for
  *  "couldn't check the catalog". */
 interface CaskCatalogResult {
-  map: Map<string, CaskInfo>;
+  /** normalized installed-app name → EVERY cask that ships an app by that name. */
+  map: Map<string, CaskInfo[]>;
   failed: boolean;
 }
 
+/**
+ * token → version dirs Homebrew has installed (`<prefix>/Caskroom/<token>/<version>`).
+ * Ground truth for "which cask owns this app" and "is it already current" —
+ * far more reliable than comparing a bundle's marketing version to a cask version.
+ */
+async function brewCaskVersions(): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>();
+  for (const prefix of ['/opt/homebrew', '/usr/local']) {
+    const room = path.join(prefix, 'Caskroom');
+    const tokens = await fsp.readdir(room).catch(() => [] as string[]);
+    await Promise.all(
+      tokens.map(async (token) => {
+        const versions = await fsp.readdir(path.join(room, token)).catch(() => [] as string[]);
+        out.set(token, new Set(versions.filter((v) => !v.startsWith('.'))));
+      })
+    );
+  }
+  return out;
+}
+
+/**
+ * Choose the cask for an installed app name, or null when we can't be sure.
+ * Several casks can ship the same bundle name (chromium vs ungoogled-chromium,
+ * stable vs beta channels): prefer the one Homebrew actually installed; with
+ * no owner and several candidates, refuse to guess — a wrong pick would
+ * `brew install --force` a DIFFERENT product over the user's app.
+ */
+export function pickCask(cands: CaskInfo[] | undefined, brewInstalled: ReadonlySet<string>): CaskInfo | null {
+  if (!cands || cands.length === 0) return null;
+  const owned = cands.filter((c) => brewInstalled.has(c.token));
+  const pool = owned.length > 0 ? owned : cands;
+  if (pool.length !== 1) return null;
+  return pool[0].latest ? null : pool[0];
+}
+
+/** Installed app name a cask `app` artifact produces: `["Src.app", {target: "Dst.app"}]` installs as Dst. */
+export function caskAppName(artifact: unknown): string | null {
+  let nm: unknown = artifact;
+  if (Array.isArray(artifact)) {
+    const opts = artifact.find((x) => x && typeof x === 'object') as { target?: unknown } | undefined;
+    nm = typeof opts?.target === 'string' ? opts.target : artifact[0];
+  }
+  if (typeof nm !== 'string' || !nm.toLowerCase().endsWith('.app')) return null;
+  return path.basename(nm).replace(/\.app$/i, '');
+}
+
 let caskCatalogCache: { at: number; result: CaskCatalogResult } | null = null;
+let caskCatalogInflight: Promise<CaskCatalogResult> | null = null;
 const CASK_CATALOG_TTL = 24 * 60 * 60 * 1000;
 /** A FAILED fetch is remembered only briefly — the old code cached the empty
  *  map for a full day, so one transient network error suppressed every cask
@@ -519,7 +571,19 @@ async function caskCatalog(): Promise<CaskCatalogResult> {
     const ttl = caskCatalogCache.result.failed ? CASK_CATALOG_FAILURE_TTL : CASK_CATALOG_TTL;
     if (Date.now() - caskCatalogCache.at < ttl) return caskCatalogCache.result;
   }
-  const map = new Map<string, CaskInfo>();
+  // One download at a time: concurrent callers share the in-flight fetch
+  // instead of each pulling + parsing the ~20 MB catalog.
+  if (!caskCatalogInflight) {
+    caskCatalogInflight = fetchCaskCatalog().finally(() => {
+      caskCatalogInflight = null;
+    });
+  }
+  return caskCatalogInflight;
+}
+
+async function fetchCaskCatalog(): Promise<CaskCatalogResult> {
+  const map = new Map<string, CaskInfo[]>();
+  const aliases: Array<[string, CaskInfo]> = [];
   let failed = true;
   try {
     const res = await fetch('https://formulae.brew.sh/api/cask.json', {
@@ -534,27 +598,36 @@ async function caskCatalog(): Promise<CaskCatalogResult> {
         artifacts?: Array<Record<string, unknown>>;
       }>;
       for (const c of casks) {
-        if (!c.token || !c.version || c.version === 'latest') continue;
+        if (!c.token || !c.version) continue;
+        const rawVersion = String(c.version);
         const info: CaskInfo = {
           token: c.token,
-          version: String(c.version).split(',')[0].trim(),
+          version: rawVersion.split(',')[0].trim(),
+          rawVersion,
+          latest: rawVersion === 'latest',
           bundleIds: bundleIdsFromArtifacts(c.artifacts || []),
         };
         for (const art of c.artifacts || []) {
           const appList = (art as { app?: unknown }).app;
           if (!Array.isArray(appList)) continue;
-          for (const an of appList) {
-            const nm = typeof an === 'string' ? an : Array.isArray(an) && typeof an[0] === 'string' ? an[0] : null;
-            if (nm && nm.toLowerCase().endsWith('.app')) map.set(normalizeToken(nm.replace(/\.app$/i, '')), info);
+          // `app "A.app", target: "B.app"` arrives as ["A.app", {target: "B.app"}].
+          const names = appList.some((x) => x && typeof x === 'object' && !Array.isArray(x))
+            ? [caskAppName(appList)]
+            : appList.map(caskAppName);
+          for (const nm of names) {
+            if (!nm) continue;
+            const key = normalizeToken(nm);
+            const list = map.get(key);
+            if (!list) map.set(key, [info]);
+            else if (!list.includes(info)) list.push(info);
           }
         }
-        for (const nm of c.name || []) {
-          if (typeof nm === 'string') {
-            const k = normalizeToken(nm);
-            if (!map.has(k)) map.set(k, info);
-          }
+        if (!info.latest) {
+          for (const nm of c.name || []) if (typeof nm === 'string') aliases.push([normalizeToken(nm), info]);
         }
       }
+      // Display-name aliases only fill names NO cask ships as an app artifact.
+      for (const [k, info] of aliases) if (!map.has(k)) map.set(k, [info]);
       failed = false;
     }
   } catch {
@@ -571,11 +644,10 @@ async function caskCatalog(): Promise<CaskCatalogResult> {
  * Needed so the apply path can run pre/post checks on the actual bundle.
  */
 async function installedAppForCask(token: string): Promise<AppSummary | null> {
-  const [apps, catalog] = await Promise.all([listInstalledApps(), caskCatalog()]);
-  const names = new Set<string>();
-  for (const [key, info] of catalog.map) if (info.token === token) names.add(key);
-  if (names.size === 0) return null;
-  return apps.find((a) => names.has(normalizeToken(a.name))) ?? null;
+  const [apps, catalog, brewVers] = await Promise.all([listInstalledApps(), caskCatalog(), brewCaskVersions()]);
+  const owned = new Set(brewVers.keys());
+  // Same pick as appUpdates(): the app this token would actually be offered for.
+  return apps.find((a) => pickCask(catalog.map.get(normalizeToken(a.name)), owned)?.token === token) ?? null;
 }
 
 /** Fail-closed resolution of the installed app behind a cask token. A null
@@ -640,9 +712,14 @@ async function verifyCaskInstall(
   const info = await readPlistInfo(app.path);
   const installed = info.shortVersion || info.build;
   let expected: string | null = null;
-  for (const c of (await caskCatalog()).map.values()) {
+  let brewConfirmed = false;
+  const brewVers = await brewCaskVersions();
+  for (const c of [...(await caskCatalog()).map.values()].flat()) {
     if (c.token === token) {
       expected = c.version;
+      // Homebrew recorded the catalog version → the install landed, whatever
+      // the bundle's marketing version says ("2026.2" vs cask "2026.2.3.4").
+      brewConfirmed = !!brewVers.get(token)?.has(c.rawVersion);
       break;
     }
   }
@@ -656,7 +733,7 @@ async function verifyCaskInstall(
     if (previousVersion && installed === previousVersion && !expected) {
       return `Update incomplete: ${app.name} is still version ${installed}. Try updating again, or finish in Terminal.`;
     }
-    if (expected) {
+    if (expected && !brewConfirmed) {
       // The bundle only exposes the marketing version, so strip a trailing
       // numeric build suffix from the cask's version before the "older than
       // expected" comparison — otherwise an installed "19.0.0" reads as older
@@ -710,7 +787,9 @@ export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult
       // request time.
       fresh = await resolveCaskApp(token);
       await guardCaskTarget(fresh);
-      return execFileP(brew, ['install', '--cask', '--force', token], 10 * 60 * 1000);
+      // 45 min: a kill mid-install (multi-GB download on a slow link) leaves a
+      // half-replaced app — the old 10 min cap caused exactly that.
+      return execFileP(brew, await caskUpgradeArgs(token), 45 * 60 * 1000);
     });
     const problem = await verifyCaskInstall(token, fresh, fresh.version);
     if (problem) return { ok: false, token, message: problem };
@@ -731,8 +810,26 @@ export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult
     if (/password is required|requires? a password|sudo[: ]/i.test(detail)) {
       return { ok: false, token, message: 'Needs admin permission — finishing in Terminal.', needsTerminal: true };
     }
-    return { ok: false, token, message: lastLine(e.stderr || '') || (e.message || 'upgrade failed').trim() };
+    return { ok: false, token, message: brewErrorLine(detail) || (e.message || 'upgrade failed').trim() };
   }
+}
+
+/**
+ * The right brew verb for the job. A cask Homebrew already owns is UPGRADED
+ * (brew runs the old version's uninstall steps, then installs — the supported
+ * path; `--greedy` so self-updating casks aren't silently skipped). Only an
+ * app installed outside brew is adopted with `install --force`.
+ */
+async function caskUpgradeArgs(token: string): Promise<string[]> {
+  const owned = (await brewCaskVersions()).has(token);
+  return owned ? ['upgrade', '--cask', '--greedy', token] : ['install', '--cask', '--force', token];
+}
+
+/** brew's actual complaint: the last "Error: …" line, else the last line at all. */
+export function brewErrorLine(output: string): string {
+  const lines = output.split('\n').map((l) => l.trim()).filter(Boolean);
+  const err = [...lines].reverse().find((l) => /^error:/i.test(l));
+  return (err ?? lines[lines.length - 1] ?? '').replace(/^error:\s*/i, '');
 }
 
 /** Open Terminal and run the cask update there, so the user can enter their
@@ -753,7 +850,7 @@ export async function upgradeCaskInTerminal(token: string): Promise<void> {
   }
   await withBrewLock(async () => {
     const brew = (await brewPath()) || 'brew';
-    const cmd = `${brew} install --cask --force ${token}`;
+    const cmd = `${brew} ${(await caskUpgradeArgs(token)).join(' ')}`;
     const esc = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     await execFileP('/usr/bin/osascript', [
       '-e', 'tell application "Terminal"',
@@ -825,9 +922,10 @@ export async function appUpdates(): Promise<{
   if (process.platform !== 'darwin') {
     return { apps: [], degraded: false, degradedReasons: [] };
   }
-  const [apps, catalog, hasMas, osVersion] = await Promise.all([
-    listInstalledApps(), caskCatalog(), masAvailable(), currentOsVersion(),
+  const [apps, catalog, hasMas, osVersion, brewVers] = await Promise.all([
+    listInstalledApps(), caskCatalog(), masAvailable(), currentOsVersion(), brewCaskVersions(),
   ]);
+  const brewOwned = new Set(brewVers.keys());
   const reasons: string[] = [];
   if (catalog.failed) {
     reasons.push('Could not fetch the Homebrew cask catalog (formulae.brew.sh) — cask updates may be missing.');
@@ -862,8 +960,11 @@ export async function appUpdates(): Promise<{
         const cask =
           a.updateSource === 'mas' || !a.path.startsWith('/Applications/')
             ? undefined
-            : catalog.map.get(normalizeToken(a.name));
-        if (cask && a.version && cmpVersion(cask.version, a.version) > 0) {
+            : pickCask(catalog.map.get(normalizeToken(a.name)), brewOwned);
+        // Already at the catalog version per Homebrew's own records → current,
+        // even if the bundle's short version is only a prefix of the cask's.
+        const brewCurrent = !!cask && !!brewVers.get(cask.token)?.has(cask.rawVersion);
+        if (cask && !brewCurrent && a.version && cmpVersion(cask.version, a.version) > 0) {
           update = gateCaskMatch(cask, a.bundleId, a.version);
         }
         if (!update && hasMas) {
@@ -880,7 +981,9 @@ export async function appUpdates(): Promise<{
             }
           }
         }
-        return { name: a.name, path: a.path, icon: a.icon, source: a.updateSource, currentVersion: a.version, update };
+        // Icons (base64, ~5 KB each) only for rows the panel renders — the UI
+        // lists apps WITH an update, so the rest would be ~250 KB of dead payload.
+        return { name: a.name, path: a.path, icon: update ? a.icon : null, source: a.updateSource, currentVersion: a.version, update };
       })
     );
     out.push(...results);

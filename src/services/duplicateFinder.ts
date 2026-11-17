@@ -387,6 +387,9 @@ async function hashRegularFile(filePath: string, limit?: number): Promise<string
   try {
     const stat = await fsp.lstat(filePath);
     if (!stat.isFile()) return null;
+    // Evicted iCloud ("dataless") file: has a size but no local blocks. Reading
+    // it makes macOS DOWNLOAD it — a duplicate search must never fill the disk.
+    if (stat.size > 0 && stat.blocks === 0) return null;
   } catch {
     return null; // vanished between scan and hash
   }

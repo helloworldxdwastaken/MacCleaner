@@ -146,7 +146,9 @@ function createWindow(port) {
           // Frameless native style: traffic lights overlay the app chrome and the
           // renderer provides the drag region (see .titlebar-drag in index.html).
           titleBarStyle: 'hiddenInset',
-          trafficLightPosition: { x: 16, y: 18 },
+          // Inset 16px inside the floating sidebar card (card sits at 14,14);
+          // .side-logo leaves this row free (html.vibrant .side-logo in index.html).
+          trafficLightPosition: { x: 30, y: 30 },
         }
       : {}),
     show: false,
@@ -538,6 +540,9 @@ function setupAutoUpdates() {
     // Signed flow: notify FIRST, download on click, restart-to-update after.
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+    // Toggling auto-updates off→on re-enters here: drop the previous handlers
+    // or every toggle adds another notification per update.
+    for (const ev of ['update-available', 'update-downloaded', 'error']) autoUpdater.removeAllListeners(ev);
 
     autoUpdater.on('update-available', (info) => {
       notifyUpdate(`Version ${info.version} is available — download and install.`, () => {

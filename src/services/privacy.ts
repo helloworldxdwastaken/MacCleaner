@@ -179,7 +179,9 @@ async function buildItem(b: BrowserCacheDef, full: string): Promise<BrowserCache
     item.truncated = sized.truncated;
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code;
-    if (code === 'EPERM' || code === 'EACCES') item.accessDenied = true;
+    // Blocked by TCC = the cache IS there, we just can't read it yet. Without
+    // `exists` the UI reported Safari as "not installed".
+    if (code === 'EPERM' || code === 'EACCES') { item.accessDenied = true; item.exists = true; }
     else if (code === 'ENOENT') item.exists = false;
   }
   if (b.app) {

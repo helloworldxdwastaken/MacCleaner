@@ -109,7 +109,7 @@ function pathRules(): { id: string; title: string; description: string; prefixes
         description: 'Chrome / Safari / Firefox caches — pages reload a bit slower once',
         prefixes: [
           j(home, 'Library', 'Caches', 'Google', 'Chrome'),
-          j(home, 'Library', 'Caches', 'com.apple.Safari'),
+
           j(home, 'Library', 'Caches', 'Firefox'),
           j(home, 'Library', 'Caches', 'Chromium'),
           j(home, 'Library', 'Caches', 'company.thebrowser.Browser'),
@@ -199,15 +199,15 @@ export function collectCleanupSuggestions(root: FileNode, ignore: CompiledIgnore
       groups.set(id, group);
     }
     group.totalSize += node.size;
-    if (group.items.length < ITEMS_PER_RULE) {
-      group.items.push({
-        name: node.name,
-        path: node.path,
-        size: node.size,
-        type: node.type,
-        modifiedAt: node.modifiedAt,
-      } satisfies CleanupSuggestionItem);
-    }
+    // Collect everything; the cap is applied AFTER sorting so the list always
+    // shows the largest items, not the first ones the walk happened to meet.
+    group.items.push({
+      name: node.name,
+      path: node.path,
+      size: node.size,
+      type: node.type,
+      modifiedAt: node.modifiedAt,
+    } satisfies CleanupSuggestionItem);
   };
 
   const visit = (node: FileNode): void => {
@@ -225,7 +225,10 @@ export function collectCleanupSuggestions(root: FileNode, ignore: CompiledIgnore
         // evidence; otherwise the dir is left unclaimed and we keep
         // descending (it may still hold rule matches deeper inside).
         const generic = !!nameRule && !nameRule.names.has(lower);
-        if (nameRule && child.size > 0 && !(generic && !hasBuildEvidence(node.children))) {
+        // ~/.gradle is the user's Gradle HOME (gradle.properties: credentials,
+        // signing config) — only project-level .gradle dirs are disposable.
+        const gradleHome = lower === '.gradle' && samePath(node.path, os.homedir());
+        if (nameRule && !gradleHome && child.size > 0 && !(generic && !hasBuildEvidence(node.children))) {
           add(nameRule.id, nameRule.title, nameRule.description, child);
           continue; // claimed — don't descend
         }
@@ -247,7 +250,9 @@ export function collectCleanupSuggestions(root: FileNode, ignore: CompiledIgnore
       if (
         child.size >= OLD_DOWNLOAD_MIN_SIZE &&
         child.modifiedAt < oldDownloadCutoff &&
-        (child.path.startsWith(downloadsDir + path.sep) || samePath(path.dirname(child.path), downloadsDir))
+        // Direct children only: a file deep inside a repo or .app bundle in
+        // Downloads is part of that item, not a standalone trash target.
+        samePath(path.dirname(child.path), downloadsDir)
       ) {
         add(
           'old-downloads',
@@ -261,6 +266,6 @@ export function collectCleanupSuggestions(root: FileNode, ignore: CompiledIgnore
   visit(root);
 
   return [...groups.values()]
-    .map((g) => ({ ...g, items: g.items.sort((a, b) => b.size - a.size) }))
+    .map((g) => ({ ...g, items: g.items.sort((a, b) => b.size - a.size).slice(0, ITEMS_PER_RULE) }))
     .sort((a, b) => b.totalSize - a.totalSize);
 }

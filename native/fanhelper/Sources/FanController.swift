@@ -16,7 +16,7 @@ import Foundation
 enum FanMode: Int {
     case auto = 0
     case forced = 1      // manual / forced target
-    case thermalMgr = 3  // macOS thermal manager owns the fan
+    case thermalMgr = 3  // system-managed (the normal idle state on Apple Silicon)
 
     var label: String {
         switch self {

@@ -776,13 +776,26 @@ async function verifyCaskInstall(
  *     duplicate into /Applications.
  *  After brew succeeds, the install is verified (bundle present, version moved,
  *  codesign advisory). */
-export async function upgradeCaskAdopt(token: string): Promise<BrewUpgradeResult> {
+/** Ask an app to quit the normal way (it can still prompt to save), then wait
+ *  for it to go. Never a kill: unsaved work is the user's, not ours. */
+async function quitAppGracefully(app: AppSummary): Promise<void> {
+  if (!app.bundleId) return;
+  const id = app.bundleId.replace(/[^A-Za-z0-9.\-_]/g, '');
+  await execFileP('/usr/bin/osascript', ['-e', `tell application id "${id}" to quit`], 60000).catch(() => undefined);
+  for (let i = 0; i < 40 && (await isAppRunning(app.executable)); i++) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+}
+
+export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolean } = {}): Promise<BrewUpgradeResult> {
   const brew = await brewPath();
   if (!brew) return { ok: false, token, message: 'Homebrew is not installed' };
 
   // Resolve + guard BEFORE taking the lock, so a bad request fails fast
   // without queueing behind other brew writes...
   const app = await resolveCaskApp(token);
+  // The user said "quit it for me" — do that, then let the guard re-check.
+  if (opts.quitFirst && (await isAppRunning(app.executable))) await quitAppGracefully(app);
   await guardCaskTarget(app);
 
   try {

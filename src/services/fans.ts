@@ -496,18 +496,17 @@ async function applyDesired(): Promise<BoostResult> {
   for (const fan of fans) {
     const percent = desired.get(fan.id);
     if (percent === undefined) continue;
-    // SAFETY: never seize a fan the firmware thermal manager has taken over —
-    // forcing manual mode over an active thermal response is exactly what the
-    // additive-only model forbids. Skip it; the moment macOS hands the fan
-    // back (mode → auto), the heartbeat desync guard re-establishes the pin.
-    if (fan.mode === 'thermal') continue;
+    // Mode 'thermal' (SMC mode 3) is the NORMAL system-managed state on Apple
+    // Silicon — fans parked at 0 rpm when idle. Skipping it made every boost
+    // and auto-rule a silent no-op on those Macs. Safety is the additive-only
+    // floor below: we never command less than the system's own target.
     const requested = percentToRpm(fan, percent);
     // Additive-only floor: never command below the fan's CURRENT automatic
     // target (readStatus provides the live auto target as targetRpm while the
     // fan is in auto mode). A manual pin below it would SLOW the fan down —
     // the opposite of a boost. The daemon's [min,max] clamp still applies.
     const floorRpm =
-      fan.mode === 'auto' && fan.targetRpm > 0 ? Math.round(fan.targetRpm) : 0;
+      fan.mode !== 'manual' && fan.targetRpm > 0 ? Math.round(fan.targetRpm) : 0;
     const rpm = Math.max(requested, floorRpm);
     try {
       const reply = await session.send({ op: 'boost', fan: fan.id, rpm });
@@ -517,7 +516,10 @@ async function applyDesired(): Promise<BoostResult> {
         fan: fan.id,
         rpm: typeof reply.appliedRpm === 'number' ? reply.appliedRpm : rpm,
         ok: reply.ok,
-        error: reply.error,
+        // Helpers installed before 2.3 refuse mode-3 fans — say what to do.
+        error: /thermal management/i.test(reply.error || '')
+          ? 'The installed fan helper is outdated — in Fans, uninstall the helper and install it again.'
+          : reply.error,
       });
       if (!reply.ok) allOk = false;
     } catch (err) {

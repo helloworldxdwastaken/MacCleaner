@@ -232,12 +232,55 @@ function createTray() {
   tray = new Tray(icon);
   tray.setToolTip('MacCleaner — macOS Cleaner Suite');
   tray.on('click', () => {
+    // macOS: left-click toggles the live-stats panel (right-click = menu).
     // Windows/Linux convention: left-click opens the app.
-    if (process.platform !== 'darwin') showMainWindow();
+    if (process.platform === 'darwin') togglePanel();
+    else showMainWindow();
+  });
+  tray.on('right-click', () => {
+    if (trayMenu) tray.popUpContextMenu(trayMenu);
   });
   refreshTray();
   scheduleTrayPoll(TRAY_POLL_OK_MS);
 }
+
+/* Menu-bar panel: a small frameless popover under the tray icon showing live
+   stats (public/panel.html, served at /panel). Hidden on blur, like a menu. */
+let panelWin = null;
+let trayMenu = null;
+function togglePanel() {
+  if (!running || !tray) return;
+  if (panelWin && panelWin.isVisible()) return void panelWin.hide();
+  if (!panelWin) {
+    panelWin = new BrowserWindow({
+      width: 340, height: 452, show: false, frame: false, resizable: false, movable: false,
+      minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true,
+      alwaysOnTop: true, roundedCorners: true, backgroundColor: '#14223f',
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') },
+    });
+    const origin = `http://127.0.0.1:${running.port}/`;
+    panelWin.loadURL(`${origin}panel`);
+    panelWin.webContents.on('will-navigate', (event, url) => {
+      if (!url.startsWith(origin)) event.preventDefault();
+    });
+    panelWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    panelWin.on('blur', () => panelWin && panelWin.hide());
+    panelWin.on('closed', () => { panelWin = null; });
+  }
+  const b = tray.getBounds();
+  const [w] = panelWin.getSize();
+  panelWin.setPosition(Math.max(8, Math.round(b.x + b.width / 2 - w / 2)), Math.round(b.y + b.height + 6), false);
+  panelWin.show();
+  panelWin.focus();
+}
+ipcMain.on('panel:action', (event, name) => {
+  // Only the panel window may drive these.
+  if (!panelWin || event.sender !== panelWin.webContents) return;
+  panelWin.hide();
+  if (name === 'quit') app.quit();
+  else if (name === 'open') showMainWindow();
+  else if (['fastclean', 'maintenance', 'fans'].includes(name)) showView(name);
+});
 
 /** (Re)arm the tray poll at the given cadence, replacing any existing timer.
  *  Called on startup and whenever we cross the failure threshold either way,
@@ -413,7 +456,10 @@ async function refreshTray() {
       { type: 'separator' },
       { label: 'Quit MacCleaner', click: () => app.quit() },
     ]);
-    tray.setContextMenu(menu);
+    // macOS: a context menu would swallow the left click that opens the panel,
+    // so it is popped up manually on right-click instead.
+    trayMenu = menu;
+    if (process.platform !== 'darwin') tray.setContextMenu(menu);
   } finally {
     trayRefreshBusy = false;
   }

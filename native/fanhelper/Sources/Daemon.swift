@@ -328,13 +328,12 @@ final class Daemon {
                 guard fan < fans.fanCount() else {
                     return ["ok": false, "error": "invalid fan index"]
                 }
-                // SAFETY: never seize a fan the firmware thermal manager owns —
-                // forcing manual mode over an active thermal response would
-                // fight macOS's hottest-temperature handling.
-                guard fans.readFan(fan).mode != .thermalMgr else {
-                    return ["ok": false,
-                            "error": "fan under firmware thermal management"]
-                }
+                // Mode 3 is the NORMAL system-managed state on Apple Silicon
+                // (fans parked at 0 rpm when idle), not an emergency takeover —
+                // refusing it made boost impossible on those Macs. Safety comes
+                // from being additive-only: never command below what the
+                // system currently wants for this fan.
+                let rpm = max(rpm, fans.readFan(fan).targetRpm)
                 guard let clamped = fans.clampBoost(fan: fan, rpm: rpm) else {
                     return ["ok": false,
                             "error": "rpm out of [min,max] (boost-only)"]
@@ -438,15 +437,12 @@ final class Daemon {
             switch current.mode {
             case .forced:
                 continue // target still pinned — nothing to do
-            case .auto:
-                log("fan \(fan) diverged (mode=auto); re-asserting \(Int(target)) rpm")
-                try? fans.setBoost(fan: fan, rpm: target)
-            case .thermalMgr:
-                // No SMC write here: overriding the thermal manager is
-                // forbidden by the safety model. Clear our bookkeeping so the
-                // watchdog/disconnect paths don't re-pin it later either.
-                log("fan \(fan) under firmware thermal manager; yielding boost")
-                yieldFans.append(fan)
+            case .auto, .thermalMgr:
+                // System took the fan back (wake, or Apple Silicon's mode 3).
+                // Re-pin, but never below the system's own current target.
+                let rpm = max(target, current.targetRpm)
+                log("fan \(fan) diverged (mode=\(current.mode.label)); re-asserting \(Int(rpm)) rpm")
+                if (try? fans.setBoost(fan: fan, rpm: rpm)) == nil { yieldFans.append(fan) }
             }
         }
         for fan in yieldFans {

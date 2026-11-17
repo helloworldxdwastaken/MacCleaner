@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>MacCleaner — Live stats</title>
+<style>
+/* Menu-bar panel: one glance at the Mac's state + the three things people open
+   the app for. Served at /panel (token injected like /); shown by the tray. */
+:root { --t1: rgba(255,255,255,.95); --t2: rgba(255,255,255,.62); --t3: rgba(255,255,255,.38);
+  --line: rgba(255,255,255,.10); --card: rgba(255,255,255,.07); --mint: #2BDA8E; --warn: #FFD966; --hot: #FFA39B; }
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { font: 12px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif; color: var(--t1);
+  background: linear-gradient(160deg, #173a3a 0%, #14223f 55%, #2a1740 100%); padding: 14px; overflow: hidden;
+  -webkit-user-select: none; user-select: none; cursor: default; }
+.head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.head img { width: 30px; height: 30px; flex: none; }
+.head b { display: block; font-size: 14px; letter-spacing: -.2px; }
+.head span { color: var(--t2); font-size: 11px; }
+.head .up { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.rings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.ring { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 6px 8px; text-align: center; }
+.ring svg { width: 58px; height: 58px; display: block; margin: 0 auto 4px; }
+.ring circle { fill: none; stroke-width: 6; }
+.ring .bg { stroke: rgba(255,255,255,.12); }
+.ring .fg { stroke: var(--mint); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%;
+  stroke-dasharray: 150.8; stroke-dashoffset: 150.8; transition: stroke-dashoffset .5s ease, stroke .3s; }
+.ring text { fill: #fff; font-size: 13px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.ring b { font-size: 11.5px; }
+.ring small { display: block; color: var(--t2); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rows { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 2px 12px; margin-bottom: 10px; }
+.row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: 0; }
+.row span { color: var(--t2); }
+.row b { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right;
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.warm { color: var(--warn); } .hot { color: var(--hot); }
+.tip { display: flex; align-items: center; gap: 10px; border-radius: 14px; padding: 10px 12px; margin-bottom: 10px;
+  background: rgba(43,218,142,.13); border: 1px solid rgba(43,218,142,.32); }
+.tip[hidden] { display: none; }
+.tip div { flex: 1; min-width: 0; }
+.tip b { display: block; font-size: 11.5px; }
+.tip span { color: var(--t2); font-size: 10.5px; }
+button { font: inherit; color: #fff; border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+  padding: 7px 10px; cursor: pointer; }
+button:hover { background: rgba(255,255,255,.14); }
+button:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+.tip button, .foot .main { background: linear-gradient(180deg, #26D085, #0EAE8C); border-color: transparent; font-weight: 600; }
+.tip button { flex: none; }
+.foot { display: flex; gap: 8px; }
+.foot .main { flex: 1; }
+</style>
+</head>
+<body>
+<div class="head">
+  <img src="/assets/icon-logo-64.png" alt="">
+  <div><b>MacCleaner</b><span>Live system stats</span></div>
+  <div class="up"><b id="up">–</b><span>uptime</span></div>
+</div>
+<div class="rings">
+  <div class="ring"><svg viewBox="0 0 60 60"><circle class="bg" cx="30" cy="30" r="24"/><circle class="fg" id="cpuR" cx="30" cy="30" r="24"/><text x="30" y="30" id="cpuT">–</text></svg><b>CPU</b><small id="cpuS">&nbsp;</small></div>
+  <div class="ring"><svg viewBox="0 0 60 60"><circle class="bg" cx="30" cy="30" r="24"/><circle class="fg" id="memR" cx="30" cy="30" r="24"/><text x="30" y="30" id="memT">–</text></svg><b>Memory</b><small id="memS">&nbsp;</small></div>
+  <div class="ring"><svg viewBox="0 0 60 60"><circle class="bg" cx="30" cy="30" r="24"/><circle class="fg" id="dskR" cx="30" cy="30" r="24"/><text x="30" y="30" id="dskT">–</text></svg><b>Disk</b><small id="dskS">&nbsp;</small></div>
+</div>
+<div class="rows">
+  <div class="row"><span>Temperature</span><b id="temp">–</b></div>
+  <div class="row"><span>Fans</span><b id="fans">–</b></div>
+  <div class="row"><span>Battery</span><b id="bat">–</b></div>
+  <div class="row"><span>Heaviest app</span><b id="heavy">–</b></div>
+</div>
+<div class="tip" id="tip" hidden>
+  <div><b id="tipT"></b><span id="tipB"></span></div>
+  <button data-act="maintenance">Tune up</button>
+</div>
+<div class="foot">
+  <button class="main" data-act="fastclean">Smart Scan</button>
+  <button data-act="open">Open app</button>
+  <button data-act="quit" title="Quit MacCleaner">Quit</button>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const api = (p) => fetch(p, { headers: { 'X-MacCleaner-Token': window.MACCLEANER_TOKEN || '' } })
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const gb = (b) => (b / 1024 ** 3).toFixed(b >= 100 * 1024 ** 3 ? 0 : 1) + ' GB';
+  const C = 2 * Math.PI * 24;
+  function ring(id, frac, label) {
+    const f = Math.max(0, Math.min(1, frac || 0));
+    $(id + 'R').style.strokeDashoffset = String(C * (1 - f));
+    $(id + 'R').style.stroke = f > 0.9 ? '#FF8A80' : f > 0.75 ? '#FFD966' : '#2BDA8E';
+    $(id + 'T').textContent = label;
+  }
+  function uptime(s) {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }
+  async function fast() {
+    const [s, f] = await Promise.all([api('/api/system/stats'), api('/api/fans/status')]);
+    if (s) {
+      ring('cpu', s.cpuPercent / 100, Math.round(s.cpuPercent) + '%');
+      $('cpuS').textContent = s.chip || '';
+      if (s.memory) {
+        ring('mem', s.memory.usedBytes / s.memory.totalBytes, Math.round((s.memory.usedBytes / s.memory.totalBytes) * 100) + '%');
+        $('memS').textContent = `${gb(s.memory.usedBytes)} of ${gb(s.memory.totalBytes)}`;
+      }
+      $('up').textContent = uptime(s.uptimeSeconds);
+      $('bat').textContent = s.battery ? `${s.battery.percent}%${s.battery.charging ? ' · charging' : ''}` : 'No battery';
+    }
+    if (f && f.temps && f.temps.hottest) {
+      const v = f.temps.hottest.value;
+      $('temp').textContent = `${Math.round(v)}°C hottest`;
+      $('temp').className = v >= 85 ? 'hot' : v >= 70 ? 'warm' : '';
+    }
+    if (f && f.fans) {
+      $('fans').textContent = f.fans.length
+        ? f.fans.map((x) => (x.actualRpm > 0 ? `${Math.round(x.actualRpm)} rpm` : 'off')).join(' · ') + (f.boostSource ? ' · boost' : '')
+        : 'None';
+    }
+  }
+  async function slow() {
+    const [sys, h] = await Promise.all([api('/api/system'), api('/api/maintenance/health')]);
+    if (sys && sys.totalDisk) {
+      const used = sys.totalDisk - sys.freeDisk;
+      ring('dsk', used / sys.totalDisk, Math.round((used / sys.totalDisk) * 100) + '%');
+      $('dskS').textContent = `${gb(sys.freeDisk)} free`;
+    }
+    if (h) {
+      const a = (h.topApps || [])[0];
+      $('heavy').textContent = a ? `${a.name} · ${gb(a.memBytes)}` : '–';
+      const longUp = h.uptimeSeconds >= 7 * 86400;
+      const memBad = h.pressure === 'warning' || h.pressure === 'critical' || (h.swapUsedBytes || 0) > 2 * 1024 ** 3;
+      $('tip').hidden = !(longUp || memBad);
+      $('tipT').textContent = memBad ? 'Memory is under pressure' : 'Up for over a week';
+      $('tipB').textContent = 'Refresh the system helpers without restarting.';
+    }
+  }
+  // Poll only while the panel is actually shown (the tray hides it on blur).
+  let tFast = 0, tSlow = 0;
+  function start() { stop(); fast(); slow(); tFast = setInterval(fast, 3000); tSlow = setInterval(slow, 20000); }
+  function stop() { clearInterval(tFast); clearInterval(tSlow); }
+  document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  if (!document.hidden) start();
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    if (window.treemapDesktop && window.treemapDesktop.panelAction) window.treemapDesktop.panelAction(b.dataset.act);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && window.treemapDesktop && window.treemapDesktop.panelAction) window.treemapDesktop.panelAction('close');
+  });
+})();
+</script>
+</body>
+</html>

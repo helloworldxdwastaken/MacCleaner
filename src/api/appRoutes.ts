@@ -93,7 +93,8 @@ appRouter.post('/updater/cask-upgrade', async (req: Request, res: Response) => {
   if (typeof token !== 'string' || !/^[a-z0-9][a-z0-9@+._-]*$/i.test(token)) {
     throw new AppError(400, 'INVALID_TOKEN', 'Invalid Homebrew cask token');
   }
-  res.json(await upgradeCaskAdopt(token));
+  // quit: the user confirmed "quit the app and update" in the UI.
+  res.json(await upgradeCaskAdopt(token, { quitFirst: (req.body as { quit?: unknown }).quit === true }));
 });
 
 /** POST /api/updater/cask-terminal { token } — finish a sudo-needing cask update in Terminal. */

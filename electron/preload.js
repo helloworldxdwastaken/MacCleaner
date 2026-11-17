@@ -29,6 +29,10 @@ contextBridge.exposeInMainWorld('treemapDesktop', {
   onNavigateView(callback) {
     ipcRenderer.on('treemap:navigate-view', (_event, view) => callback(view));
   },
+  /** Menu-bar panel buttons: 'open' | 'quit' | 'close' | a view name. */
+  panelAction(name) {
+    ipcRenderer.send('panel:action', String(name));
+  },
   /** Auto-fetch-updates preference (Preferences → General). */
   getAutoUpdates() {
     return ipcRenderer.invoke('updates:get');

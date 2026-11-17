@@ -135,26 +135,34 @@ export function createApp(publicDir: string, token: string): express.Express {
    */
   const tokenScriptInner = `window.MACCLEANER_TOKEN=${JSON.stringify(token)};`;
   const tokenScript = `<script>${tokenScriptInner}</script>`;
-  const scriptHashes = inlineScriptHashes(indexHtml);
-  scriptHashes.push(cspHash(tokenScriptInner));
-  const CSP_SCRIPT_SRC_UNSAFE = "script-src 'unsafe-inline'";
-  let injected: string;
-  if (scriptHashes.length > 1 && indexHtml.includes(CSP_SCRIPT_SRC_UNSAFE)) {
-    // Function replacer so `$` sequences in base64 can never be misread as
-    // replacement patterns (they can't appear in base64, but belt-and-braces).
-    injected = indexHtml.replace(
-      CSP_SCRIPT_SRC_UNSAFE,
-      () => `script-src ${scriptHashes.join(' ')}`,
-    );
-  } else {
-    console.warn(
-      "[server] CSP hardening skipped: no inline <script> blocks or no `script-src 'unsafe-inline'` in index.html — original CSP kept",
-    );
-    injected = indexHtml;
+  /** Token-inject + hash-lock one page (see the CSP note above). */
+  const harden = (html: string): string => {
+    const scriptHashes = inlineScriptHashes(html);
+    scriptHashes.push(cspHash(tokenScriptInner));
+    const CSP_SCRIPT_SRC_UNSAFE = "script-src 'unsafe-inline'";
+    let out = html;
+    if (scriptHashes.length > 1 && html.includes(CSP_SCRIPT_SRC_UNSAFE)) {
+      // Function replacer so `$` sequences in base64 can never be misread as
+      // replacement patterns (they can't appear in base64, but belt-and-braces).
+      out = html.replace(CSP_SCRIPT_SRC_UNSAFE, () => `script-src ${scriptHashes.join(' ')}`);
+    } else {
+      console.warn(
+        "[server] CSP hardening skipped: no inline <script> blocks or no `script-src 'unsafe-inline'` — original CSP kept",
+      );
+    }
+    return out.includes('<head>') ? out.replace('<head>', `<head>\n${tokenScript}`) : tokenScript + out;
+  };
+  const injected = harden(indexHtml);
+  // Menu-bar panel (desktop tray popover): same token + CSP treatment.
+  const panelPath = path.join(publicDir, 'panel.html');
+  const panel = fs.existsSync(panelPath) ? harden(fs.readFileSync(panelPath, 'utf8')) : null;
+  for (const route of ['/panel', '/panel.html']) {
+    app.get(route, (_req, res) => {
+      if (!panel) return void res.status(404).end();
+      res.set('Cache-Control', 'no-store');
+      res.type('html').send(panel);
+    });
   }
-  injected = injected.includes('<head>')
-    ? injected.replace('<head>', `<head>\n${tokenScript}`)
-    : tokenScript + injected;
   app.get('/', (_req, res) => {
     // The HTML carries the per-launch token — it must never persist in any
     // disk cache (browser back/forward, intermediaries, anything).

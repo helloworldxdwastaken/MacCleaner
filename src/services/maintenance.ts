@@ -139,12 +139,22 @@ export async function runMaintenanceInTerminal(action: string): Promise<void> {
   const cmd = COMMANDS[action];
   if (!cmd) throw new Error(`No Terminal action for "${action}"`);
   const esc = cmd.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  await run('osascript', [
-    '-e', 'tell application "Terminal"',
-    '-e', 'activate',
-    '-e', `do script "${esc}"`,
-    '-e', 'end tell',
-  ], 10000);
+  try {
+    // 60s: the first run shows macOS's "allow MacCleaner to control Terminal"
+    // prompt — 10s expired while the user was still reading it (→ 500).
+    await run('osascript', [
+      '-e', 'tell application "Terminal"',
+      '-e', 'activate',
+      '-e', `do script "${esc}"`,
+      '-e', 'end tell',
+    ], 60000);
+  } catch (e) {
+    throw new AppError(
+      409,
+      'TERMINAL_UNAVAILABLE',
+      `Could not open Terminal (allow MacCleaner to control Terminal in System Settings → Privacy & Security → Automation), or run this yourself: ${cmd.split(';')[0]}`
+    );
+  }
 }
 
 const LSREGISTER =
@@ -173,7 +183,7 @@ export async function rebuildLaunchServices(): Promise<MaintenanceResult> {
 /** `killall <name>`; "no matching processes" just means it wasn't running. */
 async function relaunchAgent(name: string): Promise<boolean> {
   try {
-    await run('killall', [name], 8000);
+    await run('/usr/bin/killall', [name], 30000); // killall alone took ~5s on a loaded Mac; 8s timed out
     return true;
   } catch {
     return false;

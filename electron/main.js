@@ -234,8 +234,15 @@ function createTray() {
   tray.on('click', () => {
     // macOS: left-click toggles the live-stats panel (right-click = menu).
     // Windows/Linux convention: left-click opens the app.
-    if (process.platform === 'darwin') togglePanel();
-    else showMainWindow();
+    if (process.platform !== 'darwin') return void showMainWindow();
+    // A panel failure must never become an "Uncaught Exception" dialog — fall
+    // back to simply opening the app.
+    try {
+      togglePanel();
+    } catch (err) {
+      console.error('[treemap] menu-bar panel failed:', err);
+      showMainWindow();
+    }
   });
   tray.on('right-click', () => {
     if (trayMenu) tray.popUpContextMenu(trayMenu);
@@ -269,7 +276,7 @@ function togglePanel() {
     });
     panelWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     // Show in place over full-screen apps instead of switching Spaces.
-    panelWin.setVisibleOnAllSpaces(true, { visibleOnFullScreen: true });
+    panelWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     panelWin.on('blur', () => {
       if (!panelWin) return;
       panelHiddenAt = Date.now();

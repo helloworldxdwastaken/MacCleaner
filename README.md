@@ -314,7 +314,6 @@ electron/
 public/
   index.html    The entire frontend (inline CSS + JS, zero dependencies)
 scripts/
-  gen-tray-icon.js  One-time generator for the tray template icons
 ```
 
 ## 🧠 Design decisions worth knowing

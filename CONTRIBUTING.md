@@ -63,7 +63,6 @@ public/
   index.html    Entire frontend — inline CSS + JS, zero external dependencies
  
 scripts/
-  gen-tray-icon.js  One-time tray icon generator
 ```
  
 > **Frontend note:** The frontend is a single `index.html` with hand-coded Canvas 2D — no React, no D3, no Chart.js. Keep it that way. New UI changes should be vanilla JS/CSS inside that file.

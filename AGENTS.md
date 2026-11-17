@@ -143,7 +143,7 @@ Release process: bump `version` in `package.json`, push a matching `v*` tag.
   `writeJsonFile` inside its callback (deadlock).
 - Icon pipeline: edit `build/icon.svg`, rasterize with
   `swift scripts/render-icon.swift build/icon.svg 1024` → `build/icon.png`; tray glyph
-  is procedural — edit `inGlyph` in `scripts/gen-tray-icon.js` and run it. In-app marks
+  is drawn in `build/tray.svg` — render it with `scripts/render-icon.swift` (16 and 32 px). In-app marks
   (sidebar, empty state, favicon) are inline SVG in `public/index.html` — keep in sync
   manually.
 - `PROJECT_MEMORY.md` holds durable project facts (architecture, gotchas, a change

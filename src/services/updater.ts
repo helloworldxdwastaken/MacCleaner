@@ -270,8 +270,8 @@ export async function upgradeMas(id: string, opts: { quitFirst?: boolean } = {})
         `Installed app for App Store id ${id} could not be located — update it from the App Store app instead.`
       );
     }
-    if (opts.quitFirst && (await isAppRunning(app.executable))) await quitAppGracefully(app);
-    if (await isAppRunning(app.executable)) {
+    if (opts.quitFirst && (await isAppRunning(app.executable, app.path))) await quitAppGracefully(app);
+    if (await isAppRunning(app.executable, app.path)) {
       throw new AppError(409, 'APP_RUNNING', `${app.name} is still open — close it, then run the update again.`);
     }
   }
@@ -702,7 +702,7 @@ async function guardCaskTarget(app: AppSummary): Promise<void> {
       `${app.name} is in ${path.dirname(app.path)}, but Homebrew installs into /Applications — a cask update would install a duplicate next to the old copy. Move the app to /Applications first.`
     );
   }
-  if (await isAppRunning(app.executable)) {
+  if (await isAppRunning(app.executable, app.path)) {
     throw new AppError(409, 'APP_RUNNING', `${app.name} is still open — close it, then run the update again.`);
   }
 }
@@ -808,7 +808,7 @@ async function quitAppGracefully(app: AppSummary): Promise<void> {
   if (!app.executable) return;
   const gone = async (tries: number): Promise<boolean> => {
     for (let i = 0; i < tries; i++) {
-      if (!(await isAppRunning(app.executable))) return true;
+      if (!(await isAppRunning(app.executable, app.path))) return true;
       await new Promise((r) => setTimeout(r, 500));
     }
     return false;
@@ -848,7 +848,7 @@ export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolea
   // without queueing behind other brew writes...
   const app = await resolveCaskApp(token);
   // The user said "quit it for me" — do that, then let the guard re-check.
-  if (opts.quitFirst && (await isAppRunning(app.executable))) await quitAppGracefully(app);
+  if (opts.quitFirst && (await isAppRunning(app.executable, app.path))) await quitAppGracefully(app);
   await guardCaskTarget(app);
 
   try {

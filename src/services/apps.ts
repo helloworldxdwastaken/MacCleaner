@@ -184,8 +184,20 @@ export async function listInstalledApps(): Promise<AppSummary[]> {
 }
 
 /** True when a process whose name exactly equals `executable` is running. */
-export async function isAppRunning(executable: string | null): Promise<boolean> {
+export async function isAppRunning(executable: string | null, appPath?: string | null): Promise<boolean> {
   if (!executable) return false;
+  // With the bundle path we match the process's OWN executable path. A bare
+  // name is not unique: Parsec's binary is "parsecd", and so is an always-on
+  // Apple daemon (CoreParsec) — by name alone Parsec was "running" forever.
+  if (appPath) {
+    try {
+      const { stdout } = await execFileP('/bin/ps', ['-axo', 'comm='], 15000);
+      const prefix = appPath.replace(/\/+$/, '') + '/Contents/';
+      return stdout.split('\n').some((line) => line.trim().startsWith(prefix));
+    } catch {
+      return true; // can't tell → assume running (the safe side for delete/replace)
+    }
+  }
   try {
     // pgrep -x matches the process name exactly (no false positives from
     // substrings, unlike `pgrep -f`). Exit 0 = at least one match.
@@ -382,7 +394,7 @@ async function registerAndSize(target: string): Promise<number> {
 export async function findLeftovers(appPath: string): Promise<AppLeftoversResult> {
   const meta = await readAppMeta(appPath);
   const fileBase = path.basename(appPath).replace(/\.app$/i, '');
-  const running = await isAppRunning(meta.executable);
+  const running = await isAppRunning(meta.executable, appPath);
 
   const candidates = await collectLeftovers(meta.bundleId, meta.name, fileBase);
 

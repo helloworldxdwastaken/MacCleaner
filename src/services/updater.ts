@@ -510,6 +510,13 @@ export function pickCask(cands: CaskInfo[] | undefined, brewInstalled: ReadonlyS
   return pool[0].latest ? null : pool[0];
 }
 
+/** "2026.2" is a prefix of "2026.2.3.4" (and of itself); "133.0" is not one of "134.0.1". */
+export function versionIsPrefix(installed: string, caskVersion: string): boolean {
+  const a = installed.split(/[.\-+,_ ]+/).filter(Boolean);
+  const b = caskVersion.split(/[.\-+,_ ]+/).filter(Boolean);
+  return a.length > 0 && a.length <= b.length && a.every((seg, i) => seg === b[i]);
+}
+
 /** Installed app name a cask `app` artifact produces: `["Src.app", {target: "Dst.app"}]` installs as Dst. */
 export function caskAppName(artifact: unknown): string | null {
   let nm: unknown = artifact;
@@ -587,7 +594,7 @@ async function fetchCaskCatalog(): Promise<CaskCatalogResult> {
   let failed = true;
   try {
     const res = await fetch('https://formulae.brew.sh/api/cask.json', {
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(60000), // ~20 MB; 20s was too tight on slow links
       headers: { 'User-Agent': 'MacCleaner-Updater' },
     });
     if (res.ok) {
@@ -719,7 +726,7 @@ async function verifyCaskInstall(
       expected = c.version;
       // Homebrew recorded the catalog version → the install landed, whatever
       // the bundle's marketing version says ("2026.2" vs cask "2026.2.3.4").
-      brewConfirmed = !!brewVers.get(token)?.has(c.rawVersion);
+      brewConfirmed = !!installed && versionIsPrefix(installed, c.version) && !!brewVers.get(token)?.has(c.rawVersion);
       break;
     }
   }
@@ -963,7 +970,11 @@ export async function appUpdates(): Promise<{
             : pickCask(catalog.map.get(normalizeToken(a.name)), brewOwned);
         // Already at the catalog version per Homebrew's own records → current,
         // even if the bundle's short version is only a prefix of the cask's.
-        const brewCurrent = !!cask && !!brewVers.get(cask.token)?.has(cask.rawVersion);
+        // Trusted only when the bundle version is a leading part of the cask's:
+        // a half-finished brew upgrade also leaves the new Caskroom dir behind,
+        // and that must still be offered.
+        const brewCurrent =
+          !!cask && !!a.version && versionIsPrefix(a.version, cask.version) && !!brewVers.get(cask.token)?.has(cask.rawVersion);
         if (cask && !brewCurrent && a.version && cmpVersion(cask.version, a.version) > 0) {
           update = gateCaskMatch(cask, a.bundleId, a.version);
         }

@@ -2,6 +2,7 @@ import os from 'os';
 import path from 'path';
 import { promises as fsp } from 'fs';
 import { execFile } from 'child_process';
+import { AppError } from '../middleware/errorHandler';
 
 /**
  * macClean — the catalog of well-known macOS junk locations behind the
@@ -184,7 +185,7 @@ function execFileP(cmd: string, args: string[], timeoutMs: number): Promise<stri
 export async function runningBundleIds(): Promise<Set<string>> {
   const ids = new Set<string>();
   if (process.platform !== 'darwin') return ids;
-  const out = await execFileP('/usr/bin/lsappinfo', ['list'], 8000);
+  const out = await execFileP('/usr/bin/lsappinfo', ['list'], 30000); // ~8s on a heavily loaded Mac
   for (const m of out.matchAll(/bundleID="([^"]+)"/g)) ids.add(m[1].toLowerCase());
   return ids;
 }
@@ -382,7 +383,7 @@ export interface CachePlan {
  */
 export async function runningAppNameRuns(): Promise<string[][]> {
   if (process.platform !== 'darwin') return [];
-  const out = await execFileP('/bin/ps', ['-axo', 'comm='], 8000).catch(() => '');
+  const out = await execFileP('/bin/ps', ['-axo', 'comm='], 30000).catch(() => '');
   const names = new Set<string>();
   for (const m of out.matchAll(/\/([^/\n]+)\.app\//g)) names.add(m[1].toLowerCase());
   return [...names].map(nameRun).filter((r) => r.length > 0);
@@ -413,6 +414,12 @@ export async function buildCachePlan(): Promise<CachePlan> {
     return plan; // no Caches dir / unreadable
   }
   const [running, appRuns] = await Promise.all([runningBundleIds(), runningAppNameRuns()]);
+  // Fail CLOSED: lsappinfo always lists something on a logged-in Mac, so an
+  // empty answer means the probe failed/timed out — and "nothing is running"
+  // would then offer every live app's cache. No plan beats an unsafe plan.
+  if (process.platform === 'darwin' && running.size === 0) {
+    throw new AppError(503, 'RUNNING_APPS_UNKNOWN', 'Could not determine which apps are running — try again in a moment.');
+  }
   const runningIds: RunningId[] = [...running].map((id) => ({ id, segs: id.split('.') }));
 
   for (const child of children) {

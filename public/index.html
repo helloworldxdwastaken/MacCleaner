@@ -3508,11 +3508,12 @@ $('confirmOk').addEventListener('click', async () => {
 async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan = false } = {}) {
   if (!paths.length) return { deleted: [], failed: [] };
   const estimate = paths.reduce((s, p) => s + trashSizeOf(p, sizeHint), 0);
+  // The server caps a request at 500 paths — send chunks and merge, so a
+  // big selection (duplicates auto-select) never fails wholesale.
+  const result = { deleted: [], failed: [], totalFreedBytes: 0 };
+  let sent = 0;
   try {
-    // The server caps a request at 500 paths — send chunks and merge, so a
-    // big selection (duplicates auto-select) never fails wholesale.
-    const result = { deleted: [], failed: [], totalFreedBytes: 0 };
-    for (let i = 0; i < paths.length; i += 400) {
+    for (let i = 0; i < paths.length; i += 400, sent = i) {
       const r = await api('/api/files', {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paths: paths.slice(i, i + 400) }),
@@ -3536,7 +3537,10 @@ async function trashPaths(paths, { silent = false, sizeHint = null, skipRescan =
     return result;
   } catch (e) {
     if (!silent) toast('Trash failed: ' + e.message, 'error');
-    return { deleted: [], failed: paths.map(p => ({ path: p, reason: e.message })) };
+    // Earlier chunks ARE in the Trash — report them, fail only the remainder.
+    result.failed.push(...paths.slice(sent).map(p => ({ path: p, reason: e.message })));
+    if (result.deleted.length && !silent && !skipRescan) rescan();
+    return result;
   }
 }
 function rescan() {

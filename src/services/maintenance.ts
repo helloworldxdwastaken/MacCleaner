@@ -231,7 +231,8 @@ export function groupProcesses(psOut: string): SystemHealth['topApps'] {
     if (!m) continue;
     const comm = m[3].trim();
     const app = /\/([^/]+)\.app\//.exec(comm);
-    const name = app ? app[1] : path.basename(comm);
+    if (!app) continue; // system daemons can't be quit by the user — list real apps only
+    const name = app[1];
     const cur = byApp.get(name) ?? { memBytes: 0, cpuPercent: 0 };
     cur.memBytes += Number(m[1]) * 1024;
     cur.cpuPercent += Number(m[2]);

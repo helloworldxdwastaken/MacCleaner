@@ -32,7 +32,7 @@ assert.strictEqual(brewErrorLine('==> Downloading\nError: It seems the App sourc
 // Process grouping: helpers fold into their app.
 const top = groupProcesses('  1000  1.5 /Applications/Foo.app/Contents/MacOS/Foo\n  3000  2.0 /Applications/Foo.app/Contents/Frameworks/Foo Helper.app/Contents/MacOS/Foo Helper\n  500  0.1 /usr/sbin/bar\n');
 assert.deepStrictEqual(top[0], { name: 'Foo', memBytes: 4000 * 1024, cpuPercent: 4 });
-assert.strictEqual(top[1].name, 'bar');
+assert.strictEqual(top.length, 1, 'daemons are not listed');
 
 // Smart Scan safelist.
 assert.ok(cacheExcluded('com.apple.amsaccountsd'));
@@ -71,3 +71,10 @@ assert.ok(matchesRunningAppName('com.brave.Browser', runs));
 assert.ok(!matchesRunningAppName('Homebrew', runs));
 assert.ok(!matchesRunningAppName('pasta', runs));
 console.log('selfcheck: running-app guard ok');
+
+const { versionIsPrefix } = require('../dist/services/updater');
+assert.ok(versionIsPrefix('2026.2', '2026.2.3.4'));
+assert.ok(versionIsPrefix('134.0', '134.0.1'));
+assert.ok(!versionIsPrefix('133.0', '134.0.1'));
+assert.ok(!versionIsPrefix('', '1.0'));
+console.log('selfcheck: version prefix ok');

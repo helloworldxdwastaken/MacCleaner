@@ -248,9 +248,13 @@ function createTray() {
    stats (public/panel.html, served at /panel). Hidden on blur, like a menu. */
 let panelWin = null;
 let trayMenu = null;
+let panelHiddenAt = 0;
 function togglePanel() {
   if (!running || !tray) return;
   if (panelWin && panelWin.isVisible()) return void panelWin.hide();
+  // Clicking the tray icon to CLOSE the panel blurs it first (hide), then
+  // delivers the click — without this it would flicker shut and reopen.
+  if (Date.now() - panelHiddenAt < 250) return;
   if (!panelWin) {
     panelWin = new BrowserWindow({
       width: 340, height: 452, show: false, frame: false, resizable: false, movable: false,
@@ -264,12 +268,22 @@ function togglePanel() {
       if (!url.startsWith(origin)) event.preventDefault();
     });
     panelWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    panelWin.on('blur', () => panelWin && panelWin.hide());
+    // Show in place over full-screen apps instead of switching Spaces.
+    panelWin.setVisibleOnAllSpaces(true, { visibleOnFullScreen: true });
+    panelWin.on('blur', () => {
+      if (!panelWin) return;
+      panelHiddenAt = Date.now();
+      panelWin.hide();
+    });
     panelWin.on('closed', () => { panelWin = null; });
   }
   const b = tray.getBounds();
   const [w] = panelWin.getSize();
-  panelWin.setPosition(Math.max(8, Math.round(b.x + b.width / 2 - w / 2)), Math.round(b.y + b.height + 6), false);
+  // Clamp inside the display that holds the menu-bar icon (it may sit left of
+  // the primary screen, or the icon may be near the right edge).
+  const area = require('electron').screen.getDisplayNearestPoint({ x: b.x, y: b.y }).workArea;
+  const x = Math.min(Math.max(area.x + 8, Math.round(b.x + b.width / 2 - w / 2)), area.x + area.width - w - 8);
+  panelWin.setPosition(x, Math.max(area.y, Math.round(b.y + b.height + 6)), false);
   panelWin.show();
   panelWin.focus();
 }
@@ -709,10 +723,10 @@ if (!app.requestSingleInstanceLock()) {
         app.quit();
       });
 
+    // showMainWindow, not a window count: the hidden menu-bar panel is a
+    // window too, so "no windows" was never true again once it had opened.
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0 && running) {
-        createWindow(running.port);
-      }
+      if (running) showMainWindow();
     });
   });
 

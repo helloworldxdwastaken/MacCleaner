@@ -179,8 +179,8 @@ function execFileP(cmd: string, args: string[], timeoutMs: number): Promise<stri
  * Lower-cased bundle ids of every currently-running app, via `lsappinfo list`.
  * Used to SKIP clearing the caches of apps that are open — a live app may be
  * actively reading/writing its cache, and clearing it can corrupt state or lose
- * in-flight data. Best-effort: on any failure we return an empty set (nothing
- * is treated as running), which is the same behavior as before this guard.
+ * in-flight data. A failed probe returns an empty set, which buildCachePlan
+ * treats as "unknown" and refuses to build a plan (fail closed).
  */
 export async function runningBundleIds(): Promise<Set<string>> {
   const ids = new Set<string>();
@@ -383,7 +383,9 @@ export interface CachePlan {
  */
 export async function runningAppNameRuns(): Promise<string[][]> {
   if (process.platform !== 'darwin') return [];
-  const out = await execFileP('/bin/ps', ['-axo', 'comm='], 30000).catch(() => '');
+  const out = await execFileP('/bin/ps', ['-axo', 'comm='], 30000);
+  // execFileP resolves '' on failure/timeout — that must not read as "no apps".
+  if (!out) throw new AppError(503, 'RUNNING_APPS_UNKNOWN', 'Could not determine which apps are running — try again in a moment.');
   const names = new Set<string>();
   for (const m of out.matchAll(/\/([^/\n]+)\.app\//g)) names.add(m[1].toLowerCase());
   return [...names].map(nameRun).filter((r) => r.length > 0);
@@ -446,7 +448,7 @@ export async function buildCachePlan(): Promise<CachePlan> {
       const runningMatch =
         matchesRunningBundle(name, runningIds) ||
         matchesRunningAppName(name, appRuns) ||
-        kids.some((k) => k.isDirectory() && matchesRunningBundle(k.name, runningIds));
+        kids.some((k) => k.isDirectory() && (matchesRunningBundle(k.name, runningIds) || matchesRunningAppName(k.name, appRuns)));
       if (runningMatch) {
         plan.skippedRunning.push(name);
         continue;

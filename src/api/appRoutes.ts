@@ -115,7 +115,7 @@ appRouter.post('/updater/mas-upgrade', async (req: Request, res: Response) => {
   if (typeof id !== 'string' || !/^\d+$/.test(id)) {
     throw new AppError(400, 'INVALID_ID', 'Invalid App Store id');
   }
-  res.json(await upgradeMas(id));
+  res.json(await upgradeMas(id, { quitFirst: (req.body as { quit?: unknown }).quit === true }));
 });
 
 /** POST /api/updater/open { path } — launch a .app so it runs its own updater. */

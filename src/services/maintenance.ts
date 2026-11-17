@@ -38,12 +38,14 @@ function run(cmd: string, args: string[], timeoutMs = 20000): Promise<string> {
   return new Promise((resolve, reject) => {
     // 16 MB: `sfltool dumpbtm` / `launchctl print` can exceed Node's 1 MB default,
     // which would surface as a bogus command failure.
-    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
+    // LC_ALL=C: `ps` prints "3,1" under comma-decimal locales, which the parsers here reject.
+    execFile(cmd, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, LC_ALL: 'C' } }, (err, stdout, stderr) => {
       if (err) {
         if ((err.killed && err.signal === 'SIGTERM') || err.code === 'ETIMEDOUT') {
           reject(new CommandTimeoutError(`${cmd} did not finish within ${timeoutMs}ms`));
         } else {
-          reject(new Error((stderr || err.message || 'command failed').trim()));
+          // Keep the errno code (ENOENT = binary missing) — callers branch on it.
+          reject(Object.assign(new Error((stderr || err.message || 'command failed').trim()), { code: err.code }));
         }
       } else {
         resolve(stdout);
@@ -241,7 +243,7 @@ export function groupProcesses(psOut: string): SystemHealth['topApps'] {
     if (!m) continue;
     const comm = m[3].trim();
     const app = /\/([^/]+)\.app\//.exec(comm);
-    if (!app) continue; // system daemons can't be quit by the user — list real apps only
+    if (!app || comm.startsWith('/System/')) continue; // daemons and system UI (Finder, Dock) aren't the user's to quit
     const name = app[1];
     const cur = byApp.get(name) ?? { memBytes: 0, cpuPercent: 0 };
     cur.memBytes += Number(m[1]) * 1024;
@@ -440,8 +442,8 @@ export function invalidateLoginItemsCache(): void {
  *  - classic "Open at Login" apps via System Events (osascript) — this needs
  *    Automation consent from macOS (prompts / -1743 if denied), so it is
  *    OPT-IN (includeClassic) and only fetched when the user asks for it;
- *  - modern BTM background items via `sfltool dumpbtm` — needs NO consent,
- *    always included.
+ *  - modern BTM background items via `sfltool dumpbtm` — raises an
+ *    administrator prompt on current macOS, so it is opt-in with the classic list.
  * A classic-source failure does NOT fail the listing: the BTM items are
  * returned regardless and the reason is reported as `classicError`. Results
  * are cached for 60s so tab-hopping doesn't re-run the osascript prompt

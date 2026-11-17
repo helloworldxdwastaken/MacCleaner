@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { execFile } from 'child_process';
 import fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -222,4 +223,27 @@ export function invalidateBrowserCacheList(): void {
 /** Record a completed browser-cache clean in the activity feed. */
 export async function recordBrowserCacheClean(bytes: number, browserName: string): Promise<void> {
   await recordActivity({ kind: 'system-junk', label: `${browserName} cache`, bytes, items: 1 });
+}
+
+/* ---------- Automation consent (onboarding / Privacy → System access) ----------
+ * macOS only shows its "MacCleaner wants to control X" prompt when an Apple
+ * Event is actually sent, and offers no way to query the answer beforehand.
+ * So each probe sends one harmless, read-only event: the first call raises the
+ * prompt and resolves when the user answers; later calls return at once. */
+const AUTOMATION_PROBES: Record<string, string> = {
+  finder: 'tell application "Finder" to get name of startup disk',
+  'system-events': 'tell application "System Events" to count processes',
+};
+export const AUTOMATION_TARGETS = Object.keys(AUTOMATION_PROBES);
+
+export function requestAutomation(target: string): Promise<{ granted: boolean; denied: boolean }> {
+  const script = AUTOMATION_PROBES[target];
+  return new Promise((resolve) => {
+    if (!script || process.platform !== 'darwin') return resolve({ granted: false, denied: false });
+    // 120s: the user needs time to read and answer the system prompt.
+    execFile('/usr/bin/osascript', ['-e', script], { timeout: 120000 }, (err, _out, stderr) => {
+      if (!err) return resolve({ granted: true, denied: false });
+      resolve({ granted: false, denied: /-1743|not authori|not allowed/i.test(String(stderr)) });
+    });
+  });
 }

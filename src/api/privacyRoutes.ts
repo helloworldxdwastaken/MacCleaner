@@ -9,8 +9,7 @@ import {
   isBrowserRunning,
   browserName,
   invalidateBrowserCacheList,
-  recordBrowserCacheClean,
-} from '../services/privacy';
+  recordBrowserCacheClean, requestAutomation, AUTOMATION_TARGETS } from '../services/privacy';
 import { AppError } from '../middleware/errorHandler';
 
 /**
@@ -32,6 +31,17 @@ function requireMac(): void {
     throw new AppError(409, 'NOT_MACOS', 'Privacy tools are only available on macOS');
   }
 }
+
+/** POST /api/privacy/automation { target } → { granted, denied } — raises the
+ *  macOS Automation prompt for Finder / System Events and waits for the answer. */
+privacyRouter.post('/privacy/automation', async (req: Request, res: Response) => {
+  requireMac();
+  const target = String((req.body as { target?: unknown } | undefined)?.target ?? '');
+  if (!AUTOMATION_TARGETS.includes(target)) {
+    throw new AppError(400, 'UNKNOWN_TARGET', `Unknown automation target "${target}"`);
+  }
+  res.json(await requestAutomation(target));
+});
 
 /** GET /api/privacy/status — Full Disk Access probe (passive, no prompt). */
 privacyRouter.get('/privacy/status', async (_req: Request, res: Response) => {

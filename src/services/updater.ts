@@ -246,7 +246,7 @@ async function masBundleId(mas: string, id: string): Promise<string | null> {
   }
 }
 
-export async function upgradeMas(id: string): Promise<BrewUpgradeResult> {
+export async function upgradeMas(id: string, opts: { quitFirst?: boolean } = {}): Promise<BrewUpgradeResult> {
   const mas = await masPath();
   if (!mas) return { ok: false, token: id, message: 'mas is not installed' };
   if (!/^\d+$/.test(id)) return { ok: false, token: id, message: 'Invalid App Store id' };
@@ -270,8 +270,9 @@ export async function upgradeMas(id: string): Promise<BrewUpgradeResult> {
         `Installed app for App Store id ${id} could not be located — update it from the App Store app instead.`
       );
     }
+    if (opts.quitFirst && (await isAppRunning(app.executable))) await quitAppGracefully(app);
     if (await isAppRunning(app.executable)) {
-      throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
+      throw new AppError(409, 'APP_RUNNING', `${app.name} is still open — close it, then run the update again.`);
     }
   }
   try {
@@ -487,8 +488,14 @@ async function brewCaskVersions(): Promise<Map<string, Set<string>>> {
     const tokens = await fsp.readdir(room).catch(() => [] as string[]);
     await Promise.all(
       tokens.map(async (token) => {
-        const versions = await fsp.readdir(path.join(room, token)).catch(() => [] as string[]);
-        out.set(token, new Set(versions.filter((v) => !v.startsWith('.'))));
+        const versions = (await fsp.readdir(path.join(room, token)).catch(() => [] as string[])).filter(
+          (v) => !v.startsWith('.')
+        );
+        // A dir holding only .metadata is a leftover, not an installed cask.
+        if (versions.length === 0) return;
+        const set = out.get(token) ?? new Set<string>();
+        versions.forEach((v) => set.add(v));
+        out.set(token, set);
       })
     );
   }
@@ -634,7 +641,13 @@ async function fetchCaskCatalog(): Promise<CaskCatalogResult> {
         }
       }
       // Display-name aliases only fill names NO cask ships as an app artifact.
-      for (const [k, info] of aliases) if (!map.has(k)) map.set(k, [info]);
+      const artifactKeys = new Set(map.keys());
+      for (const [k, info] of aliases) {
+        if (artifactKeys.has(k)) continue;
+        const list = map.get(k);
+        if (!list) map.set(k, [info]);
+        else if (!list.includes(info)) list.push(info);
+      }
       failed = false;
     }
   } catch {
@@ -690,7 +703,7 @@ async function guardCaskTarget(app: AppSummary): Promise<void> {
     );
   }
   if (await isAppRunning(app.executable)) {
-    throw new AppError(409, 'APP_RUNNING', `Quit ${app.name} first, then run the update again.`);
+    throw new AppError(409, 'APP_RUNNING', `${app.name} is still open — close it, then run the update again.`);
   }
 }
 
@@ -709,7 +722,8 @@ async function guardCaskTarget(app: AppSummary): Promise<void> {
 async function verifyCaskInstall(
   token: string,
   app: AppSummary,
-  previousVersion: string | null
+  previousVersion: string | null,
+  previousBuild: string | null = null
 ): Promise<string | null> {
   // The bundle must still exist at the guarded path after brew's run.
   const stillThere = await fsp.stat(app.path).catch(() => null);
@@ -727,6 +741,10 @@ async function verifyCaskInstall(
       // Homebrew recorded the catalog version → the install landed, whatever
       // the bundle's marketing version says ("2026.2" vs cask "2026.2.3.4").
       brewConfirmed = !!installed && versionIsPrefix(installed, c.version) && !!brewVers.get(token)?.has(c.rawVersion);
+      // …unless the bundle is byte-for-byte the same version AND build as
+      // before the run: brew exited 0 without replacing it (locked bundle).
+      const unchanged = installed === previousVersion && !!previousBuild && info.build === previousBuild;
+      if (unchanged) brewConfirmed = false;
       break;
     }
   }
@@ -776,15 +794,50 @@ async function verifyCaskInstall(
  *     duplicate into /Applications.
  *  After brew succeeds, the install is verified (bundle present, version moved,
  *  codesign advisory). */
-/** Ask an app to quit the normal way (it can still prompt to save), then wait
- *  for it to go. Never a kill: unsaved work is the user's, not ours. */
+/**
+ * Quit an app the user asked us to quit.
+ *  1. AppleScript `quit` — the polite way; the app may show "Save changes?".
+ *     If that was DELIVERED we only wait (up to 30s) and never kill: an app
+ *     that is still up is waiting on the user, and killing it would discard
+ *     their work.
+ *  2. Only when the request could not be delivered at all (no Automation
+ *     consent, or the app has no bundle id) do we send SIGTERM — and only to
+ *     this bundle's own main process, never by process name.
+ */
 async function quitAppGracefully(app: AppSummary): Promise<void> {
-  if (!app.bundleId) return;
-  const id = app.bundleId.replace(/[^A-Za-z0-9.\-_]/g, '');
-  await execFileP('/usr/bin/osascript', ['-e', `tell application id "${id}" to quit`], 60000).catch(() => undefined);
-  for (let i = 0; i < 40 && (await isAppRunning(app.executable)); i++) {
-    await new Promise((r) => setTimeout(r, 500));
+  if (!app.executable) return;
+  const gone = async (tries: number): Promise<boolean> => {
+    for (let i = 0; i < tries; i++) {
+      if (!(await isAppRunning(app.executable))) return true;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return false;
+  };
+  let delivered = false;
+  if (app.bundleId) {
+    const id = app.bundleId.replace(/[^A-Za-z0-9.\-_]/g, '');
+    delivered = await execFileP('/usr/bin/osascript', ['-e', `tell application id "${id}" to quit`], 20000).then(
+      () => true,
+      () => false
+    );
   }
+  if (delivered) {
+    await gone(60);
+    return;
+  }
+  const exe = path.join(app.path, 'Contents', 'MacOS', app.executable);
+  const { stdout } = await execFileP('/bin/ps', ['-axo', 'pid=,comm='], 10000).catch(() => ({ stdout: '', stderr: '' }));
+  for (const line of stdout.split('\n')) {
+    const m = /^\s*(\d+)\s+(.+)$/.exec(line);
+    if (m && m[2].trim() === exe) {
+      try {
+        process.kill(Number(m[1]), 'SIGTERM');
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+  await gone(20);
 }
 
 export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolean } = {}): Promise<BrewUpgradeResult> {
@@ -800,6 +853,7 @@ export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolea
 
   try {
     let fresh: AppSummary = app;
+    let buildBefore: string | null = null;
     const { stdout } = await withBrewLock(async () => {
       // ...then re-resolve + re-guard INSIDE the lock, immediately before
       // exec: another request can quit/move/uninstall the app while we waited
@@ -807,11 +861,12 @@ export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolea
       // request time.
       fresh = await resolveCaskApp(token);
       await guardCaskTarget(fresh);
+      buildBefore = (await readPlistInfo(fresh.path)).build;
       // 45 min: a kill mid-install (multi-GB download on a slow link) leaves a
       // half-replaced app — the old 10 min cap caused exactly that.
       return execFileP(brew, await caskUpgradeArgs(token), 45 * 60 * 1000);
     });
-    const problem = await verifyCaskInstall(token, fresh, fresh.version);
+    const problem = await verifyCaskInstall(token, fresh, fresh.version, buildBefore);
     if (problem) return { ok: false, token, message: problem };
     return { ok: true, token, message: lastLine(stdout) || 'Updated' };
   } catch (err) {
@@ -841,8 +896,19 @@ export async function upgradeCaskAdopt(token: string, opts: { quitFirst?: boolea
  * app installed outside brew is adopted with `install --force`.
  */
 async function caskUpgradeArgs(token: string): Promise<string[]> {
-  const owned = (await brewCaskVersions()).has(token);
-  return owned ? ['upgrade', '--cask', '--greedy', token] : ['install', '--cask', '--force', token];
+  const installed = (await brewCaskVersions()).get(token);
+  let catalogRaw: string | null = null;
+  for (const c of [...(await caskCatalog()).map.values()].flat()) {
+    if (c.token === token) {
+      catalogRaw = c.rawVersion;
+      break;
+    }
+  }
+  // brew already records the catalog version yet we were asked to update: the
+  // previous run did not replace the bundle, and `brew upgrade` would be a
+  // no-op that exits 0 — force the reinstall instead.
+  const stale = !!installed && !!catalogRaw && installed.has(catalogRaw);
+  return installed && !stale ? ['upgrade', '--cask', '--greedy', token] : ['install', '--cask', '--force', token];
 }
 
 /** brew's actual complaint: the last "Error: …" line, else the last line at all. */

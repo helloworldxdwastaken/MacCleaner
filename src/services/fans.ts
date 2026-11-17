@@ -426,6 +426,11 @@ function percentToRpm(fan: FanInfo, percent: number): number {
 }
 
 /** Effective per-fan percent: max of user and engine demands (boost-only). */
+/** While a fan is pinned the system's own target is invisible to us, so a low
+ *  boost set at idle could hold the fan down under a later heavy load. When the
+ *  hottest sensor passes 90 °C every pinned fan goes to 100% until it is back
+ *  under 80 °C (hysteresis) — a boost may only ever help cooling. */
+let thermalMax = false;
 function desiredPercents(fans: FanInfo[]): Map<number, number> {
   const desired = new Map<number, number>();
   for (const f of fans) {
@@ -436,7 +441,7 @@ function desiredPercents(fans: FanInfo[]): Map<number, number> {
     if (engineBoostPercent !== null) p = Math.max(p, engineBoostPercent);
     // Percent 0 is a no-op by contract: drop it so the fan is released to
     // auto rather than pinned at its hardware floor.
-    if (p > 0) desired.set(f.id, p);
+    if (p > 0) desired.set(f.id, thermalMax ? 100 : p);
   }
   return desired;
 }
@@ -575,6 +580,14 @@ function startHeartbeat(): void {
         ) {
           enqueueApply().catch(() => {});
         }
+        return readStatus().then((st) => {
+          const hot = st.temps?.hottest?.value ?? 0;
+          const want = hot >= 90 ? true : hot <= 80 ? false : thermalMax;
+          if (want !== thermalMax) {
+            thermalMax = want;
+            enqueueApply().catch(() => {});
+          }
+        });
       })
       .catch(() => {
         /* onSessionLost handles reconnect */

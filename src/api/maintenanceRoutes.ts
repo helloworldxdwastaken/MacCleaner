@@ -74,9 +74,8 @@ maintenanceRouter.get('/maintenance/app-icon', guardQueryPath('path'), async (re
 
 /**
  * GET /api/maintenance/login-items → { items, classic, classicError }
- * Default (`classic` absent) returns only consent-free sources (BTM via
- * sfltool + nothing from System Events) so simply opening the tab never
- * triggers an Automation prompt. `?classic=1` additionally queries System
+ * Default (`classic` absent) returns nothing and spawns nothing, so simply
+ * opening the tab never triggers a macOS prompt (both sources prompt now). `?classic=1` additionally queries System
  * Events "Open at Login" apps — the only call that can prompt for Automation
  * consent (or fail with -1743). A classic-source failure does NOT fail the
  * request: the consent-free BTM items are returned regardless and the reason

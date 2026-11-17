@@ -26,8 +26,8 @@
 //   * Startup restores auto BEFORE serving clients, so a pin left behind by a
 //     SIGKILLed predecessor cannot outlive it.
 //   * After wake (or on each heartbeat) a diverged boost is re-pinned when the
-//     firmware merely reverted to auto — but a firmware thermal-manager
-//     takeover (mode 3) is always YIELDED to, never overridden.
+//     system took the fan back (mode auto, or mode 3 — the normal
+//     system-managed state on Apple Silicon), never below the system's target.
 //   * Per-connection request buffers are capped at 64 KB; oversized peers are
 //     dropped (this is a root daemon — no unbounded buffering).
 
@@ -333,7 +333,11 @@ final class Daemon {
                 // refusing it made boost impossible on those Macs. Safety comes
                 // from being additive-only: never command below what the
                 // system currently wants for this fan.
-                let rpm = max(rpm, fans.readFan(fan).targetRpm)
+                // (When the fan is already forced, targetRpm is OUR previous
+                // pin, not the system's wish — flooring on it would make a
+                // boost impossible to lower.)
+                let cur = fans.readFan(fan)
+                let rpm = cur.mode == .forced ? rpm : max(rpm, cur.targetRpm)
                 guard let clamped = fans.clampBoost(fan: fan, rpm: rpm) else {
                     return ["ok": false,
                             "error": "rpm out of [min,max] (boost-only)"]

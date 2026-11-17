@@ -170,9 +170,16 @@ final class FanController {
         } catch {
             // Defensive unlock for M3+ firmware (harmless on M1); retry once.
             _ = try? smc.writeUInt8("Ftst", 1)
-            Thread.sleep(forTimeInterval: 0.2)
-            try smc.writeUInt8("F\(i)Md", UInt8(FanMode.forced.rawValue))
-            try smc.writeRPM("F\(i)Tg", target)
+            Thread.sleep(forTimeInterval: 0.5)
+            do {
+                try smc.writeUInt8("F\(i)Md", UInt8(FanMode.forced.rawValue))
+                try smc.writeRPM("F\(i)Tg", target)
+            } catch {
+                // A half-applied boost (mode forced, stale target — possibly
+                // 0 rpm) must never be left behind: hand the fan back first.
+                restoreAuto(fan: i)
+                throw error
+            }
         }
     }
 
@@ -187,6 +194,10 @@ final class FanController {
         for i in 0..<n {
             _ = try? smc.writeUInt8("F\(i)Md", UInt8(FanMode.auto.rawValue))
         }
+        // Drop the M3+ test-mode unlock so the system's own fan control resumes.
+        if smc.exists("Ftst") {
+            _ = try? smc.writeUInt8("Ftst", 0)
+        }
         // Clear the legacy per-fan forced bitmask (FS! ) if present.
         if smc.exists("FS! ") {
             _ = try? smc.writeUInt16("FS! ", 0)
@@ -195,7 +206,8 @@ final class FanController {
 
     /// True if any fan is currently in a non-auto mode.
     func anyManual() -> Bool {
-        for i in 0..<fanCount() where readFan(i).mode != .auto { return true }
+        // Only OUR forced mode counts: mode 3 is the normal system state on Apple Silicon.
+        for i in 0..<fanCount() where readFan(i).mode == .forced { return true }
         return false
     }
 }

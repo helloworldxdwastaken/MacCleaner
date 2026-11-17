@@ -1177,6 +1177,27 @@ a, .fc-list-actions button, .mnt-elevate { color: var(--sec); font-weight: 600; 
 .tip-card .btn { flex: none; }
 @media (max-width: 1120px) { .health-row { grid-template-columns: 1fr; } }
 
+/* ── Progress: one component for every "working" state ── */
+.prog { width: 100%; max-width: 440px; margin: 10px auto; }
+.prog-label { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; text-align: left; }
+.prog-label b { color: var(--text-1); font-variant-numeric: tabular-nums; }
+.prog-track { height: 6px; border-radius: 99px; background: var(--well); overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 99px; background: var(--sec); transition: width .35s ease; }
+.prog.indet .prog-fill { width: 38%; animation: progSlide 1.25s ease-in-out infinite; }
+@keyframes progSlide { from { transform: translateX(-105%); } to { transform: translateX(270%); } }
+.fc-status { min-height: 16px; width: 100%; max-width: 440px; margin: 2px auto 0; }
+.upd-row.busy { position: relative; overflow: hidden; }
+.upd-row.busy::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 38%; border-radius: 2px;
+  background: var(--sec); animation: progSlide 1.25s ease-in-out infinite; }
+.progress-fill { background: var(--sec); }
+.perm-row .mnt-text { flex: 1; }
+.perm-row { gap: 12px; }
+.perm-row .btn[hidden] { display: none; }
+.perm-row .status-pill { flex: none; }
+@media (prefers-reduced-motion: reduce) {
+  .prog.indet .prog-fill, .upd-row.busy::after { animation: none; width: 100%; opacity: .55; }
+}
+
 /* ── Overlays ── */
 .modal { background: #171a24; border: 1px solid var(--hairline-2); border-radius: var(--r-lg); color: var(--text-1); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
 #ctxMenu, #tooltip, .toast { background: #1d2130; border: 1px solid var(--hairline-2); color: var(--text-1); }
@@ -1613,6 +1634,7 @@ a, .fc-list-actions button, .mnt-elevate { color: var(--sec); font-weight: 600; 
           <button class="btn" id="fdaOpenBtn" hidden><span data-icon="shield" data-size="15"></span><span data-i18n="fdaOpen">Open Settings</span></button>
         </div>
         <div class="muted" style="font-size:12px;">Full Disk Access lets MacCleaner read protected caches (Safari) and the Bin. It never uploads anything — all work stays on this Mac.</div>
+        <div id="permRows"></div>
       </div>
       <div class="card glass">
         <h2><span data-icon="zap"></span><span data-i18n="browserCaches">Browser caches</span></h2>
@@ -1739,6 +1761,22 @@ a, .fc-list-actions button, .mnt-elevate { color: var(--sec); font-weight: 600; 
 </div>
 
 <!-- ═══════════ Settings modal ═══════════ -->
+<div class="modal-backdrop" id="onboardModal" role="dialog" aria-modal="true" aria-labelledby="onboardTitle">
+  <div class="modal" style="width:560px;">
+    <div class="modal-head">
+      <h3 id="onboardTitle"><img src="/assets/icon-logo-64.png" alt="" width="22" height="22" style="vertical-align:-5px;margin-right:8px;"><span data-i18n="obTitle">Set up MacCleaner</span></h3>
+    </div>
+    <div class="modal-body">
+      <div class="muted" style="margin-bottom:10px;" data-i18n="obIntro">MacCleaner needs a few macOS permissions to do its job. Allow each one below — this screen waits and ticks them off as macOS confirms. You can change them any time in Privacy.</div>
+      <div id="onboardRows"></div>
+    </div>
+    <div class="modal-foot">
+      <div style="flex:1"></div>
+      <button class="btn btn-primary" id="onboardDone" data-i18n="obDone">Continue</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
   <div class="modal prefs-modal" style="width:820px;">
     <div class="modal-head">
@@ -1967,8 +2005,10 @@ function applyTheme() {
 
 /* ───────────────────────────── Localization (i18n) ───────────────────────────── */
 const STRINGS = {
-  en: { smartScan:'Smart Scan', tipMemBody:"Quit and reopen the heaviest apps — that is what gives memory back.", macHealth:"Mac health", healthExcellent:"Excellent", healthGood:"Good", healthAttention:"Needs attention", healthAllGood:"Nothing needs doing right now.", healthSee:"See what to do next on the right.", tipDisk:"Your disk is almost full", tipDiskFree:"free. Clear caches and the Bin to get space back.", tipMem:"Memory is under pressure", tipUptime:"Running for", tipHot:"Running hot:", tipHotBody:"Check which app is working hard, or raise the fan speed.", tipTuneUp:"Tune up",
-    updQuitAsk:"It is open right now. Quit it and install the update?", fcPlanFailed:"Smart Scan couldn't build a safe cleaning plan, so nothing is offered.", nothingToClean:"All clean", tryAgain:"Try again", fdaUnknown:"Unknown", updDegraded:"Couldn't check every source:", liPermHint:"macOS will ask for permission: Automation (System Events) for login apps and an administrator approval for background items.", loUncertain:"Check", loUncertainTip:"Items marked “Check” were matched by app name only and are left unticked — confirm they belong to this app before removing them.", sensorsUnavailable:"Sensors aren't available on this Mac right now.", rulesNotLoaded:"Fan rules haven't loaded yet — try again in a moment.", tuneTitle:"Tune-up without restarting", tuneDesc:"After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.", tuneUptime:"Uptime", tuneUptimeLong:"Over a week without a restart — run the refreshes below.", tuneUptimeOk:"Restarted recently — nothing has had time to build up.", tuneAdvised:"Refresh advised", tuneFine:"Fine", tuneMemory:"Memory", tuneSwap:"swap in use", tuneMemBad:"Memory is under pressure. Quit and reopen the heaviest apps below — that is what actually gives memory back.", tuneMemOk:"Memory pressure is normal.", tuneHeavy:"Heaviest apps right now", refreshUi:"Refresh Dock, menu bar & Control Center", refreshUiDesc:"Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.", relaunchFinder:"Relaunch Finder", relaunchFinderDesc:"Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.", purgeMem:"Release cached memory", purgeMemDesc:"Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).",
+  en: { fcStep1:"Looking for junk…", fcStep2:"Measuring application caches…", fcStep3:"Checking which apps are open…", fcClearing:"Moving caches to the Trash", fcBin:"Emptying the Bin…", updChecking:"Checking Homebrew, the App Store and app feeds for updates…", updWorking:"Downloading and installing — this can take a few minutes", loAnalysing:"Finding this app's leftover files…",
+    obTitle:"Set up MacCleaner", obIntro:"MacCleaner needs a few macOS permissions to do its job. Allow each one below — this screen waits and ticks them off as macOS confirms. You can change them any time in Privacy.", obDone:"Continue", obAllow:"Allow", obAllowed:"Allowed", obWaiting:"Waiting for macOS…", obNotYet:"Not allowed yet", obDenied:"Denied", obDeniedHint:"macOS has this set to denied. Turn it on in System Settings → Privacy & Security → Automation → MacCleaner.", obFdaDesc:"Lets MacCleaner see the Bin and protected caches (Safari). Add MacCleaner in System Settings; macOS may ask to reopen the app.", obFinder:"Finder", obFinderDesc:"Used to move files to the Trash so you can always restore them.", obSysEvents:"System Events", obSysEventsDesc:"Used to list your login items and switch them on or off.", obFan:"Fan control helper (optional)", obFanDesc:"Needed only to raise fan speed. Asks for your administrator password once.",
+    updQuitProceed:"Quit and update", smartScan:'Smart Scan', tipMemBody:"Quit and reopen the heaviest apps — that is what gives memory back.", macHealth:"Mac health", healthExcellent:"Excellent", healthGood:"Good", healthAttention:"Needs attention", healthAllGood:"Nothing needs doing right now.", healthSee:"See what to do next on the right.", tipDisk:"Your disk is almost full", tipDiskFree:"free. Clear caches and the Bin to get space back.", tipMem:"Memory is under pressure", tipUptime:"Running for", tipHot:"Running hot:", tipHotBody:"Check which app is working hard, or raise the fan speed.", tipTuneUp:"Tune up",
+    updQuitAsk:"It is open right now. MacCleaner will quit it for you and install the update — save your work in it first.", fcPlanFailed:"Smart Scan couldn't build a safe cleaning plan, so nothing is offered.", nothingToClean:"All clean", tryAgain:"Try again", fdaUnknown:"Unknown", updDegraded:"Couldn't check every source:", liPermHint:"macOS will ask for permission: Automation (System Events) for login apps and an administrator approval for background items.", loUncertain:"Check", loUncertainTip:"Items marked “Check” were matched by app name only and are left unticked — confirm they belong to this app before removing them.", sensorsUnavailable:"Sensors aren't available on this Mac right now.", rulesNotLoaded:"Fan rules haven't loaded yet — try again in a moment.", tuneTitle:"Tune-up without restarting", tuneDesc:"After days without a restart, a few system helpers and long-running apps slow things down. These refresh them in place — your windows and work stay open.", tuneUptime:"Uptime", tuneUptimeLong:"Over a week without a restart — run the refreshes below.", tuneUptimeOk:"Restarted recently — nothing has had time to build up.", tuneAdvised:"Refresh advised", tuneFine:"Fine", tuneMemory:"Memory", tuneSwap:"swap in use", tuneMemBad:"Memory is under pressure. Quit and reopen the heaviest apps below — that is what actually gives memory back.", tuneMemOk:"Memory pressure is normal.", tuneHeavy:"Heaviest apps right now", refreshUi:"Refresh Dock, menu bar & Control Center", refreshUiDesc:"Restarts the system UI helpers. Fixes a laggy Dock, stuck menu-bar icons and Mission Control glitches.", relaunchFinder:"Relaunch Finder", relaunchFinderDesc:"Fixes a slow or frozen Finder. Wait for any file copies to finish first — they would be interrupted.", purgeMem:"Release cached memory", purgeMemDesc:"Hands file-cache memory back to the system. Needs your administrator password (opens Terminal).",
     clean:'Clean', done:'Done', run:'Run', ssSub:'Free up space — empties the Bin and clears application caches.',
     scanning:'Scanning…', remove:'Remove', scanAgain:'Scan again', binRow:'Bin',
     fans:'Fans',
@@ -2001,8 +2041,10 @@ const STRINGS = {
     uninstallHelper:'Uninstall fan control', helperInstalled:'Fan control installed.', boostApplied:'Boost applied', autoRestored:'Automatic control restored', rulesSaved:'Rules saved', installed:'Fan control installed', installCancelled:'Install cancelled — you can do it later.', installFailed:'Could not install fan control', domain:'Sensor', noRules:'No rules yet — add one to raise fan speed on heat.',
     loading:'Loading…', liAllowedBg:'Allowed in background', liBlocked:'Blocked', liOpens:'Opens at login', liOff:"Off — won't open at login", liBadgeBg:'Background', liNone:"No user login items — nothing opens at login.", liShowClassic:'Show "Open at Login" apps', liMacOnly:'Login items are managed on macOS only.',
     dropUnresolvable:'Couldn\'t scan "{name}" — the dropped item couldn\'t be resolved to a scannable folder' },
-  es: { tipMemBody:"Cierra y vuelve a abrir las apps más pesadas: eso es lo que libera memoria.", macHealth:"Salud del Mac", healthExcellent:"Excelente", healthGood:"Buena", healthAttention:"Necesita atención", healthAllGood:"No hay nada que hacer ahora mismo.", healthSee:"Mira qué hacer a continuación a la derecha.", tipDisk:"El disco está casi lleno", tipDiskFree:"libres. Borra cachés y la Papelera para recuperar espacio.", tipMem:"La memoria está bajo presión", tipUptime:"Encendido desde hace", tipHot:"Temperatura alta:", tipHotBody:"Mira qué app está trabajando mucho o sube la velocidad de los ventiladores.", tipTuneUp:"Poner a punto",
-    updQuitAsk:"Está abierta ahora. ¿Cerrarla e instalar la actualización?", fcPlanFailed:"Smart Scan no pudo crear un plan de limpieza seguro; no se ofrece nada.", nothingToClean:"Todo limpio", tryAgain:"Reintentar", fdaUnknown:"Desconocido", updDegraded:"No se pudieron comprobar todas las fuentes:", liPermHint:"macOS pedirá permiso: Automatización (System Events) para las apps de inicio y aprobación de administrador para los ítems en segundo plano.", loUncertain:"Revisar", loUncertainTip:"Los elementos marcados «Revisar» coinciden solo por el nombre de la app y quedan sin marcar: confirma que pertenecen a esta app antes de eliminarlos.", sensorsUnavailable:"Los sensores no están disponibles ahora en este Mac.", rulesNotLoaded:"Las reglas del ventilador aún no se han cargado; inténtalo de nuevo.", tuneTitle:"Puesta a punto sin reiniciar", tuneDesc:"Tras días sin reiniciar, algunos procesos del sistema y apps abiertas ralentizan el Mac. Esto los refresca en el momento: tus ventanas y tu trabajo siguen abiertos.", tuneUptime:"Tiempo encendido", tuneUptimeLong:"Más de una semana sin reiniciar: ejecuta las acciones de abajo.", tuneUptimeOk:"Reiniciado hace poco: no ha habido tiempo de acumular problemas.", tuneAdvised:"Conviene refrescar", tuneFine:"Bien", tuneMemory:"Memoria", tuneSwap:"swap en uso", tuneMemBad:"La memoria está bajo presión. Cierra y vuelve a abrir las apps más pesadas de abajo: eso es lo que de verdad libera memoria.", tuneMemOk:"La presión de memoria es normal.", tuneHeavy:"Apps más pesadas ahora", refreshUi:"Refrescar Dock, barra de menús y Centro de control", refreshUiDesc:"Reinicia los procesos de interfaz del sistema. Arregla un Dock lento, iconos atascados en la barra de menús y fallos de Mission Control.", relaunchFinder:"Reiniciar el Finder", relaunchFinderDesc:"Arregla un Finder lento o bloqueado. Espera a que terminen las copias de archivos: se interrumpirían.", purgeMem:"Liberar memoria en caché", purgeMemDesc:"Devuelve al sistema la memoria de caché de archivos. Necesita tu contraseña de administrador (abre Terminal).",
+  es: { fcStep1:"Buscando basura…", fcStep2:"Midiendo las cachés de las apps…", fcStep3:"Comprobando qué apps están abiertas…", fcClearing:"Moviendo cachés a la Papelera", fcBin:"Vaciando la Papelera…", updChecking:"Buscando actualizaciones en Homebrew, App Store y las apps…", updWorking:"Descargando e instalando: puede tardar unos minutos", loAnalysing:"Buscando los archivos sobrantes de esta app…",
+    obTitle:"Configura MacCleaner", obIntro:"MacCleaner necesita algunos permisos de macOS para funcionar. Permite cada uno abajo: esta pantalla espera y los marca cuando macOS los confirma. Puedes cambiarlos cuando quieras en Privacidad.", obDone:"Continuar", obAllow:"Permitir", obAllowed:"Permitido", obWaiting:"Esperando a macOS…", obNotYet:"Aún no permitido", obDenied:"Denegado", obDeniedHint:"macOS lo tiene denegado. Actívalo en Ajustes del Sistema → Privacidad y seguridad → Automatización → MacCleaner.", obFdaDesc:"Permite ver la Papelera y las cachés protegidas (Safari). Añade MacCleaner en Ajustes del Sistema; macOS puede pedir reabrir la app.", obFinder:"Finder", obFinderDesc:"Se usa para mover archivos a la Papelera, así siempre puedes restaurarlos.", obSysEvents:"System Events", obSysEventsDesc:"Se usa para listar tus ítems de inicio y activarlos o desactivarlos.", obFan:"Asistente de ventiladores (opcional)", obFanDesc:"Solo hace falta para subir la velocidad de los ventiladores. Pide tu contraseña de administrador una vez.",
+    updQuitProceed:"Cerrar y actualizar", tipMemBody:"Cierra y vuelve a abrir las apps más pesadas: eso es lo que libera memoria.", macHealth:"Salud del Mac", healthExcellent:"Excelente", healthGood:"Buena", healthAttention:"Necesita atención", healthAllGood:"No hay nada que hacer ahora mismo.", healthSee:"Mira qué hacer a continuación a la derecha.", tipDisk:"El disco está casi lleno", tipDiskFree:"libres. Borra cachés y la Papelera para recuperar espacio.", tipMem:"La memoria está bajo presión", tipUptime:"Encendido desde hace", tipHot:"Temperatura alta:", tipHotBody:"Mira qué app está trabajando mucho o sube la velocidad de los ventiladores.", tipTuneUp:"Poner a punto",
+    updQuitAsk:"Está abierta ahora. MacCleaner la cerrará por ti e instalará la actualización: guarda antes tu trabajo.", fcPlanFailed:"Smart Scan no pudo crear un plan de limpieza seguro; no se ofrece nada.", nothingToClean:"Todo limpio", tryAgain:"Reintentar", fdaUnknown:"Desconocido", updDegraded:"No se pudieron comprobar todas las fuentes:", liPermHint:"macOS pedirá permiso: Automatización (System Events) para las apps de inicio y aprobación de administrador para los ítems en segundo plano.", loUncertain:"Revisar", loUncertainTip:"Los elementos marcados «Revisar» coinciden solo por el nombre de la app y quedan sin marcar: confirma que pertenecen a esta app antes de eliminarlos.", sensorsUnavailable:"Los sensores no están disponibles ahora en este Mac.", rulesNotLoaded:"Las reglas del ventilador aún no se han cargado; inténtalo de nuevo.", tuneTitle:"Puesta a punto sin reiniciar", tuneDesc:"Tras días sin reiniciar, algunos procesos del sistema y apps abiertas ralentizan el Mac. Esto los refresca en el momento: tus ventanas y tu trabajo siguen abiertos.", tuneUptime:"Tiempo encendido", tuneUptimeLong:"Más de una semana sin reiniciar: ejecuta las acciones de abajo.", tuneUptimeOk:"Reiniciado hace poco: no ha habido tiempo de acumular problemas.", tuneAdvised:"Conviene refrescar", tuneFine:"Bien", tuneMemory:"Memoria", tuneSwap:"swap en uso", tuneMemBad:"La memoria está bajo presión. Cierra y vuelve a abrir las apps más pesadas de abajo: eso es lo que de verdad libera memoria.", tuneMemOk:"La presión de memoria es normal.", tuneHeavy:"Apps más pesadas ahora", refreshUi:"Refrescar Dock, barra de menús y Centro de control", refreshUiDesc:"Reinicia los procesos de interfaz del sistema. Arregla un Dock lento, iconos atascados en la barra de menús y fallos de Mission Control.", relaunchFinder:"Reiniciar el Finder", relaunchFinderDesc:"Arregla un Finder lento o bloqueado. Espera a que terminen las copias de archivos: se interrumpirían.", purgeMem:"Liberar memoria en caché", purgeMemDesc:"Devuelve al sistema la memoria de caché de archivos. Necesita tu contraseña de administrador (abre Terminal).",
     dashboard:'Panel', smartScan:'Escaneo inteligente', speed:'Velocidad', performance:'Rendimiento', maintenance:'Mantenimiento', applications:'Aplicaciones', uninstaller:'Desinstalador', updater:'Actualizador', files:'Archivos', duplicates:'Duplicados', diskMap:'Mapa de disco', soon:'pronto',
     prefs:'Preferencias', general:'General', scheduler:'Programador', ignoreList:'Lista de exclusión', appearance:'Apariencia', language:'Idioma', light:'Claro', dark:'Oscuro', system:'Sistema', scheduledScans:'Escaneos programados', addSchedule:'Añadir escaneo programado', addPattern:'Añadir patrón', cancel:'Cancelar', save:'Guardar',
     ssSub:'Libera espacio — vacía la Papelera y borra las cachés de las apps.', clean:'Limpiar', done:'Listo', loginItems:'Ítems de inicio', flushDns:'Vaciar caché DNS', rebuildLS:'Reconstruir Launch Services', run:'Ejecutar',
@@ -2035,8 +2077,10 @@ const STRINGS = {
     uninstallHelper:'Desinstalar el control de ventiladores', helperInstalled:'Control de ventiladores instalado.', boostApplied:'Refuerzo aplicado', autoRestored:'Control automático restaurado', rulesSaved:'Reglas guardadas', installed:'Control de ventiladores instalado', installCancelled:'Instalación cancelada — puedes hacerlo más tarde.', installFailed:'No se pudo instalar el control', domain:'Sensor', noRules:'Aún no hay reglas — añade una para subir la velocidad con el calor.',
     loading:'Cargando…', liAllowedBg:'Permitido en segundo plano', liBlocked:'Bloqueado', liOpens:'Se abre al inicio', liOff:'Desactivado — no se abrirá al inicio', liBadgeBg:'Fondo', liNone:'No hay elementos de inicio del usuario — nada se abre al arrancar.', liShowClassic:'Mostrar apps «Abrir al inicio»', liMacOnly:'Los elementos de inicio solo se gestionan en macOS.',
     dropUnresolvable:'No se puede analizar «{name}» — el elemento soltado no se pudo resolver a una carpeta analizable.' },
-  ru: { tipMemBody:"Закройте и снова откройте самые тяжёлые приложения — это освобождает память.", macHealth:"Состояние Mac", healthExcellent:"Отлично", healthGood:"Хорошо", healthAttention:"Требует внимания", healthAllGood:"Сейчас ничего делать не нужно.", healthSee:"Справа показано, что сделать дальше.", tipDisk:"Диск почти заполнен", tipDiskFree:"свободно. Очистите кэш и Корзину, чтобы вернуть место.", tipMem:"Память перегружена", tipUptime:"Работает уже", tipHot:"Высокая температура:", tipHotBody:"Проверьте, какое приложение нагружает систему, или увеличьте скорость вентиляторов.", tipTuneUp:"Оптимизировать",
-    updQuitAsk:"Приложение сейчас открыто. Закрыть его и установить обновление?", fcPlanFailed:"Не удалось составить безопасный план очистки — ничего не предлагается.", nothingToClean:"Всё чисто", tryAgain:"Повторить", fdaUnknown:"Неизвестно", updDegraded:"Не все источники удалось проверить:", liPermHint:"macOS запросит разрешения: Автоматизация (System Events) для объектов входа и подтверждение администратора для фоновых объектов.", loUncertain:"Проверить", loUncertainTip:"Объекты с пометкой «Проверить» найдены только по имени приложения и не отмечены — убедитесь, что они относятся к этому приложению.", sensorsUnavailable:"Датчики сейчас недоступны на этом Mac.", rulesNotLoaded:"Правила вентиляторов ещё не загружены — повторите чуть позже.", tuneTitle:"Оптимизация без перезагрузки", tuneDesc:"После нескольких дней без перезагрузки системные помощники и долго работающие приложения замедляют Mac. Здесь их можно обновить на месте — окна и работа остаются открытыми.", tuneUptime:"Время работы", tuneUptimeLong:"Больше недели без перезагрузки — выполните действия ниже.", tuneUptimeOk:"Недавно перезагружен — проблемы не успели накопиться.", tuneAdvised:"Стоит обновить", tuneFine:"В норме", tuneMemory:"Память", tuneSwap:"используется подкачка", tuneMemBad:"Памяти не хватает. Закройте и снова откройте самые тяжёлые приложения ниже — именно это освобождает память.", tuneMemOk:"Нагрузка на память в норме.", tuneHeavy:"Самые тяжёлые приложения сейчас", refreshUi:"Обновить Dock, строку меню и Пункт управления", refreshUiDesc:"Перезапускает системные помощники интерфейса. Исправляет медленный Dock, зависшие значки в строке меню и сбои Mission Control.", relaunchFinder:"Перезапустить Finder", relaunchFinderDesc:"Исправляет медленный или зависший Finder. Сначала дождитесь окончания копирования файлов — оно прервётся.", purgeMem:"Освободить кэш памяти", purgeMemDesc:"Возвращает системе память файлового кэша. Нужен пароль администратора (откроется Терминал).",
+  ru: { fcStep1:"Поиск мусора…", fcStep2:"Измерение кэша приложений…", fcStep3:"Проверка открытых приложений…", fcClearing:"Перемещение кэша в Корзину", fcBin:"Очистка Корзины…", updChecking:"Проверка обновлений в Homebrew, App Store и приложениях…", updWorking:"Загрузка и установка — это может занять несколько минут", loAnalysing:"Поиск остаточных файлов приложения…",
+    obTitle:"Настройка MacCleaner", obIntro:"MacCleaner нужны несколько разрешений macOS. Разрешите каждое ниже — экран ждёт и отмечает их, когда macOS подтвердит. Изменить их можно в любой момент в разделе «Конфиденциальность».", obDone:"Продолжить", obAllow:"Разрешить", obAllowed:"Разрешено", obWaiting:"Ожидание macOS…", obNotYet:"Пока не разрешено", obDenied:"Отклонено", obDeniedHint:"В macOS это запрещено. Включите в Системных настройках → Конфиденциальность и безопасность → Автоматизация → MacCleaner.", obFdaDesc:"Позволяет видеть Корзину и защищённые кэши (Safari). Добавьте MacCleaner в Системных настройках; macOS может попросить перезапустить приложение.", obFinder:"Finder", obFinderDesc:"Нужно, чтобы перемещать файлы в Корзину — их всегда можно восстановить.", obSysEvents:"System Events", obSysEventsDesc:"Нужно, чтобы показывать объекты входа и включать или отключать их.", obFan:"Помощник управления вентиляторами (необязательно)", obFanDesc:"Нужен только для увеличения скорости вентиляторов. Один раз запросит пароль администратора.",
+    updQuitProceed:"Закрыть и обновить", tipMemBody:"Закройте и снова откройте самые тяжёлые приложения — это освобождает память.", macHealth:"Состояние Mac", healthExcellent:"Отлично", healthGood:"Хорошо", healthAttention:"Требует внимания", healthAllGood:"Сейчас ничего делать не нужно.", healthSee:"Справа показано, что сделать дальше.", tipDisk:"Диск почти заполнен", tipDiskFree:"свободно. Очистите кэш и Корзину, чтобы вернуть место.", tipMem:"Память перегружена", tipUptime:"Работает уже", tipHot:"Высокая температура:", tipHotBody:"Проверьте, какое приложение нагружает систему, или увеличьте скорость вентиляторов.", tipTuneUp:"Оптимизировать",
+    updQuitAsk:"Приложение сейчас открыто. MacCleaner закроет его и установит обновление — сначала сохраните работу в нём.", fcPlanFailed:"Не удалось составить безопасный план очистки — ничего не предлагается.", nothingToClean:"Всё чисто", tryAgain:"Повторить", fdaUnknown:"Неизвестно", updDegraded:"Не все источники удалось проверить:", liPermHint:"macOS запросит разрешения: Автоматизация (System Events) для объектов входа и подтверждение администратора для фоновых объектов.", loUncertain:"Проверить", loUncertainTip:"Объекты с пометкой «Проверить» найдены только по имени приложения и не отмечены — убедитесь, что они относятся к этому приложению.", sensorsUnavailable:"Датчики сейчас недоступны на этом Mac.", rulesNotLoaded:"Правила вентиляторов ещё не загружены — повторите чуть позже.", tuneTitle:"Оптимизация без перезагрузки", tuneDesc:"После нескольких дней без перезагрузки системные помощники и долго работающие приложения замедляют Mac. Здесь их можно обновить на месте — окна и работа остаются открытыми.", tuneUptime:"Время работы", tuneUptimeLong:"Больше недели без перезагрузки — выполните действия ниже.", tuneUptimeOk:"Недавно перезагружен — проблемы не успели накопиться.", tuneAdvised:"Стоит обновить", tuneFine:"В норме", tuneMemory:"Память", tuneSwap:"используется подкачка", tuneMemBad:"Памяти не хватает. Закройте и снова откройте самые тяжёлые приложения ниже — именно это освобождает память.", tuneMemOk:"Нагрузка на память в норме.", tuneHeavy:"Самые тяжёлые приложения сейчас", refreshUi:"Обновить Dock, строку меню и Пункт управления", refreshUiDesc:"Перезапускает системные помощники интерфейса. Исправляет медленный Dock, зависшие значки в строке меню и сбои Mission Control.", relaunchFinder:"Перезапустить Finder", relaunchFinderDesc:"Исправляет медленный или зависший Finder. Сначала дождитесь окончания копирования файлов — оно прервётся.", purgeMem:"Освободить кэш памяти", purgeMemDesc:"Возвращает системе память файлового кэша. Нужен пароль администратора (откроется Терминал).",
     dashboard:'Панель', smartScan:'Умное сканирование', speed:'Скорость', performance:'Производительность', maintenance:'Обслуживание', applications:'Приложения', uninstaller:'Деинсталлятор', updater:'Обновления', files:'Файлы', duplicates:'Дубликаты', diskMap:'Карта диска', soon:'скоро',
     prefs:'Настройки', general:'Общие', scheduler:'Планировщик', ignoreList:'Список исключений', appearance:'Оформление', language:'Язык', light:'Светлая', dark:'Тёмная', system:'Системная', scheduledScans:'Запланированные сканирования', addSchedule:'Добавить расписание', addPattern:'Добавить шаблон', cancel:'Отмена', save:'Сохранить',
     ssSub:'Освободите место — очистка Корзины и кэша приложений.', clean:'Очистить', done:'Готово', loginItems:'Объекты входа', flushDns:'Очистить кэш DNS', rebuildLS:'Перестроить Launch Services', run:'Запустить',
@@ -2069,8 +2113,10 @@ const STRINGS = {
     uninstallHelper:'Удалить управление кулерами', helperInstalled:'Управление кулерами установлено.', boostApplied:'Разгон применён', autoRestored:'Автоуправление восстановлено', rulesSaved:'Правила сохранены', installed:'Управление кулерами установлено', installCancelled:'Установка отменена — можно сделать позже.', installFailed:'Не удалось установить управление', domain:'Датчик', noRules:'Пока нет правил — добавьте, чтобы поднимать обороты при нагреве.',
     loading:'Загрузка…', liAllowedBg:'Разрешено в фоне', liBlocked:'Заблокировано', liOpens:'Открывается при входе', liOff:'Выключено — не будет открываться при входе', liBadgeBg:'Фон', liNone:'Пользовательских объектов входа нет — при входе ничего не открывается.', liShowClassic:'Показать приложения «Открываться при входе»', liMacOnly:'Объектами входа можно управлять только в macOS.',
     dropUnresolvable:'Не удалось просканировать «{name}» — перетащенный объект не удалось разрешить в папку для сканирования.' },
-  de: { tipMemBody:"Beende die schwersten Apps und öffne sie neu – das gibt Speicher frei.", macHealth:"Mac-Zustand", healthExcellent:"Ausgezeichnet", healthGood:"Gut", healthAttention:"Braucht Aufmerksamkeit", healthAllGood:"Im Moment ist nichts zu tun.", healthSee:"Rechts steht, was als Nächstes zu tun ist.", tipDisk:"Die Festplatte ist fast voll", tipDiskFree:"frei. Leere Caches und den Papierkorb, um Platz zu schaffen.", tipMem:"Der Speicher ist knapp", tipUptime:"Läuft seit", tipHot:"Hohe Temperatur:", tipHotBody:"Prüfe, welche App viel arbeitet, oder erhöhe die Lüfterdrehzahl.", tipTuneUp:"Auffrischen",
-    updQuitAsk:"Die App ist gerade geöffnet. Beenden und Update installieren?", fcPlanFailed:"Es konnte kein sicherer Bereinigungsplan erstellt werden – nichts wird angeboten.", nothingToClean:"Alles sauber", tryAgain:"Erneut versuchen", fdaUnknown:"Unbekannt", updDegraded:"Nicht alle Quellen konnten geprüft werden:", liPermHint:"macOS fragt nach Erlaubnis: Automation (System Events) für Anmeldeobjekte und eine Administrator-Bestätigung für Hintergrundobjekte.", loUncertain:"Prüfen", loUncertainTip:"Mit „Prüfen“ markierte Objekte wurden nur über den App-Namen gefunden und sind nicht ausgewählt – prüfe vor dem Entfernen, ob sie zu dieser App gehören.", sensorsUnavailable:"Sensoren sind auf diesem Mac derzeit nicht verfügbar.", rulesNotLoaded:"Die Lüfterregeln sind noch nicht geladen – gleich erneut versuchen.", tuneTitle:"Auffrischen ohne Neustart", tuneDesc:"Nach Tagen ohne Neustart bremsen einige Systemhelfer und lange laufende Apps. Hier werden sie direkt aufgefrischt – Fenster und Arbeit bleiben offen.", tuneUptime:"Laufzeit", tuneUptimeLong:"Über eine Woche ohne Neustart – führe die Aktionen unten aus.", tuneUptimeOk:"Kürzlich neu gestartet – es hat sich noch nichts angestaut.", tuneAdvised:"Auffrischen empfohlen", tuneFine:"In Ordnung", tuneMemory:"Speicher", tuneSwap:"Swap belegt", tuneMemBad:"Der Speicher ist knapp. Beende die schwersten Apps unten und öffne sie neu – das gibt wirklich Speicher frei.", tuneMemOk:"Der Speicherdruck ist normal.", tuneHeavy:"Schwerste Apps im Moment", refreshUi:"Dock, Menüleiste & Kontrollzentrum auffrischen", refreshUiDesc:"Startet die System-UI-Helfer neu. Behebt ein träges Dock, hängende Menüleistensymbole und Mission-Control-Fehler.", relaunchFinder:"Finder neu starten", relaunchFinderDesc:"Behebt einen langsamen oder eingefrorenen Finder. Warte zuerst laufende Kopiervorgänge ab – sie würden abgebrochen.", purgeMem:"Zwischengespeicherten Speicher freigeben", purgeMemDesc:"Gibt Datei-Cache-Speicher an das System zurück. Benötigt dein Administratorpasswort (öffnet Terminal).",
+  de: { fcStep1:"Suche nach Datenmüll…", fcStep2:"App-Caches werden gemessen…", fcStep3:"Prüfe, welche Apps geöffnet sind…", fcClearing:"Caches werden in den Papierkorb gelegt", fcBin:"Papierkorb wird geleert…", updChecking:"Suche nach Updates in Homebrew, App Store und App-Feeds…", updWorking:"Wird geladen und installiert – das kann einige Minuten dauern", loAnalysing:"Suche nach Restdateien dieser App…",
+    obTitle:"MacCleaner einrichten", obIntro:"MacCleaner braucht einige macOS-Berechtigungen. Erlaube jede unten – dieser Bildschirm wartet und hakt sie ab, sobald macOS bestätigt. Du kannst sie jederzeit unter Datenschutz ändern.", obDone:"Weiter", obAllow:"Erlauben", obAllowed:"Erlaubt", obWaiting:"Warte auf macOS…", obNotYet:"Noch nicht erlaubt", obDenied:"Abgelehnt", obDeniedHint:"macOS hat das abgelehnt. Aktiviere es in Systemeinstellungen → Datenschutz & Sicherheit → Automation → MacCleaner.", obFdaDesc:"Erlaubt den Zugriff auf Papierkorb und geschützte Caches (Safari). Füge MacCleaner in den Systemeinstellungen hinzu; macOS bittet evtl. um einen Neustart der App.", obFinder:"Finder", obFinderDesc:"Wird benötigt, um Dateien in den Papierkorb zu legen – du kannst sie jederzeit wiederherstellen.", obSysEvents:"System Events", obSysEventsDesc:"Wird benötigt, um Anmeldeobjekte aufzulisten und ein- oder auszuschalten.", obFan:"Lüftersteuerungs-Helfer (optional)", obFanDesc:"Nur nötig, um die Lüfterdrehzahl zu erhöhen. Fragt einmal nach deinem Administratorpasswort.",
+    updQuitProceed:"Beenden und aktualisieren", tipMemBody:"Beende die schwersten Apps und öffne sie neu – das gibt Speicher frei.", macHealth:"Mac-Zustand", healthExcellent:"Ausgezeichnet", healthGood:"Gut", healthAttention:"Braucht Aufmerksamkeit", healthAllGood:"Im Moment ist nichts zu tun.", healthSee:"Rechts steht, was als Nächstes zu tun ist.", tipDisk:"Die Festplatte ist fast voll", tipDiskFree:"frei. Leere Caches und den Papierkorb, um Platz zu schaffen.", tipMem:"Der Speicher ist knapp", tipUptime:"Läuft seit", tipHot:"Hohe Temperatur:", tipHotBody:"Prüfe, welche App viel arbeitet, oder erhöhe die Lüfterdrehzahl.", tipTuneUp:"Auffrischen",
+    updQuitAsk:"Die App ist gerade geöffnet. MacCleaner beendet sie für dich und installiert das Update – sichere vorher deine Arbeit.", fcPlanFailed:"Es konnte kein sicherer Bereinigungsplan erstellt werden – nichts wird angeboten.", nothingToClean:"Alles sauber", tryAgain:"Erneut versuchen", fdaUnknown:"Unbekannt", updDegraded:"Nicht alle Quellen konnten geprüft werden:", liPermHint:"macOS fragt nach Erlaubnis: Automation (System Events) für Anmeldeobjekte und eine Administrator-Bestätigung für Hintergrundobjekte.", loUncertain:"Prüfen", loUncertainTip:"Mit „Prüfen“ markierte Objekte wurden nur über den App-Namen gefunden und sind nicht ausgewählt – prüfe vor dem Entfernen, ob sie zu dieser App gehören.", sensorsUnavailable:"Sensoren sind auf diesem Mac derzeit nicht verfügbar.", rulesNotLoaded:"Die Lüfterregeln sind noch nicht geladen – gleich erneut versuchen.", tuneTitle:"Auffrischen ohne Neustart", tuneDesc:"Nach Tagen ohne Neustart bremsen einige Systemhelfer und lange laufende Apps. Hier werden sie direkt aufgefrischt – Fenster und Arbeit bleiben offen.", tuneUptime:"Laufzeit", tuneUptimeLong:"Über eine Woche ohne Neustart – führe die Aktionen unten aus.", tuneUptimeOk:"Kürzlich neu gestartet – es hat sich noch nichts angestaut.", tuneAdvised:"Auffrischen empfohlen", tuneFine:"In Ordnung", tuneMemory:"Speicher", tuneSwap:"Swap belegt", tuneMemBad:"Der Speicher ist knapp. Beende die schwersten Apps unten und öffne sie neu – das gibt wirklich Speicher frei.", tuneMemOk:"Der Speicherdruck ist normal.", tuneHeavy:"Schwerste Apps im Moment", refreshUi:"Dock, Menüleiste & Kontrollzentrum auffrischen", refreshUiDesc:"Startet die System-UI-Helfer neu. Behebt ein träges Dock, hängende Menüleistensymbole und Mission-Control-Fehler.", relaunchFinder:"Finder neu starten", relaunchFinderDesc:"Behebt einen langsamen oder eingefrorenen Finder. Warte zuerst laufende Kopiervorgänge ab – sie würden abgebrochen.", purgeMem:"Zwischengespeicherten Speicher freigeben", purgeMemDesc:"Gibt Datei-Cache-Speicher an das System zurück. Benötigt dein Administratorpasswort (öffnet Terminal).",
     dashboard:'Übersicht', smartScan:'Intelligenter Scan', speed:'Tempo', performance:'Leistung', maintenance:'Wartung', applications:'Programme', uninstaller:'Deinstallieren', updater:'Updater', files:'Dateien', duplicates:'Duplikate', diskMap:'Speicherkarte', soon:'bald',
     prefs:'Einstellungen', general:'Allgemein', scheduler:'Zeitplan', ignoreList:'Ausschlussliste', appearance:'Erscheinungsbild', language:'Sprache', light:'Hell', dark:'Dunkel', system:'System', scheduledScans:'Geplante Scans', addSchedule:'Geplanten Scan hinzufügen', addPattern:'Muster hinzufügen', cancel:'Abbrechen', save:'Speichern',
     ssSub:'Schaffe Platz — leert den Papierkorb und löscht App-Caches.', clean:'Bereinigen', done:'Fertig', loginItems:'Anmeldeobjekte', flushDns:'DNS-Cache leeren', rebuildLS:'Launch Services neu aufbauen', run:'Ausführen',
@@ -2103,8 +2149,10 @@ const STRINGS = {
     uninstallHelper:'Lüftersteuerung entfernen', helperInstalled:'Lüftersteuerung installiert.', boostApplied:'Boost angewendet', autoRestored:'Automatik wiederhergestellt', rulesSaved:'Regeln gespeichert', installed:'Lüftersteuerung installiert', installCancelled:'Installation abgebrochen — du kannst es später erledigen.', installFailed:'Steuerung konnte nicht installiert werden', domain:'Sensor', noRules:'Noch keine Regeln — füge eine hinzu, um bei Hitze hochzudrehen.',
     loading:'Wird geladen…', liAllowedBg:'Im Hintergrund erlaubt', liBlocked:'Blockiert', liOpens:'Öffnet sich bei der Anmeldung', liOff:'Aus — öffnet sich nicht bei der Anmeldung', liBadgeBg:'Hintergrund', liNone:'Keine Benutzer-Anmeldeobjekte — nichts öffnet sich bei der Anmeldung.', liShowClassic:'„Bei der Anmeldung öffnen“-Apps anzeigen', liMacOnly:'Anmeldeobjekte lassen sich nur unter macOS verwalten.',
     dropUnresolvable:'„{name}“ kann nicht gescannt werden — das abgelegte Element ließ sich nicht in einen scannbaren Ordner auflösen.' },
-  fr: { tipMemBody:"Quittez puis rouvrez les apps les plus lourdes : c'est ce qui libère la mémoire.", macHealth:"Santé du Mac", healthExcellent:"Excellente", healthGood:"Bonne", healthAttention:"À surveiller", healthAllGood:"Rien à faire pour le moment.", healthSee:"Voyez à droite ce qu'il faut faire ensuite.", tipDisk:"Le disque est presque plein", tipDiskFree:"libres. Videz les caches et la Corbeille pour récupérer de l'espace.", tipMem:"La mémoire est sous pression", tipUptime:"Allumé depuis", tipHot:"Température élevée :", tipHotBody:"Vérifiez quelle app travaille beaucoup, ou augmentez la vitesse des ventilateurs.", tipTuneUp:"Optimiser",
-    updQuitAsk:"L'app est ouverte. La quitter et installer la mise à jour ?", fcPlanFailed:"Impossible d'établir un plan de nettoyage sûr : rien n'est proposé.", nothingToClean:"Tout est propre", tryAgain:"Réessayer", fdaUnknown:"Inconnu", updDegraded:"Certaines sources n'ont pas pu être vérifiées :", liPermHint:"macOS demandera une autorisation : Automatisation (System Events) pour les apps à l'ouverture et une approbation administrateur pour les éléments en arrière-plan.", loUncertain:"À vérifier", loUncertainTip:"Les éléments marqués « À vérifier » ne correspondent que par le nom de l'app et restent décochés : vérifiez qu'ils appartiennent à cette app avant de les supprimer.", sensorsUnavailable:"Les capteurs ne sont pas disponibles sur ce Mac pour l'instant.", rulesNotLoaded:"Les règles des ventilateurs ne sont pas encore chargées — réessayez dans un instant.", tuneTitle:"Remise en forme sans redémarrer", tuneDesc:"Après plusieurs jours sans redémarrage, certains services système et apps ouvertes ralentissent le Mac. Ceci les rafraîchit sur place : vos fenêtres et votre travail restent ouverts.", tuneUptime:"Temps d'activité", tuneUptimeLong:"Plus d'une semaine sans redémarrage : lancez les actions ci-dessous.", tuneUptimeOk:"Redémarré récemment : rien n'a eu le temps de s'accumuler.", tuneAdvised:"Rafraîchir conseillé", tuneFine:"OK", tuneMemory:"Mémoire", tuneSwap:"swap utilisé", tuneMemBad:"La mémoire est sous pression. Quittez puis rouvrez les apps les plus lourdes ci-dessous : c'est ce qui libère vraiment la mémoire.", tuneMemOk:"La pression mémoire est normale.", tuneHeavy:"Apps les plus lourdes actuellement", refreshUi:"Rafraîchir le Dock, la barre des menus et le Centre de contrôle", refreshUiDesc:"Redémarre les services d'interface du système. Corrige un Dock lent, des icônes de barre des menus figées et les bugs de Mission Control.", relaunchFinder:"Relancer le Finder", relaunchFinderDesc:"Corrige un Finder lent ou figé. Attendez la fin des copies de fichiers : elles seraient interrompues.", purgeMem:"Libérer la mémoire en cache", purgeMemDesc:"Rend au système la mémoire du cache de fichiers. Nécessite votre mot de passe administrateur (ouvre Terminal).",
+  fr: { fcStep1:"Recherche des fichiers inutiles…", fcStep2:"Mesure des caches des apps…", fcStep3:"Vérification des apps ouvertes…", fcClearing:"Déplacement des caches vers la Corbeille", fcBin:"Vidage de la Corbeille…", updChecking:"Recherche de mises à jour dans Homebrew, l'App Store et les apps…", updWorking:"Téléchargement et installation : cela peut prendre quelques minutes", loAnalysing:"Recherche des fichiers résiduels de cette app…",
+    obTitle:"Configurer MacCleaner", obIntro:"MacCleaner a besoin de quelques autorisations macOS. Accordez chacune ci-dessous : cet écran attend et les coche dès que macOS confirme. Vous pouvez les modifier à tout moment dans Confidentialité.", obDone:"Continuer", obAllow:"Autoriser", obAllowed:"Autorisé", obWaiting:"En attente de macOS…", obNotYet:"Pas encore autorisé", obDenied:"Refusé", obDeniedHint:"macOS l'a refusé. Activez-le dans Réglages Système → Confidentialité et sécurité → Automatisation → MacCleaner.", obFdaDesc:"Permet de voir la Corbeille et les caches protégés (Safari). Ajoutez MacCleaner dans Réglages Système ; macOS peut demander de rouvrir l'app.", obFinder:"Finder", obFinderDesc:"Sert à déplacer les fichiers vers la Corbeille pour pouvoir toujours les restaurer.", obSysEvents:"System Events", obSysEventsDesc:"Sert à lister vos éléments d'ouverture et à les activer ou désactiver.", obFan:"Assistant de ventilation (facultatif)", obFanDesc:"Nécessaire uniquement pour augmenter la vitesse des ventilateurs. Demande une fois votre mot de passe administrateur.",
+    updQuitProceed:"Quitter et mettre à jour", tipMemBody:"Quittez puis rouvrez les apps les plus lourdes : c'est ce qui libère la mémoire.", macHealth:"Santé du Mac", healthExcellent:"Excellente", healthGood:"Bonne", healthAttention:"À surveiller", healthAllGood:"Rien à faire pour le moment.", healthSee:"Voyez à droite ce qu'il faut faire ensuite.", tipDisk:"Le disque est presque plein", tipDiskFree:"libres. Videz les caches et la Corbeille pour récupérer de l'espace.", tipMem:"La mémoire est sous pression", tipUptime:"Allumé depuis", tipHot:"Température élevée :", tipHotBody:"Vérifiez quelle app travaille beaucoup, ou augmentez la vitesse des ventilateurs.", tipTuneUp:"Optimiser",
+    updQuitAsk:"L'app est ouverte. MacCleaner la quittera pour vous et installera la mise à jour : enregistrez d'abord votre travail.", fcPlanFailed:"Impossible d'établir un plan de nettoyage sûr : rien n'est proposé.", nothingToClean:"Tout est propre", tryAgain:"Réessayer", fdaUnknown:"Inconnu", updDegraded:"Certaines sources n'ont pas pu être vérifiées :", liPermHint:"macOS demandera une autorisation : Automatisation (System Events) pour les apps à l'ouverture et une approbation administrateur pour les éléments en arrière-plan.", loUncertain:"À vérifier", loUncertainTip:"Les éléments marqués « À vérifier » ne correspondent que par le nom de l'app et restent décochés : vérifiez qu'ils appartiennent à cette app avant de les supprimer.", sensorsUnavailable:"Les capteurs ne sont pas disponibles sur ce Mac pour l'instant.", rulesNotLoaded:"Les règles des ventilateurs ne sont pas encore chargées — réessayez dans un instant.", tuneTitle:"Remise en forme sans redémarrer", tuneDesc:"Après plusieurs jours sans redémarrage, certains services système et apps ouvertes ralentissent le Mac. Ceci les rafraîchit sur place : vos fenêtres et votre travail restent ouverts.", tuneUptime:"Temps d'activité", tuneUptimeLong:"Plus d'une semaine sans redémarrage : lancez les actions ci-dessous.", tuneUptimeOk:"Redémarré récemment : rien n'a eu le temps de s'accumuler.", tuneAdvised:"Rafraîchir conseillé", tuneFine:"OK", tuneMemory:"Mémoire", tuneSwap:"swap utilisé", tuneMemBad:"La mémoire est sous pression. Quittez puis rouvrez les apps les plus lourdes ci-dessous : c'est ce qui libère vraiment la mémoire.", tuneMemOk:"La pression mémoire est normale.", tuneHeavy:"Apps les plus lourdes actuellement", refreshUi:"Rafraîchir le Dock, la barre des menus et le Centre de contrôle", refreshUiDesc:"Redémarre les services d'interface du système. Corrige un Dock lent, des icônes de barre des menus figées et les bugs de Mission Control.", relaunchFinder:"Relancer le Finder", relaunchFinderDesc:"Corrige un Finder lent ou figé. Attendez la fin des copies de fichiers : elles seraient interrompues.", purgeMem:"Libérer la mémoire en cache", purgeMemDesc:"Rend au système la mémoire du cache de fichiers. Nécessite votre mot de passe administrateur (ouvre Terminal).",
     dashboard:'Tableau de bord', smartScan:'Analyse intelligente', speed:'Vitesse', performance:'Performances', maintenance:'Maintenance', applications:'Applications', uninstaller:'Désinstaller', updater:'Mises à jour', files:'Fichiers', duplicates:'Doublons', diskMap:'Carte du disque', soon:'bientôt',
     prefs:'Préférences', general:'Général', scheduler:'Planificateur', ignoreList:"Liste d'exclusion", appearance:'Apparence', language:'Langue', light:'Clair', dark:'Sombre', system:'Système', scheduledScans:'Analyses planifiées', addSchedule:'Ajouter une analyse planifiée', addPattern:'Ajouter un motif', cancel:'Annuler', save:'Enregistrer',
     ssSub:"Libérez de l'espace — vide la Corbeille et efface les caches des apps.", clean:'Nettoyer', done:'Terminé', loginItems:'Ouverture au démarrage', flushDns:'Vider le cache DNS', rebuildLS:'Reconstruire Launch Services', run:'Exécuter',
@@ -2354,9 +2402,90 @@ function renderDuplicatesGate() {
    registered scan root; they go to the Trash via the normal DELETE /api/files
    (requireInsideScanRoot). Then we credit the activity feed. */
 async function loadPrivacy() {
+  renderPermRows($('permRows'), false);
   loadPrivacyFda();
   loadPrivacyCaches();
 }
+/* ── Permissions (first-launch onboarding + Privacy → System access) ──
+   One row per permission, each with the button that raises the macOS prompt
+   and a pill that flips to "Allowed" once macOS confirms. Full Disk Access is
+   polled (it is granted in System Settings, outside the app); Automation
+   consents resolve when the user answers the system prompt. */
+const PERMS = [
+  { id: 'fda', titleKey: 'fdaTitle', descKey: 'obFdaDesc', btnKey: 'fdaOpen' },
+  { id: 'finder', titleKey: 'obFinder', descKey: 'obFinderDesc', btnKey: 'obAllow' },
+  { id: 'system-events', titleKey: 'obSysEvents', descKey: 'obSysEventsDesc', btnKey: 'obAllow' },
+  { id: 'fanhelper', titleKey: 'obFan', descKey: 'obFanDesc', btnKey: 'installHelper' },
+];
+const permOk = (id) => { try { return localStorage.getItem('mc-perm-' + id) === '1'; } catch { return false; } };
+const permSet = (id, on) => { try { on ? localStorage.setItem('mc-perm-' + id, '1') : localStorage.removeItem('mc-perm-' + id); } catch { /* private mode */ } };
+let permPoll = 0;
+function renderPermRows(host, withFda) {
+  if (!host) return;
+  const rows = PERMS.filter(p => withFda || p.id !== 'fda');
+  host.innerHTML = rows.map(p => `<div class="mnt-row perm-row" data-perm="${p.id}">
+      <div class="mnt-text"><b>${escapeHtml(t(p.titleKey))}</b><span>${escapeHtml(t(p.descKey))}</span></div>
+      <span class="status-pill" role="status"><span class="dot"></span><span class="perm-state"></span></span>
+      <button class="btn">${escapeHtml(t(p.btnKey))}</button>
+    </div>`).join('');
+  const paint = (id, state) => { // state: 'ok' | 'wait' | 'no'
+    const row = host.querySelector(`[data-perm="${id}"]`);
+    if (!row) return;
+    const pill = row.querySelector('.status-pill');
+    pill.className = 'status-pill' + (state === 'ok' ? ' ok' : state === 'no' ? ' warn' : '');
+    row.querySelector('.perm-state').textContent = t(state === 'ok' ? 'obAllowed' : state === 'wait' ? 'obWaiting' : state === 'no' ? 'obDenied' : 'obNotYet');
+    row.querySelector('.btn').hidden = state === 'ok';
+    row.querySelector('.btn').disabled = state === 'wait';
+  };
+  rows.forEach(p => paint(p.id, permOk(p.id) ? 'ok' : 'idle'));
+  const refresh = async () => {
+    if (!host.isConnected || host.offsetParent === null) { clearInterval(permPoll); permPoll = 0; return; }
+    const [fda, fan] = await Promise.all([
+      withFda ? api('/api/privacy/status').catch(() => null) : null,
+      api('/api/fans/status').catch(() => null),
+    ]);
+    if (fda && fda.fullDiskAccess != null) { permSet('fda', fda.fullDiskAccess); paint('fda', fda.fullDiskAccess ? 'ok' : 'idle'); }
+    if (fan) {
+      const on = fan.helperState === 'installed' || fan.helperState === 'active-boost';
+      permSet('fanhelper', on); paint('fanhelper', on ? 'ok' : 'idle');
+    }
+  };
+  refresh();
+  clearInterval(permPoll);
+  permPoll = setInterval(refresh, 2500); // "wait until activated": FDA flips in System Settings
+  host.querySelectorAll('.perm-row .btn').forEach(btn => btn.addEventListener('click', async () => {
+    const id = btn.closest('.perm-row').dataset.perm;
+    if (id === 'fda') { openFdaSettings(); paint('fda', 'wait'); return; }
+    paint(id, 'wait');
+    try {
+      if (id === 'fanhelper') {
+        const r = await api('/api/fans/install-helper', { method: 'POST' });
+        const on = r.status === 'installed';
+        permSet(id, on); paint(id, on ? 'ok' : 'idle');
+        if (!on && r.message) toast(r.message, 'error');
+      } else {
+        const r = await api('/api/privacy/automation', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target: id }),
+        });
+        permSet(id, r.granted); paint(id, r.granted ? 'ok' : r.denied ? 'no' : 'idle');
+        if (r.denied) toast(t('obDeniedHint'), 'error');
+      }
+    } catch (e) { paint(id, 'idle'); toast(e.message, 'error'); }
+  }));
+}
+/* First launch on macOS: show the permissions screen once. */
+function maybeOnboard() {
+  let seen = true;
+  try { seen = localStorage.getItem('mc-onboarded') === '1'; } catch { /* private mode: skip */ }
+  if (seen || !state.system || state.system.platform !== 'darwin') return;
+  $('onboardModal').classList.add('open');
+  renderPermRows($('onboardRows'), true);
+}
+$('onboardDone').addEventListener('click', () => {
+  try { localStorage.setItem('mc-onboarded', '1'); } catch { /* ignore */ }
+  closeModal('onboardModal');
+});
+
 async function loadPrivacyFda() {
   try {
     const s = await api('/api/privacy/status');
@@ -2500,6 +2629,7 @@ async function loadSystem() {
   try {
     const sys = await api('/api/system');
     state.system = sys;
+    maybeOnboard();
     $('sysHost').textContent = sys.hostname;
     $('sysPlatform').textContent = ({ darwin:'macOS', win32:'Windows', linux:'Linux' })[sys.platform] || sys.platform;
     $('sysTotal').textContent = formatBytes(sys.totalDisk);
@@ -3527,7 +3657,7 @@ async function selectApp(appPath) {
   $('appsDetailEmpty').hidden = true;
   const body = $('appsDetailBody');
   body.hidden = false;
-  body.innerHTML = skeletonRows(6, 34);
+  body.innerHTML = progressHtml(t('loAnalysing'), null) + skeletonRows(6, 34);
   try {
     const data = await api('/api/apps/leftovers?path=' + encodeURIComponent(appPath));
     if (a.selected !== appPath) return; // superseded by another click
@@ -3729,7 +3859,7 @@ async function loadUpdater() {
     body.innerHTML = `<p class="muted" style="padding:8px 0;">${escapeHtml(t('updOnlyMac'))}</p>`;
     return;
   }
-  body.innerHTML = skeletonRows(5, 44);
+  body.innerHTML = progressHtml(t('updChecking'), null) + skeletonRows(5, 44);
   try {
     const data = await api('/api/updater');
     renderUpdater(data);
@@ -3806,12 +3936,12 @@ function resetUpdBtn(btn) {
 
 /* Confirm dialog for casks whose version match is uncertain. Reuses the generic
    #permModal promise flow, temporarily swapping its title/button copy. */
-async function confirmUncertainCask(name, reason, onProceed, message) {
+async function confirmUncertainCask(name, reason, onProceed, message, okLabel) {
   const title = $('permTitle'), ok = $('permOk');
   const savedTitle = title.innerHTML, savedOk = ok.innerHTML;
   title.innerHTML = icon('alert', 16) + escapeHtml(t('updConfirmTitle'));
   ok.classList.remove('btn-danger'); ok.classList.add('btn-primary');
-  ok.innerHTML = icon('download', 14) + escapeHtml(t('updConfirmProceed'));
+  ok.innerHTML = icon('download', 14) + escapeHtml(okLabel || t('updConfirmProceed'));
   const proceed = await confirmPermanent(
     `<b>${escapeHtml(name)}</b><br>${escapeHtml(message || t('updConfirmUncertain'))} <span style="color:var(--text-3)">${escapeHtml(reason || '')}</span>`);
   // Restore the swapped title/button only when this is still the last confirm —
@@ -3826,6 +3956,9 @@ async function confirmUncertainCask(name, reason, onProceed, message) {
 async function runCaskUpgrade(token, row, quit = false) {
   const btn = row.querySelector('.upd-act');
   const name = row.querySelector('.nm').textContent;
+  row.classList.add('busy'); // animated bar on the row while brew/mas works
+  const verEl = row.querySelector('.ver'), verWas = verEl ? verEl.textContent : '';
+  if (verEl) verEl.textContent = t('updWorking');
   btn.disabled = true;
   btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + t('updUpdating');
   try {
@@ -3864,12 +3997,15 @@ async function runCaskUpgrade(token, row, quit = false) {
     resetUpdBtn(btn);
     // App is open → offer to quit it for them instead of sending them away.
     if (e.code === 'APP_RUNNING' && !quit) {
-      confirmUncertainCask(name.trim(), '', () => runCaskUpgrade(token, row, true), t('updQuitAsk'));
+      confirmUncertainCask(name.trim(), '', () => runCaskUpgrade(token, row, true), t('updQuitAsk'), t('updQuitProceed'));
       return;
     }
     toast(e.message, 'error');
     const ver = row.querySelector('.ver');
     if (ver) ver.textContent = e.message;
+  } finally {
+    row.classList.remove('busy');
+    if (verEl && verEl.textContent === t('updWorking')) verEl.textContent = verWas;
   }
 }
 /* A failed background update keeps its reason ON the row (a toast vanishes)
@@ -3895,14 +4031,17 @@ function caskUpgradeFailed(token, row, btn, name, message) {
     fresh.disabled = false;
   });
 }
-async function runMasUpgrade(id, row) {
+async function runMasUpgrade(id, row, quit = false) {
   const btn = row.querySelector('.upd-act');
+  row.classList.add('busy'); // animated bar on the row while brew/mas works
+  const verEl = row.querySelector('.ver'), verWas = verEl ? verEl.textContent : '';
+  if (verEl) verEl.textContent = t('updWorking');
   btn.disabled = true;
   btn.innerHTML = icon('loader', 14, REDUCED ? '' : 'spin') + t('updUpdating');
   try {
     const r = await api('/api/updater/mas-upgrade', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, quit }),
     });
     if (r.ok) {
       btn.innerHTML = icon('check', 14) + t('updUpdated');
@@ -3915,7 +4054,14 @@ async function runMasUpgrade(id, row) {
     }
   } catch (e) {
     resetUpdBtn(btn);
+    if (e.code === 'APP_RUNNING' && !quit) {
+      confirmUncertainCask(row.querySelector('.nm').textContent.trim(), '', () => runMasUpgrade(id, row, true), t('updQuitAsk'), t('updQuitProceed'));
+      return;
+    }
     toast('Update failed: ' + e.message, 'error');
+  } finally {
+    row.classList.remove('busy');
+    if (verEl && verEl.textContent === t('updWorking')) verEl.textContent = verWas;
   }
 }
 async function openUpdaterApp(path, btn) {
@@ -3970,7 +4116,16 @@ function pollScanSize(scanId, onDone, tries = 0, isAlive) {
   }).catch(() => { if (!isAlive || isAlive()) onDone(null); });
 }
 
-function setFcStatus(text) { $('fcStatus').textContent = text || ''; }
+/** Shared progress indicator. `pct` 0–100 = a real percentage; null = working
+    (animated bar) for steps the app cannot measure. Always says what is happening. */
+function progressHtml(label, pct) {
+  const known = typeof pct === 'number';
+  const p = known ? Math.max(0, Math.min(100, Math.round(pct))) : 0;
+  return `<div class="prog${known ? '' : ' indet'}" role="progressbar" aria-label="${escapeHtml(label)}"${known ? ` aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100"` : ''}>
+    <div class="prog-label"><span>${escapeHtml(label)}</span>${known ? `<b>${p}%</b>` : ''}</div>
+    <div class="prog-track"><div class="prog-fill"${known ? ` style="width:${p}%"` : ''}></div></div></div>`;
+}
+function setFcStatus(text, pct) { $('fcStatus').innerHTML = text ? progressHtml(text, pct) : ''; }
 function setFcMark(name, done) {
   // 3D mark: Smart Scan broom normally; the teal monitor-check when clean.
   const m = $('fcMark3d');
@@ -4186,6 +4341,7 @@ async function loadFastClean() {
     // Authoritative deletion set: the server-built cache plan (already scan-authorized).
     // Also surfaces protected/in-use counts so we can be honest about what we skip.
     try {
+      setFcStatus(t('fcStep2'), 45);
       let plan = await api('/api/cleaner/cache-plan');
       // 202 = the authorizing scan is still walking (server reuses the in-flight
       // scan on each poll). Poll until entries arrive, the scan errors, or 90s.
@@ -4193,6 +4349,7 @@ async function loadFastClean() {
       while (plan && plan.scanId && plan.status && !plan.entries && Date.now() < planDeadline) {
         if (!alive()) return;
         if (plan.status === 'error') throw new Error(plan.error || 'Cache scan failed');
+        setFcStatus(t('fcStep3'), 75);
         await new Promise((r) => setTimeout(r, 2000));
         plan = await api('/api/cleaner/cache-plan');
       }
@@ -4206,6 +4363,7 @@ async function loadFastClean() {
       fc.selected = new Set(fc.planEntries.map((e) => e.name));
       fc.phase = 'review';
       fc.planLoadedAt = Date.now();
+      setFcStatus('');
       // Per-entry sizes come straight from the plan (it already walked the tree).
       // Vendor roots in `exclude` are CONDITIONAL (skipped only while their
       // browser runs) — never filter estimates by fc.exclude.
@@ -4233,6 +4391,7 @@ async function loadFastClean() {
       // ~/Library/Caches children: that bypasses the safelist and the
       // running-app guard the plan enforces.
       fc.phase = 'error';
+      setFcStatus('');
       $('fcSub').textContent = t('fcPlanFailed') + ' ' + (e.message || '');
       refreshFcButton();
     }
@@ -4280,7 +4439,7 @@ async function fastCleanRun() {
 
   // Empty Bin FIRST, then trash caches — so freshly-trashed caches aren't purged.
   if (doBin) {
-    setFcStatus('Emptying the Bin…');
+    setFcStatus(t('fcBin'), null);
     try {
       // Two-step confirm: the only irreversible op requires a 30s single-use
       // token (step 1 issues it, step 2 spends it — nothing is emptied before).
@@ -4299,7 +4458,7 @@ async function fastCleanRun() {
   }
 
   if (doCache) {
-    setFcStatus('Clearing application caches…');
+    setFcStatus(t('fcClearing'), 0);
     let deleted = 0, failed = 0;
     for (let i = 0; i < cachePaths.length; i += 400) {
       const chunk = cachePaths.slice(i, i + 400);
@@ -4311,7 +4470,7 @@ async function fastCleanRun() {
         deleted += r.deleted.length; failed += r.failed.length;
         recovered += typeof r.totalFreedBytes === 'number' ? r.totalFreedBytes : 0;
       } catch (e) { failed += chunk.length; }
-      setFcStatus(`Clearing caches — ${Math.min(i + 400, cachePaths.length)}/${cachePaths.length}…`);
+      setFcStatus(t('fcClearing'), (Math.min(i + 400, cachePaths.length) / cachePaths.length) * 100);
     }
     cleanedItems += deleted;
     done.push(`${deleted} cache item${deleted === 1 ? '' : 's'} cleared`);
